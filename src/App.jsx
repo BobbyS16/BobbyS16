@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import TimePicker from "./components/TimePicker";
+import ResultActions from "./components/ResultActions";
 
 
 // ─── DISCIPLINES ──────────────────────────────────────────────────────────────
@@ -126,6 +127,7 @@ function SetupProfile({ user, onComplete }) {
   const [name, setName] = useState(user.user_metadata?.full_name || "");
   const [city, setCity] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editResult, setEditResult] = useState(null);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -165,6 +167,7 @@ function AddResultModal({ onClose, onAdd }) {
   const [year, setYear] = useState(2026);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editResult, setEditResult] = useState(null);
 
   const preview = timeStr ? parseTime(timeStr) : null;
   const previewPts = preview ? calcPoints(discipline, preview) : 0;
@@ -325,6 +328,8 @@ function ProfileTab({ profile }) {
                         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:lv.color}}>{pts} pts</div>
                       </div>
                     </div>
+                    <ResultActions result={r} onDelete={handleDelete} onEdit={handleEdit}/>
+
                   );
                 })}
               </div>
@@ -488,6 +493,15 @@ export default function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+  };
+
+  const handleDelete = async (id) => {
+    const { error } = await supabase.from("results").delete().eq("id", id);
+    if (!error) setProfile(p => ({ ...p, results: p.results.filter(r => r.id !== id) }));
+  };
+
+  const handleEdit = (result) => {
+    setEditResult(result);
   };
 
   const handleAddResult = async (discipline, time, race, year) => {
