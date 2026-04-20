@@ -240,7 +240,8 @@ function AddResultModal({ onClose, onAdd }) {
 }
 
 // ─── PROFILE TAB ──────────────────────────────────────────────────────────────
-function ProfileTab({ profile }) {
+{ profile, onDelete, onEdit }
+
   const [subTab, setSubTab] = useState("bests");
   const badges = computeBadges(profile.results);
   const earnedIds = new Set(badges.map(b => b.id));
@@ -328,7 +329,7 @@ function ProfileTab({ profile }) {
                         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:lv.color}}>{pts} pts</div>
                       </div>
                     </div>
-                    <ResultActions result={r} onDelete={handleDelete} onEdit={handleEdit}/>
+                    <ResultActions result={r} onDelete={onDelete} onEdit={onEdit}/>
 
                   );
                 })}
@@ -578,7 +579,8 @@ export default function App() {
 
         {/* CONTENT */}
         {activeTab==="ranking" && <RankingTab profile={profile}/>}
-        {activeTab==="profile" && <ProfileTab profile={profile}/>}
+        <ProfileTab profile={profile} onDelete={handleDelete} onEdit={handleEdit}/>
+
       </div>
 
       {/* ADD BUTTON */}
