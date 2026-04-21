@@ -87,7 +87,7 @@ function DrumPicker({values,selectedIndex,onChange,width=80}) {
     <div style={{position:"relative",width,height:IH*5,overflow:"hidden",flexShrink:0}}>
       <div style={{position:"absolute",inset:0,zIndex:2,pointerEvents:"none",background:"linear-gradient(to bottom,#161616 0%,transparent 30%,transparent 70%,#161616 100%)"}}/>
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
-      <div ref={ref} onScroll={onScroll} style={{height:"100%",overflowY:"scroll",scrollSnapType:"y mandatory",scrollbarWidth:"none",paddingTop:IH*2,paddingBottom:IH*2,WebkitOverflowScrolling:"touch"}}>
+      <div ref={ref} onScroll={onScroll} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} style={{height:"100%",overflowY:"scroll",scrollSnapType:"y mandatory",scrollbarWidth:"none",paddingTop:IH*2,paddingBottom:IH*3,WebkitOverflowScrolling:"touch",overscrollBehavior:"contain"}}>
         {values.map((v,i)=>(
           <div key={i} onClick={()=>{onChange(i);if(ref.current)ref.current.scrollTop=i*IH;}}
             style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",scrollSnapAlign:"center",fontFamily:"'Bebas Neue',sans-serif",fontSize:24,color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",cursor:"pointer",userSelect:"none"}}>
@@ -306,7 +306,7 @@ function EditProfileModal({profile,onSave,onClose}){
       <label style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,cursor:"pointer"}}>
         <Avatar profile={{...profile,avatar:avFile?URL.createObjectURL(avFile):profile.avatar}} size={56}/>
         <div style={{fontSize:13,color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>Changer la photo →</div>
-        <input type="file" accept="image/*" onChange={e=>setAvFile(e.target.files[0])} style={{display:"none"}}/>
+        <input type="file" accept="image/*" onChange={e=>setAvFile(e.target.files[0])} style={{position:"absolute",opacity:0,width:"1px",height:"1px",pointerEvents:"none"}}/>
       </label>
       <Lbl c="Nom complet"/><Inp value={name} onChange={setName} placeholder="Ton nom"/>
       <Lbl c="Ville"/><Inp value={city} onChange={setCity} placeholder="Ta ville"/>
@@ -789,12 +789,13 @@ function ProfileTab({profile,results,onRefresh}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
   const [editResult,setEditResult]=useState(null);
+  const [confirmDeleteId,setConfirmDeleteId]=useState(null);
   const badges=computeBadges(results);
   const lv=getLevel(results.length?Math.max(...results.map(r=>calcPoints(r.discipline,r.time))):0);
 
   const deleteResult=async id=>{
-    if(!window.confirm("Supprimer ce résultat ?"))return;
     await supabase.from("results").delete().eq("id",id);
+    setConfirmDeleteId(null);
     onRefresh();
   };
 
@@ -836,9 +837,18 @@ function ProfileTab({profile,results,onRefresh}){
               <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:lv.color,letterSpacing:1}}>{fmtTime(r.time)}</div>
               <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{r.race_date||r.year}</div>
             </div>
-            <div style={{display:"flex",gap:6,flexShrink:0}}>
-              <button onClick={()=>setEditResult(r)} style={{padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,0.06)",border:"none",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:13}}>✏️</button>
-              <button onClick={()=>deleteResult(r.id)} style={{padding:"6px 10px",borderRadius:8,background:"rgba(230,57,70,0.1)",border:"none",color:"#E63946",cursor:"pointer",fontSize:13}}>🗑️</button>
+            <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
+              {confirmDeleteId===r.id?(
+                <>
+                  <button onClick={()=>deleteResult(r.id)} style={{padding:"6px 10px",borderRadius:8,background:"#E63946",border:"none",color:"#fff",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>Oui</button>
+                  <button onClick={()=>setConfirmDeleteId(null)} style={{padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif"}}>Non</button>
+                </>
+              ):(
+                <>
+                  <button onClick={()=>setEditResult(r)} style={{padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,0.06)",border:"none",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:13}}>✏️</button>
+                  <button onClick={()=>setConfirmDeleteId(r.id)} style={{padding:"6px 10px",borderRadius:8,background:"rgba(230,57,70,0.1)",border:"none",color:"#E63946",cursor:"pointer",fontSize:13}}>🗑️</button>
+                </>
+              )}
             </div>
           </div>
         </div>
