@@ -799,11 +799,7 @@ function ProfileTab({profile,results,onRefresh}){
     try{
       const{data,error}=await supabase.from("results").delete().eq("id",id).select();
       if(error) throw new Error(error.message);
-      if(!data||data.length===0){
-        setDeleteError(`Debug — id envoyé: "${id}" (type: ${typeof id})`);
-        setConfirmDeleteId(null);
-        return;
-      }
+      if(!data||data.length===0) throw new Error("Suppression échouée");
       setConfirmDeleteId(null);
       onRefresh();
     }catch(e){
