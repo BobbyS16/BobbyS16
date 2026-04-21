@@ -790,11 +790,15 @@ function ProfileTab({profile,results,onRefresh}){
   const [showDelAcc,setDelAcc]=useState(false);
   const [editResult,setEditResult]=useState(null);
   const [confirmDeleteId,setConfirmDeleteId]=useState(null);
+  const [deleteError,setDeleteError]=useState("");
   const badges=computeBadges(results);
   const lv=getLevel(results.length?Math.max(...results.map(r=>calcPoints(r.discipline,r.time))):0);
 
   const deleteResult=async id=>{
-    await supabase.from("results").delete().eq("id",id);
+    setDeleteError("");
+    const{data:{user}}=await supabase.auth.getUser();
+    const{error}=await supabase.from("results").delete().eq("id",id).eq("user_id",user.id);
+    if(error){setDeleteError("Erreur suppression : "+error.message);setConfirmDeleteId(null);return;}
     setConfirmDeleteId(null);
     onRefresh();
   };
@@ -827,6 +831,7 @@ function ProfileTab({profile,results,onRefresh}){
         </div>
       )}
       <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Mes résultats</div>
+      {deleteError&&<div style={{color:"#E63946",fontSize:12,marginBottom:10,fontFamily:"'Barlow',sans-serif"}}>{deleteError}</div>}
       {results.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat !</div>}
       {[...results].sort((a,b)=>(b.race_date||b.year+"").localeCompare(a.race_date||a.year+"")).map((r,i)=>{
         const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
