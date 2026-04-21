@@ -235,7 +235,8 @@ function ResultModal({existing,userId,onSave,onClose}){
   const [discipline,setDisc]=useState(existing?.discipline||"10km");
   const [timeStr,setTime]=useState(existing?fmtTime(existing.time):"00:00:00");
   const [raceName,setRace]=useState(existing?.race||"");
-  const [raceDate,setDate]=useState(existing?.race_date||"");
+  const today=(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;})();
+  const [raceDate,setDate]=useState(existing?.race_date||today);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
   const handleSave=async()=>{
@@ -419,7 +420,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   const DISC_TABS=[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Course"},{k:"trail",l:"⛰️ Trail"},{k:"triathlon",l:"🏊 Tri"}];
 
   return (
-    <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
+    <div style={{padding:"0 16px 100px"}}>
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:20,marginBottom:16}}>
         <div>
