@@ -84,7 +84,8 @@ function DrumPicker({values,selectedIndex,onChange,width=80}) {
   const snapTimer=useRef(null);
 
   useEffect(()=>{
-    const t=setTimeout(()=>{if(ref.current)ref.current.scrollTop=selectedIndex*IH;},50);
+    if(ref.current) ref.current.scrollTop=selectedIndex*IH;
+    const t=setTimeout(()=>{if(ref.current)ref.current.scrollTop=selectedIndex*IH;},100);
     return()=>clearTimeout(t);
   },[]);
 
@@ -96,7 +97,7 @@ function DrumPicker({values,selectedIndex,onChange,width=80}) {
     clearTimeout(snapTimer.current);
     snapTimer.current=setTimeout(()=>{
       if(ref.current)ref.current.scrollTo({top:clamped*IH,behavior:"smooth"});
-    },120);
+    },150);
   },[values.length,onChange]);
 
   return (
@@ -107,7 +108,7 @@ function DrumPicker({values,selectedIndex,onChange,width=80}) {
         onTouchStart={e=>e.stopPropagation()}
         onTouchMove={e=>e.stopPropagation()}
         style={{height:"100%",overflowY:"scroll",scrollbarWidth:"none",msOverflowStyle:"none",
-          paddingTop:IH*2,paddingBottom:IH*3,overscrollBehavior:"contain"}}>
+          paddingTop:IH*2,paddingBottom:IH*6}}>
         {values.map((v,i)=>(
           <div key={i} onClick={()=>{onChange(i);if(ref.current)ref.current.scrollTo({top:i*IH,behavior:"smooth"});}}
             style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",
