@@ -81,16 +81,39 @@ function computeBadges(results) { return BADGES.filter(b=>b.check(results||[]));
 // ── DRUM PICKER ───────────────────────────────────────────────────────────────
 function DrumPicker({values,selectedIndex,onChange,width=80}) {
   const ref=useRef(null), IH=48;
-  useEffect(()=>{if(ref.current)ref.current.scrollTop=selectedIndex*IH;},[]);
-  const onScroll=useCallback(()=>{if(!ref.current)return;const idx=Math.round(ref.current.scrollTop/IH);onChange(Math.max(0,Math.min(values.length-1,idx)));},[values.length,onChange]);
+  const snapTimer=useRef(null);
+
+  useEffect(()=>{
+    const t=setTimeout(()=>{if(ref.current)ref.current.scrollTop=selectedIndex*IH;},50);
+    return()=>clearTimeout(t);
+  },[]);
+
+  const onScroll=useCallback(()=>{
+    if(!ref.current)return;
+    const idx=Math.round(ref.current.scrollTop/IH);
+    const clamped=Math.max(0,Math.min(values.length-1,idx));
+    onChange(clamped);
+    clearTimeout(snapTimer.current);
+    snapTimer.current=setTimeout(()=>{
+      if(ref.current)ref.current.scrollTo({top:clamped*IH,behavior:"smooth"});
+    },120);
+  },[values.length,onChange]);
+
   return (
     <div style={{position:"relative",width,height:IH*5,overflow:"hidden",flexShrink:0}}>
       <div style={{position:"absolute",inset:0,zIndex:2,pointerEvents:"none",background:"linear-gradient(to bottom,#161616 0%,transparent 30%,transparent 70%,#161616 100%)"}}/>
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
-      <div ref={ref} onScroll={onScroll} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} style={{height:"100%",overflowY:"scroll",scrollSnapType:"y mandatory",scrollbarWidth:"none",paddingTop:IH*2,paddingBottom:IH*3,WebkitOverflowScrolling:"touch",overscrollBehavior:"contain"}}>
+      <div ref={ref} onScroll={onScroll}
+        onTouchStart={e=>e.stopPropagation()}
+        onTouchMove={e=>e.stopPropagation()}
+        style={{height:"100%",overflowY:"scroll",scrollbarWidth:"none",msOverflowStyle:"none",
+          paddingTop:IH*2,paddingBottom:IH*3,overscrollBehavior:"contain"}}>
         {values.map((v,i)=>(
-          <div key={i} onClick={()=>{onChange(i);if(ref.current)ref.current.scrollTop=i*IH;}}
-            style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",scrollSnapAlign:"center",fontFamily:"'Bebas Neue',sans-serif",fontSize:24,color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",cursor:"pointer",userSelect:"none"}}>
+          <div key={i} onClick={()=>{onChange(i);if(ref.current)ref.current.scrollTo({top:i*IH,behavior:"smooth"});}}
+            style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",
+              fontFamily:"'Bebas Neue',sans-serif",fontSize:24,
+              color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",
+              cursor:"pointer",userSelect:"none"}}>
             {v}
           </div>
         ))}
