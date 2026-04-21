@@ -367,14 +367,19 @@ function HomeTab({profile,results,onAddResult}){
     const yrs=[...new Set(results.map(r=>r.year))].sort((a,b)=>a-b);
     return yrs.length>0?yrs:[CY];
   },[results]);
-  const [season,setSeason]=useState(()=>seasons[seasons.length-1]);
+  const [season,setSeason]=useState(CY);
   const seasonsRef=useRef(null);
+  useEffect(()=>{
+    if(seasons.length>0){
+      setSeason(seasons[seasons.length-1]);
+      setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);
+    }
+  },[seasons]);
   const [rankFilter,setRankFilter]=useState("amis");
   const [discFilter,setDiscFilter]=useState("Tout");
   const [rankData,setRankData]=useState([]);
 
   useEffect(()=>{loadRanking();},[season,rankFilter,discFilter]);
-  useEffect(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},[seasons]);
 
   const loadRanking=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
