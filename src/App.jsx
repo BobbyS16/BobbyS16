@@ -796,11 +796,16 @@ function ProfileTab({profile,results,onRefresh}){
 
   const deleteResult=async id=>{
     setDeleteError("");
-    const{data:{user}}=await supabase.auth.getUser();
-    const{error}=await supabase.from("results").delete().eq("id",id).eq("user_id",user.id);
-    if(error){setDeleteError("Erreur suppression : "+error.message);setConfirmDeleteId(null);return;}
-    setConfirmDeleteId(null);
-    onRefresh();
+    try{
+      const{data,error}=await supabase.from("results").delete().eq("id",id).select();
+      if(error) throw new Error(error.message);
+      if(!data||data.length===0) throw new Error("Aucune ligne supprimée (RLS policy ?)");
+      setConfirmDeleteId(null);
+      onRefresh();
+    }catch(e){
+      setDeleteError("Erreur : "+(e.message||"inconnue"));
+      setConfirmDeleteId(null);
+    }
   };
 
   return (
