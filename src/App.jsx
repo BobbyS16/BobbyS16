@@ -651,7 +651,6 @@ function PerfTab({userId,refreshKey}){
   const [results,setResults]=useState([]);
   const [subTab,setSubTab]=useState("bests");
   const [selDisc,setSelDisc]=useState("marathon");
-  const [catFilter,setCat]=useState("Tout");
 
   useEffect(()=>{
     if(!userId)return;
@@ -661,9 +660,6 @@ function PerfTab({userId,refreshKey}){
 
   const byDisc={};
   results.forEach(r=>{if(!byDisc[r.discipline]||r.time<byDisc[r.discipline].time)byDisc[r.discipline]=r;});
-  const bests=Object.entries(byDisc)
-    .filter(([d])=>catFilter==="Tout"||DISCIPLINES[d]?.category===catFilter)
-    .sort((a,b)=>{const cats=["running","trail","triathlon"];return cats.indexOf(DISCIPLINES[a[0]]?.category)-cats.indexOf(DISCIPLINES[b[0]]?.category);});
 
   const byYear={};
   [...results].forEach(r=>{const y=rYear(r);if(!byYear[y])byYear[y]=[];byYear[y].push(r);});
@@ -682,25 +678,30 @@ function PerfTab({userId,refreshKey}){
 
       {subTab==="bests"&&(
         <div>
-          <div style={{display:"flex",gap:5,marginBottom:12,overflowX:"auto",scrollbarWidth:"none"}}>
-            {[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Course"},{k:"trail",l:"⛰️ Trail"},{k:"triathlon",l:"🏊 Tri"}].map(({k,l})=>(
-              <button key={k} onClick={()=>setCat(k)} style={{flexShrink:0,padding:"5px 12px",borderRadius:16,border:"none",cursor:"pointer",background:catFilter===k?"#E63946":"rgba(255,255,255,0.06)",color:catFilter===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11}}>{l}</button>
-            ))}
-          </div>
-          {bests.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>}
-          {bests.map(([disc,r])=>{const pts=calcPoints(disc,r.time);const lv=getLevel(pts);return(
-            <div key={disc} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
-              <span style={{fontSize:22,flexShrink:0}}>{DISCIPLINES[disc]?.icon}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,color:"rgba(240,237,232,0.45)"}}>{DISCIPLINES[disc]?.label}</div>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{fmtTime(r.time)}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{r.race||""}{r.year?` · ${r.year}`:""}</div>
+          {[{cat:"running",label:"🏃 Course"},{cat:"trail",label:"⛰️ Trail"},{cat:"triathlon",label:"🏊 Triathlon"}].map(({cat,label})=>{
+            const catDiscs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat);
+            const catBests=catDiscs.map(([disc])=>byDisc[disc]?[disc,byDisc[disc]]:null).filter(Boolean);
+            return(
+              <div key={cat} style={{marginBottom:22}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:2,color:"rgba(240,237,232,0.4)",marginBottom:10}}>{label}</div>
+                {catBests.length===0
+                  ?<div style={{textAlign:"center",color:"#444",fontSize:12,padding:"12px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
+                  :catBests.map(([disc,r])=>{const pts=calcPoints(disc,r.time);const lv=getLevel(pts);return(
+                    <div key={disc} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,color:"rgba(240,237,232,0.45)"}}>{DISCIPLINES[disc]?.label}</div>
+                        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{fmtTime(r.time)}</div>
+                        <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{r.race||""}{r.race_date?` · ${r.race_date.slice(0,4)}`:r.year?` · ${r.year}`:""}</div>
+                      </div>
+                      <div style={{flexShrink:0,textAlign:"right"}}>
+                        <div style={{fontSize:11,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,background:`${lv.color}22`,padding:"3px 8px",borderRadius:8}}>{lv.label}</div>
+                        <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",marginTop:4}}>{pts} pts</div>
+                      </div>
+                    </div>
+                  );})}
               </div>
-              <div style={{flexShrink:0}}>
-                <div style={{fontSize:11,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,background:`${lv.color}22`,padding:"3px 8px",borderRadius:8}}>{lv.label}</div>
-              </div>
-            </div>
-          );})}
+            );
+          })}
         </div>
       )}
 
