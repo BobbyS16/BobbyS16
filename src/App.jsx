@@ -678,7 +678,7 @@ function PerfTab({userId,refreshKey}){
 
       {subTab==="bests"&&(
         <div>
-          {[{cat:"running",label:"🏃 Course"},{cat:"trail",label:"⛰️ Trail"},{cat:"triathlon",label:"🏊 Triathlon"}].map(({cat,label})=>{
+          {[{cat:"running",label:"🏃 Course"},{cat:"triathlon",label:"🏊 Triathlon"},{cat:"trail",label:"⛰️ Trail"}].map(({cat,label})=>{
             const catDiscs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat);
             const catBests=catDiscs.map(([disc])=>byDisc[disc]?[disc,byDisc[disc]]:null).filter(Boolean);
             return(
@@ -695,7 +695,6 @@ function PerfTab({userId,refreshKey}){
                       </div>
                       <div style={{flexShrink:0,textAlign:"right"}}>
                         <div style={{fontSize:11,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,background:`${lv.color}22`,padding:"3px 8px",borderRadius:8}}>{lv.label}</div>
-                        <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",marginTop:4}}>{pts} pts</div>
                       </div>
                     </div>
                   );})}
