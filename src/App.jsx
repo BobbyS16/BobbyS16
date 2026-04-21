@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 import TimePicker from "./components/TimePicker";
+import ResultActions from "./components/ResultActions";
+
 
 // ─── DISCIPLINES ──────────────────────────────────────────────────────────────
 const DISCIPLINES = {
@@ -18,33 +20,28 @@ const DISCIPLINES = {
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:7*3600+35*60, prestige:1.5 },
 };
 
-// ─── TRAINING SPORTS ──────────────────────────────────────────────────────────
-const TRAINING_SPORTS = {
-  running: { label:"Course à pied", icon:"🏃", unit:"km", speedRef:12 },
-  cycling: { label:"Vélo",          icon:"🚴", unit:"km", speedRef:30 },
-  swimming:{ label:"Natation",      icon:"🏊", unit:"km", speedRef:2  },
-};
-
 // ─── BADGES ───────────────────────────────────────────────────────────────────
 const BADGES = [
-  { id:"first_race",   emoji:"🎽", label:"Première foulée",  desc:"Enregistrer sa 1ère course",           color:"#E63946", check:(r)=>r.length>=1 },
-  { id:"five_races",   emoji:"🔥", label:"Série de 5",       desc:"Compléter 5 épreuves au total",        color:"#FF8C00", check:(r)=>r.length>=5 },
-  { id:"ten_races",    emoji:"💯", label:"Centurion",        desc:"Compléter 10 épreuves au total",       color:"#FFD700", check:(r)=>r.length>=10 },
-  { id:"sub60_10k",    emoji:"⚡", label:"Sub-60 au 10km",   desc:"Finir un 10km en moins d'1h",          color:"#3B82F6", check:(r)=>r.some(x=>x.discipline==="10km"&&x.time<60*60) },
-  { id:"sub45_10k",    emoji:"🚀", label:"Sub-45 au 10km",   desc:"Finir un 10km en moins de 45min",     color:"#6366F1", check:(r)=>r.some(x=>x.discipline==="10km"&&x.time<45*60) },
-  { id:"sub2h_semi",   emoji:"🏅", label:"Sub-2h semi",      desc:"Finir un semi en moins de 2h",         color:"#22C55E", check:(r)=>r.some(x=>x.discipline==="semi"&&x.time<2*3600) },
-  { id:"sub130_semi",  emoji:"🌟", label:"Sub-1h30 semi",    desc:"Finir un semi en moins de 1h30",       color:"#10B981", check:(r)=>r.some(x=>x.discipline==="semi"&&x.time<90*60) },
-  { id:"sub4h_mara",   emoji:"🎯", label:"Sub-4h marathon",  desc:"Finir un marathon en moins de 4h",     color:"#F59E0B", check:(r)=>r.some(x=>x.discipline==="marathon"&&x.time<4*3600) },
-  { id:"sub3h_mara",   emoji:"👑", label:"Sub-3h marathon",  desc:"Finir un marathon en moins de 3h",     color:"#FFD700", check:(r)=>r.some(x=>x.discipline==="marathon"&&x.time<3*3600) },
-  { id:"finisher_im",  emoji:"🦾", label:"Ironman Finisher", desc:"Terminer un Ironman",                   color:"#E63946", check:(r)=>r.some(x=>x.discipline==="tri-xl") },
-  { id:"sub10h_im",    emoji:"💎", label:"Sub-10h Ironman",  desc:"Finir un Ironman en moins de 10h",     color:"#A78BFA", check:(r)=>r.some(x=>x.discipline==="tri-xl"&&x.time<10*3600) },
-  { id:"finisher_ut",  emoji:"🏔️", label:"Ultra Finisher",   desc:"Terminer un Ultra Trail",               color:"#78716C", check:(r)=>r.some(x=>x.discipline==="trail-xl") },
-  { id:"multi_cat",    emoji:"🎪", label:"Touche-à-tout",    desc:"Courir dans 2 catégories différentes",  color:"#EC4899", check:(r)=>new Set(r.map(x=>DISCIPLINES[x.discipline]?.category)).size>=2 },
-  { id:"triathlete",   emoji:"🏊", label:"Vrai triathlète",  desc:"Compléter un tri ET une course",        color:"#06B6D4", check:(r)=>r.some(x=>DISCIPLINES[x.discipline]?.category==="triathlon")&&r.some(x=>DISCIPLINES[x.discipline]?.category==="running") },
-  { id:"triple_crown", emoji:"🌈", label:"Triple Couronne",  desc:"Course, Trail ET Triathlon",            color:"#F43F5E", check:(r)=>{const c=new Set(r.map(x=>DISCIPLINES[x.discipline]?.category));return c.has("running")&&c.has("trail")&&c.has("triathlon");} },
+  { id:"first_race",  emoji:"🎽", label:"Première foulée",  desc:"Enregistrer sa 1ère course",          color:"#E63946", check:(r)=>r.length>=1 },
+  { id:"five_races",  emoji:"🔥", label:"Série de 5",       desc:"Compléter 5 épreuves au total",       color:"#FF8C00", check:(r)=>r.length>=5 },
+  { id:"ten_races",   emoji:"💯", label:"Centurion",        desc:"Compléter 10 épreuves au total",      color:"#FFD700", check:(r)=>r.length>=10 },
+  { id:"sub60_10k",   emoji:"⚡", label:"Sub-60 au 10km",   desc:"Finir un 10km en moins d'1h",         color:"#3B82F6", check:(r)=>r.some(x=>x.discipline==="10km"&&x.time<60*60) },
+  { id:"sub45_10k",   emoji:"🚀", label:"Sub-45 au 10km",   desc:"Finir un 10km en moins de 45min",    color:"#6366F1", check:(r)=>r.some(x=>x.discipline==="10km"&&x.time<45*60) },
+  { id:"sub2h_semi",  emoji:"🏅", label:"Sub-2h semi",      desc:"Finir un semi en moins de 2h",        color:"#22C55E", check:(r)=>r.some(x=>x.discipline==="semi"&&x.time<2*3600) },
+  { id:"sub130_semi", emoji:"🌟", label:"Sub-1h30 semi",    desc:"Finir un semi en moins de 1h30",      color:"#10B981", check:(r)=>r.some(x=>x.discipline==="semi"&&x.time<90*60) },
+  { id:"sub4h_mara",  emoji:"🎯", label:"Sub-4h marathon",  desc:"Finir un marathon en moins de 4h",    color:"#F59E0B", check:(r)=>r.some(x=>x.discipline==="marathon"&&x.time<4*3600) },
+  { id:"sub3h_mara",  emoji:"👑", label:"Sub-3h marathon",  desc:"Finir un marathon en moins de 3h",    color:"#FFD700", check:(r)=>r.some(x=>x.discipline==="marathon"&&x.time<3*3600) },
+  { id:"finisher_im", emoji:"🦾", label:"Ironman Finisher", desc:"Terminer un Ironman",                  color:"#E63946", check:(r)=>r.some(x=>x.discipline==="tri-xl") },
+  { id:"sub10h_im",   emoji:"💎", label:"Sub-10h Ironman",  desc:"Finir un Ironman en moins de 10h",    color:"#A78BFA", check:(r)=>r.some(x=>x.discipline==="tri-xl"&&x.time<10*3600) },
+  { id:"finisher_ut", emoji:"🏔️", label:"Ultra Finisher",   desc:"Terminer un Ultra Trail",              color:"#78716C", check:(r)=>r.some(x=>x.discipline==="trail-xl") },
+  { id:"multi_cat",   emoji:"🎪", label:"Touche-à-tout",    desc:"Courir dans 2 catégories différentes", color:"#EC4899", check:(r)=>new Set(r.map(x=>DISCIPLINES[x.discipline]?.category)).size>=2 },
+  { id:"triathlete",  emoji:"🏊", label:"Vrai triathlète",  desc:"Compléter un tri ET une course",       color:"#06B6D4", check:(r)=>r.some(x=>DISCIPLINES[x.discipline]?.category==="triathlon")&&r.some(x=>DISCIPLINES[x.discipline]?.category==="running") },
+  { id:"triple_crown",emoji:"🌈", label:"Triple Couronne",  desc:"Course, Trail ET Triathlon",           color:"#F43F5E", check:(r)=>{const c=new Set(r.map(x=>DISCIPLINES[x.discipline]?.category));return c.has("running")&&c.has("trail")&&c.has("triathlon");} },
 ];
 
-function computeBadges(results) { return BADGES.filter(b => b.check(results)); }
+function computeBadges(results) {
+  return BADGES.filter(b => b.check(results));
+}
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 function calcPoints(discipline, t) {
@@ -53,22 +50,12 @@ function calcPoints(discipline, t) {
   return Math.round(Math.max(1, Math.min(Math.round(1000 * Math.pow(d.refTime / t, 1.06)), 1200)) * d.prestige);
 }
 
-function calcTrainingPoints(sport, distanceKm, durationSecs) {
-  const s = TRAINING_SPORTS[sport];
-  if (!s || !distanceKm || !durationSecs) return 0;
-  const speedKmh = distanceKm / (durationSecs / 3600);
-  const speedRatio = speedKmh / s.speedRef;
-  const load = distanceKm * Math.pow(speedRatio, 0.8);
-  return Math.round(Math.min(load * 8, 300));
-}
-
 function formatTime(s) {
   const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
   return h > 0 ? `${h}h${String(m).padStart(2,"0")}m${String(ss).padStart(2,"0")}s` : `${m}m${String(ss).padStart(2,"0")}s`;
 }
 
 function parseTime(str) {
-  if (!str) return null;
   const p = str.split(":").map(Number);
   if (p.some(isNaN) || !p.length) return null;
   if (p.length === 3) return p[0]*3600 + p[1]*60 + p[2];
@@ -93,12 +80,15 @@ function prestigeLabel(p) {
   return                 { text:"×1.0", color:"#666" };
 }
 
+function getMedal(rank) {
+  if (rank === 1) return { emoji:"🥇", color:"#FFD700" };
+  if (rank === 2) return { emoji:"🥈", color:"#C0C0C0" };
+  if (rank === 3) return { emoji:"🥉", color:"#CD7F32" };
+  return null;
+}
+
 const AVATAR_COLORS = ["#E63946","#457B9D","#2A9D8F","#D4A017","#F4A261","#6D6875","#3D405B","#81B29A"];
 function avatarColor(s) { return AVATAR_COLORS[((s?.charCodeAt(0)||0)+(s?.charCodeAt(1)||0)) % AVATAR_COLORS.length]; }
-
-function generateGroupCode() {
-  return Math.random().toString(36).substring(2,8).toUpperCase();
-}
 
 // ─── AVATAR ───────────────────────────────────────────────────────────────────
 function Avatar({ initials, size=44, highlight }) {
@@ -112,8 +102,6 @@ function Avatar({ initials, size=44, highlight }) {
     }}>{initials}</div>
   );
 }
-
-const Lbl = ({ c }) => <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#555",marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{c}</div>;
 
 // ─── LOGIN PAGE ───────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
@@ -139,6 +127,7 @@ function SetupProfile({ user, onComplete }) {
   const [name, setName] = useState(user.user_metadata?.full_name || "");
   const [city, setCity] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editResult, setEditResult] = useState(null);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -158,80 +147,13 @@ function SetupProfile({ user, onComplete }) {
       <div style={{width:"100%",maxWidth:400}}>
         <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:32,letterSpacing:1,color:"#F0EDE8",marginBottom:8}}>Crée ton profil</div>
         <div style={{color:"#555",fontSize:13,fontFamily:"'Barlow',sans-serif",marginBottom:32}}>Bienvenue sur PaceRank 🎉</div>
-        <Lbl c="Ton prénom et nom"/>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#555",marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>Ton prénom et nom</div>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="ex: Philippe Sallenave" style={inp}/>
-        <Lbl c="Ta ville (optionnel)"/>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#555",marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>Ta ville (optionnel)</div>
         <input value={city} onChange={e=>setCity(e.target.value)} placeholder="ex: Paris" style={inp}/>
         <button onClick={handleSubmit} disabled={loading||!name.trim()} style={{width:"100%",padding:"14px 0",borderRadius:12,background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:1,opacity:loading||!name.trim()?0.5:1}}>
           {loading?"Création...":"C'est parti !"}
         </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── EDIT RESULT MODAL ────────────────────────────────────────────────────────
-function EditResultModal({ result, onClose, onSave }) {
-  const [discipline, setDiscipline] = useState(result.discipline);
-  const [timeStr, setTimeStr] = useState(formatTime(result.time).replace(/h/g,":").replace(/m/g,":").replace(/s/g,""));
-  const [raceName, setRaceName] = useState(result.race || "");
-  const [year, setYear] = useState(result.year);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const inp = { width:"100%", padding:"12px 14px", background:"rgba(255,255,255,0.06)", border:"1.5px solid rgba(255,255,255,0.1)", borderRadius:12, color:"#F0EDE8", fontSize:16, fontFamily:"'Barlow',sans-serif", outline:"none", marginBottom:14 };
-
-  const handleSave = async () => {
-    const t = parseTime(timeStr);
-    if (!t || t <= 0) { setError("Format invalide. Ex: 42:51 ou 3:10:49"); return; }
-    setLoading(true);
-    const { error: err } = await supabase.from("results").update({
-      discipline, time: t, race: raceName || DISCIPLINES[discipline].label, year
-    }).eq("id", result.id);
-    if (!err) onSave({ ...result, discipline, time: t, race: raceName || DISCIPLINES[discipline].label, year });
-    else setError("Erreur lors de la modification");
-    setLoading(false);
-  };
-
-  return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}} onClick={onClose}>
-      <div style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:580,padding:"24px 20px 40px",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-        <div style={{width:40,height:4,background:"rgba(255,255,255,0.15)",borderRadius:2,margin:"0 auto 20px"}}/>
-        <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:"#F0EDE8",letterSpacing:1,margin:"0 0 20px"}}>Modifier le résultat</h2>
-
-        <Lbl c="Saison"/>
-        <div style={{display:"flex",gap:8,marginBottom:18}}>
-          {[2024,2025,2026].map(y=>(
-            <button key={y} onClick={()=>setYear(y)} style={{flex:1,padding:"10px 0",borderRadius:10,background:year===y?"#E63946":"rgba(255,255,255,0.05)",color:year===y?"#fff":"#555",border:"none",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:18}}>{y}</button>
-          ))}
-        </div>
-
-        <Lbl c="Discipline"/>
-        <select value={discipline} onChange={e=>setDiscipline(e.target.value)} style={{...inp,cursor:"pointer"}}>
-          <optgroup label="🏃 Course à pied">
-            {Object.entries(DISCIPLINES).filter(([,v])=>v.category==="running").map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-          </optgroup>
-          <optgroup label="⛰️ Trail">
-            {Object.entries(DISCIPLINES).filter(([,v])=>v.category==="trail").map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-          </optgroup>
-          <optgroup label="🏊 Triathlon">
-            {Object.entries(DISCIPLINES).filter(([,v])=>v.category==="triathlon").map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-          </optgroup>
-        </select>
-
-        <Lbl c="Nom de la course"/>
-        <input value={raceName} onChange={e=>setRaceName(e.target.value)} placeholder="ex: Marathon de Paris" style={inp}/>
-
-        <Lbl c="Temps (hh:mm:ss)"/>
-        <input value={timeStr} onChange={e=>{setTimeStr(e.target.value);setError("");}} placeholder="ex: 3:10:49" style={inp}/>
-        {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8}}>{error}</div>}
-
-        <div style={{display:"flex",gap:10,marginTop:8}}>
-          <button onClick={onClose} style={{flex:1,padding:"14px 0",borderRadius:12,background:"rgba(255,255,255,0.05)",color:"#555",border:"none",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:16}}>Annuler</button>
-          <button onClick={handleSave} disabled={loading} style={{flex:2,padding:"14px 0",borderRadius:12,background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:16,opacity:loading?0.7:1}}>
-            {loading?"Sauvegarde...":"Sauvegarder"}
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -245,6 +167,7 @@ function AddResultModal({ onClose, onAdd }) {
   const [year, setYear] = useState(2026);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editResult, setEditResult] = useState(null);
 
   const preview = timeStr ? parseTime(timeStr) : null;
   const previewPts = preview ? calcPoints(discipline, preview) : 0;
@@ -252,7 +175,7 @@ function AddResultModal({ onClose, onAdd }) {
 
   const handleSubmit = async () => {
     const t = parseTime(timeStr);
-    if (!t || t <= 0) { setError("Sélectionne un temps valide"); return; }
+    if (!t || t <= 0) { setError("Format invalide. Ex: 42:51 ou 3:10:49"); return; }
     setLoading(true);
     await onAdd(discipline, t, raceName || DISCIPLINES[discipline].label, year);
     setLoading(false);
@@ -260,6 +183,7 @@ function AddResultModal({ onClose, onAdd }) {
   };
 
   const inp = { width:"100%", padding:"12px 14px", background:"rgba(255,255,255,0.06)", border:"1.5px solid rgba(255,255,255,0.1)", borderRadius:12, color:"#F0EDE8", fontSize:16, fontFamily:"'Barlow',sans-serif", outline:"none" };
+  const Lbl = ({ c }) => <div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:"#555",marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{c}</div>;
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}} onClick={onClose}>
@@ -290,7 +214,7 @@ function AddResultModal({ onClose, onAdd }) {
         <Lbl c="Nom de la course (optionnel)"/>
         <input value={raceName} onChange={e=>setRaceName(e.target.value)} placeholder="ex: Marathon de Paris" style={{...inp,marginBottom:18}}/>
 
-        <Lbl c="Temps"/>
+        <Lbl c="Temps (h:mm:ss ou mm:ss)"/>
         <TimePicker onChange={(h,m,s)=>{setTimeStr(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`);setError("");}}/>
         {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
 
@@ -315,166 +239,13 @@ function AddResultModal({ onClose, onAdd }) {
   );
 }
 
-// ─── ADD TRAINING MODAL ───────────────────────────────────────────────────────
-function AddTrainingModal({ onClose, onAdd }) {
-  const [sport, setSport] = useState("running");
-  const [distance, setDistance] = useState("");
-  const [timeStr, setTimeStr] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const duration = timeStr ? parseTime(timeStr) : null;
-  const dist = parseFloat(distance);
-  const preview = duration && dist > 0 ? calcTrainingPoints(sport, dist, duration) : 0;
-
-  const handleSubmit = async () => {
-    const t = parseTime(timeStr);
-    const d = parseFloat(distance);
-    if (!t || t <= 0 || !d || d <= 0) { setError("Remplis tous les champs"); return; }
-    setLoading(true);
-    await onAdd(sport, d, t, preview);
-    setLoading(false);
-    onClose();
-  };
-
-  const inp = { width:"100%", padding:"12px 14px", background:"rgba(255,255,255,0.06)", border:"1.5px solid rgba(255,255,255,0.1)", borderRadius:12, color:"#F0EDE8", fontSize:16, fontFamily:"'Barlow',sans-serif", outline:"none", marginBottom:14 };
-
-  return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}} onClick={onClose}>
-      <div style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:580,padding:"24px 20px 40px",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-        <div style={{width:40,height:4,background:"rgba(255,255,255,0.15)",borderRadius:2,margin:"0 auto 20px"}}/>
-        <h2 style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:"#F0EDE8",letterSpacing:1,margin:"0 0 20px"}}>Ajouter un entraînement</h2>
-
-        <Lbl c="Sport"/>
-        <div style={{display:"flex",gap:8,marginBottom:18}}>
-          {Object.entries(TRAINING_SPORTS).map(([k,v])=>(
-            <button key={k} onClick={()=>setSport(k)} style={{flex:1,padding:"10px 0",borderRadius:10,background:sport===k?"rgba(230,57,70,0.2)":"rgba(255,255,255,0.05)",color:sport===k?"#E63946":"#555",border:sport===k?"1px solid rgba(230,57,70,0.4)":"1px solid transparent",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700}}>
-              {v.icon} {v.label}
-            </button>
-          ))}
-        </div>
-
-        <Lbl c={`Distance (${TRAINING_SPORTS[sport].unit})`}/>
-        <input value={distance} onChange={e=>setDistance(e.target.value)} placeholder="ex: 10" type="number" style={inp}/>
-
-        <Lbl c="Durée"/>
-        <TimePicker onChange={(h,m,s)=>{setTimeStr(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`);setError("");}}/>
-
-        {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8}}>{error}</div>}
-
-        {preview > 0 && (
-          <div style={{marginTop:12,padding:"14px 16px",background:"rgba(34,197,94,0.08)",borderRadius:12,border:"1px solid rgba(34,197,94,0.2)",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{color:"#777",fontSize:12,fontFamily:"'Barlow',sans-serif"}}>Points entraînement (×0.2 vs course)</div>
-            <div style={{color:"#22C55E",fontFamily:"'Bebas Neue',sans-serif",fontSize:28}}>{preview} pts</div>
-          </div>
-        )}
-
-        <div style={{display:"flex",gap:10,marginTop:16}}>
-          <button onClick={onClose} style={{flex:1,padding:"14px 0",borderRadius:12,background:"rgba(255,255,255,0.05)",color:"#555",border:"none",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:16}}>Annuler</button>
-          <button onClick={handleSubmit} disabled={loading} style={{flex:2,padding:"14px 0",borderRadius:12,background:"#22C55E",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:16,opacity:loading?0.7:1}}>
-            {loading?"Ajout...":"Ajouter"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── PROFILE TAB ──────────────────────────────────────────────────────────────
-function ProfileTab({ profile, onDelete, onEdit, onFriendAction }) {
-  const [subTab, setSubTab] = useState("perf");
-  const [perfTab, setPerfTab] = useState("history");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [friends, setFriends] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [showJoinGroup, setShowJoinGroup] = useState(false);
-  const [groupName, setGroupName] = useState("");
-  const [groupCode, setGroupCode] = useState("");
-  const [loadingAction, setLoadingAction] = useState(false);
+{ profile, onDelete, onEdit }
 
+  const [subTab, setSubTab] = useState("bests");
   const badges = computeBadges(profile.results);
   const earnedIds = new Set(badges.map(b => b.id));
 
-  useEffect(() => {
-    loadFriends();
-    loadGroups();
-  }, []);
-
-  const loadFriends = async () => {
-    const { data } = await supabase
-      .from("friendships")
-      .select("*, friend:profiles!friendships_friend_id_fkey(id,name,avatar,city)")
-      .eq("user_id", profile.id)
-      .eq("status", "accepted");
-    setFriends(data || []);
-  };
-
-  const loadGroups = async () => {
-    const { data } = await supabase
-      .from("group_members")
-      .select("*, group:groups(*)")
-      .eq("user_id", profile.id);
-    setGroups(data?.map(d => d.group) || []);
-  };
-
-  const handleSearch = async (q) => {
-    setSearchQuery(q);
-    if (q.length < 2) { setSearchResults([]); return; }
-    const { data } = await supabase
-      .from("profiles")
-      .select("id,name,avatar,city")
-      .ilike("name", `%${q}%`)
-      .neq("id", profile.id)
-      .limit(5);
-    setSearchResults(data || []);
-  };
-
-  const handleAddFriend = async (friendId) => {
-    setLoadingAction(true);
-    await supabase.from("friendships").insert({ user_id: profile.id, friend_id: friendId, status: "accepted" });
-    await loadFriends();
-    setSearchResults([]);
-    setSearchQuery("");
-    setLoadingAction(false);
-  };
-
-  const handleCreateGroup = async () => {
-    if (!groupName.trim()) return;
-    setLoadingAction(true);
-    const code = generateGroupCode();
-    const { data } = await supabase.from("groups").insert({ name: groupName.trim(), code, created_by: profile.id }).select().single();
-    if (data) {
-      await supabase.from("group_members").insert({ group_id: data.id, user_id: profile.id });
-      await loadGroups();
-    }
-    setGroupName("");
-    setShowCreateGroup(false);
-    setLoadingAction(false);
-  };
-
-  const handleJoinGroup = async () => {
-    if (!groupCode.trim()) return;
-    setLoadingAction(true);
-    const { data: group } = await supabase.from("groups").select("*").eq("code", groupCode.toUpperCase()).single();
-    if (group) {
-      await supabase.from("group_members").insert({ group_id: group.id, user_id: profile.id });
-      await loadGroups();
-    }
-    setGroupCode("");
-    setShowJoinGroup(false);
-    setLoadingAction(false);
-  };
-
-  // Build byYear for history
-  const byYear = {};
-  [...profile.results].sort((a,b) => b.year - a.year).forEach(r => {
-    if (!byYear[r.year]) byYear[r.year] = [];
-    byYear[r.year].push(r);
-  });
-
-  // Build byDisc for PR
   const byDisc = {};
   profile.results.forEach(r => {
     if (!byDisc[r.discipline] || r.time < byDisc[r.discipline].time) byDisc[r.discipline] = r;
@@ -484,232 +255,91 @@ function ProfileTab({ profile, onDelete, onEdit, onFriendAction }) {
     return cats.indexOf(DISCIPLINES[a[0]]?.category) - cats.indexOf(DISCIPLINES[b[0]]?.category);
   });
 
-  // Progression data: points by year
-  const ptsByYear = {};
-  profile.results.forEach(r => {
-    if (!ptsByYear[r.year]) ptsByYear[r.year] = 0;
-    ptsByYear[r.year] += calcPoints(r.discipline, r.time);
+  const byYear = {};
+  [...profile.results].sort((a,b) => b.year - a.year).forEach(r => {
+    if (!byYear[r.year]) byYear[r.year] = [];
+    byYear[r.year].push(r);
   });
-
-  const inp = { width:"100%", padding:"10px 14px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:10, color:"#F0EDE8", fontSize:14, fontFamily:"'Barlow',sans-serif", outline:"none" };
 
   return (
     <div style={{padding:"16px"}}>
-      {/* Main sub tabs */}
+      {/* Sub tabs */}
       <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
-        {[["perf","⚡ Perf"],["friends",`👥 Amis (${friends.length})`],["badges",`🏅 Badges (${badges.length})`]].map(([v,l])=>(
+        {[["bests","🏆 Meilleurs temps"],["history","📅 Historique"],["badges",`🏅 Badges (${badges.length})`]].map(([v,l])=>(
           <button key={v} onClick={()=>setSubTab(v)} style={{padding:"7px 14px",borderRadius:14,background:subTab===v?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",color:subTab===v?"#E63946":"#555",border:subTab===v?"1px solid rgba(230,57,70,0.3)":"1px solid rgba(255,255,255,0.07)",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"'Barlow',sans-serif"}}>{l}</button>
         ))}
       </div>
 
-      {/* ── PERF TAB ── */}
-      {subTab==="perf"&&(
-        <div>
-          <div style={{display:"flex",gap:6,marginBottom:14}}>
-            {[["history","📅 Historique"],["pr","🏆 PR"],["progression","📈 Progression"]].map(([v,l])=>(
-              <button key={v} onClick={()=>setPerfTab(v)} style={{padding:"5px 12px",borderRadius:10,background:perfTab===v?"rgba(230,57,70,0.1)":"transparent",color:perfTab===v?"#E63946":"#444",border:perfTab===v?"1px solid rgba(230,57,70,0.25)":"1px solid rgba(255,255,255,0.06)",cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"'Barlow',sans-serif"}}>{l}</button>
-            ))}
-          </div>
-
-          {/* History */}
-          {perfTab==="history"&&(
-            <div style={{display:"flex",flexDirection:"column",gap:16}}>
-              {Object.keys(byYear).length===0&&<div style={{textAlign:"center",color:"#333",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun résultat — ajoute ta première course !</div>}
-              {Object.entries(byYear).sort((a,b)=>b[0]-a[0]).map(([year,races])=>(
-                <div key={year}>
-                  <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:"#E63946",marginBottom:8}}>— {year} —</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {races.map((r,i)=>{
-                      const pts = calcPoints(r.discipline, r.time);
-                      const lv = getLevelLabel(pts);
-                      const allForDisc = profile.results.filter(x=>x.discipline===r.discipline).sort((a,b)=>a.time-b.time);
-                      const isPR = allForDisc[0]?.time===r.time;
-                      return(
-                        <div key={r.id||i}>
-                          <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:"rgba(255,255,255,0.025)",borderRadius:12,border:isPR?"1px solid rgba(255,215,0,0.2)":"1px solid rgba(255,255,255,0.04)"}}>
-                            <span style={{fontSize:16}}>{DISCIPLINES[r.discipline]?.icon}</span>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                                <span style={{color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",fontWeight:600}}>{r.race}</span>
-                                {isPR&&<span style={{fontSize:9,color:"#FFD700",fontWeight:700,letterSpacing:1,fontFamily:"'Barlow',sans-serif"}}>PR</span>}
-                              </div>
-                              <div style={{color:"#555",fontSize:11,marginTop:1}}>{DISCIPLINES[r.discipline]?.label} · {formatTime(r.time)}</div>
-                            </div>
-                            <div style={{textAlign:"right",flexShrink:0}}>
-                              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:lv.color}}>{pts} pts</div>
-                            </div>
-                          </div>
-                          {/* Action buttons */}
-                          <div style={{display:"flex",gap:6,marginTop:4,marginBottom:4}}>
-                            <button onClick={()=>onEdit(r)} style={{flex:1,padding:"6px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#888",fontSize:11,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>✏️ Modifier</button>
-                            <button onClick={()=>{ if(window.confirm("Supprimer cette course ?")) onDelete(r.id); }} style={{flex:1,padding:"6px",borderRadius:8,background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.2)",color:"#E63946",fontSize:11,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>🗑️ Supprimer</button>
-                          </div>
-                        </div>
-                      );
-                    })}
+      {/* BESTS */}
+      {subTab==="bests"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {bests.length===0&&<div style={{textAlign:"center",color:"#333",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun résultat — ajoute ta première course !</div>}
+          {bests.map(([disc,r])=>{
+            const pts = calcPoints(disc, r.time);
+            const lv = getLevelLabel(pts);
+            const pl = prestigeLabel(DISCIPLINES[disc]?.prestige || 1);
+            return(
+              <div key={disc} style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"14px 16px",border:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontSize:18}}>{DISCIPLINES[disc]?.icon}</span>
+                      <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,letterSpacing:0.8,color:"#F0EDE8"}}>{DISCIPLINES[disc]?.label}</span>
+                      <span style={{fontSize:9,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:lv.color,background:lv.bg,borderRadius:10,padding:"2px 8px",fontFamily:"'Barlow',sans-serif"}}>{lv.label}</span>
+                      <span style={{fontSize:9,color:pl.color,fontWeight:700,fontFamily:"'Barlow',sans-serif"}}>{pl.text}</span>
+                    </div>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginTop:4}}>{formatTime(r.time)}</div>
+                    <div style={{fontSize:11,color:"#444",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{r.race} · {r.year}</div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                    <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,letterSpacing:1,color:lv.color}}>{pts}</div>
+                    <div style={{fontSize:9,color:"#444",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* PR */}
-          {perfTab==="pr"&&(
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {bests.length===0&&<div style={{textAlign:"center",color:"#333",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun résultat</div>}
-              {bests.map(([disc,r])=>{
-                const pts = calcPoints(disc, r.time);
-                const lv = getLevelLabel(pts);
-                const pl = prestigeLabel(DISCIPLINES[disc]?.prestige || 1);
-                return(
-                  <div key={disc} style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"14px 16px",border:"1px solid rgba(255,215,0,0.15)"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div style={{flex:1}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                          <span style={{fontSize:18}}>{DISCIPLINES[disc]?.icon}</span>
-                          <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:17,color:"#F0EDE8"}}>{DISCIPLINES[disc]?.label}</span>
-                          <span style={{fontSize:9,fontWeight:700,color:lv.color,background:lv.bg,borderRadius:10,padding:"2px 8px",fontFamily:"'Barlow',sans-serif"}}>{lv.label}</span>
-                          <span style={{fontSize:9,color:pl.color,fontWeight:700,fontFamily:"'Barlow',sans-serif"}}>{pl.text}</span>
-                        </div>
-                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,color:"#FFD700",marginTop:4}}>{formatTime(r.time)}</div>
-                        <div style={{fontSize:11,color:"#444",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{r.race} · {r.year}</div>
-                      </div>
-                      <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:28,color:lv.color}}>{pts}</div>
-                        <div style={{fontSize:9,color:"#444",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Progression */}
-          {perfTab==="progression"&&(
-            <div>
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:"#555",marginBottom:12}}>Points par saison</div>
-              {Object.entries(ptsByYear).sort((a,b)=>a[0]-b[0]).map(([year,pts])=>{
-                const max = Math.max(...Object.values(ptsByYear));
-                const pct = max > 0 ? (pts/max)*100 : 0;
-                return(
-                  <div key={year} style={{marginBottom:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                      <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:"#F0EDE8"}}>{year}</span>
-                      <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,color:"#E63946"}}>{pts} pts</span>
-                    </div>
-                    <div style={{height:8,background:"rgba(255,255,255,0.06)",borderRadius:4,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${pct}%`,background:"#E63946",borderRadius:4,transition:"width 0.5s ease"}}/>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:"#555",marginBottom:12,marginTop:24}}>Évolution des temps</div>
-              {Object.keys(byDisc).map(disc=>{
-                const timesByYear = {};
-                profile.results.filter(r=>r.discipline===disc).forEach(r=>{
-                  if(!timesByYear[r.year]||r.time<timesByYear[r.year]) timesByYear[r.year]=r.time;
-                });
-                if(Object.keys(timesByYear).length<1) return null;
-                return(
-                  <div key={disc} style={{marginBottom:16,padding:"12px 14px",background:"rgba(255,255,255,0.02)",borderRadius:12,border:"1px solid rgba(255,255,255,0.04)"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
-                      <span>{DISCIPLINES[disc]?.icon}</span>
-                      <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,color:"#F0EDE8"}}>{DISCIPLINES[disc]?.label}</span>
-                    </div>
-                    {Object.entries(timesByYear).sort((a,b)=>a[0]-b[0]).map(([year,time])=>(
-                      <div key={year} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid rgba(255,255,255,0.03)"}}>
-                        <span style={{color:"#555",fontSize:12,fontFamily:"'Barlow',sans-serif"}}>{year}</span>
-                        <span style={{color:"#F0EDE8",fontSize:12,fontFamily:"'Bebas Neue',sans-serif"}}>{formatTime(time)}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* ── FRIENDS TAB ── */}
-      {subTab==="friends"&&(
-        <div>
-          {/* Search */}
-          <div style={{marginBottom:16}}>
-            <input
-              value={searchQuery}
-              onChange={e=>handleSearch(e.target.value)}
-              placeholder="🔍 Rechercher un ami par nom..."
-              style={{...inp,marginBottom:searchResults.length>0?8:0}}
-            />
-            {searchResults.map(u=>(
-              <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:10,marginBottom:4}}>
-                <Avatar initials={u.avatar} size={36}/>
-                <div style={{flex:1}}>
-                  <div style={{color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",fontWeight:600}}>{u.name}</div>
-                  {u.city&&<div style={{color:"#555",fontSize:11}}>{u.city}</div>}
-                </div>
-                <button onClick={()=>handleAddFriend(u.id)} disabled={loadingAction} style={{padding:"6px 12px",borderRadius:8,background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontSize:12,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>
-                  + Ajouter
-                </button>
+      {/* HISTORY */}
+      {subTab==="history"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          {Object.keys(byYear).length===0&&<div style={{textAlign:"center",color:"#333",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>}
+          {Object.entries(byYear).sort((a,b)=>b[0]-a[0]).map(([year,races])=>(
+            <div key={year}>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:"#E63946",marginBottom:8}}>— {year} —</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {races.map((r,i)=>{
+                  const pts = calcPoints(r.discipline, r.time);
+                  const lv = getLevelLabel(pts);
+                  const allForDisc = profile.results.filter(x=>x.discipline===r.discipline).sort((a,b)=>a.time-b.time);
+                  const isPR = allForDisc[0]?.time===r.time;
+                  return(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:"rgba(255,255,255,0.025)",borderRadius:12,border:isPR?"1px solid rgba(255,215,0,0.2)":"1px solid rgba(255,255,255,0.04)"}}>
+                      <span style={{fontSize:16}}>{DISCIPLINES[r.discipline]?.icon}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",fontWeight:600}}>{r.race}</span>
+                          {isPR&&<span style={{fontSize:9,color:"#FFD700",fontWeight:700,letterSpacing:1,fontFamily:"'Barlow',sans-serif"}}>PR</span>}
+                        </div>
+                        <div style={{color:"#555",fontSize:11,marginTop:1}}>{DISCIPLINES[r.discipline]?.label} · {formatTime(r.time)}</div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,color:lv.color}}>{pts} pts</div>
+                      </div>
+                    </div>
+                    <ResultActions result={r} onDelete={onDelete} onEdit={onEdit}/>
+
+                  );
+                })}
               </div>
-            ))}
-          </div>
-
-          {/* Friends list */}
-          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:"#555",marginBottom:10}}>{friends.length} ami{friends.length>1?"s":""}</div>
-          {friends.length===0&&<div style={{color:"#333",fontSize:13,fontFamily:"'Barlow',sans-serif",textAlign:"center",padding:"16px 0"}}>Aucun ami pour l'instant — recherche des amis ci-dessus !</div>}
-          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
-            {friends.map(f=>(
-              <div key={f.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:12,border:"1px solid rgba(255,255,255,0.04)"}}>
-                <Avatar initials={f.friend?.avatar} size={38}/>
-                <div style={{flex:1}}>
-                  <div style={{color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",fontWeight:600}}>{f.friend?.name}</div>
-                  {f.friend?.city&&<div style={{color:"#555",fontSize:11}}>{f.friend.city}</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Groups */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:14,letterSpacing:2,color:"#555"}}>Mes groupes</div>
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>setShowJoinGroup(!showJoinGroup)} style={{padding:"5px 10px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#888",fontSize:11,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>Rejoindre</button>
-              <button onClick={()=>setShowCreateGroup(!showCreateGroup)} style={{padding:"5px 10px",borderRadius:8,background:"rgba(230,57,70,0.12)",border:"1px solid rgba(230,57,70,0.3)",color:"#E63946",fontSize:11,cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>+ Créer</button>
-            </div>
-          </div>
-
-          {showCreateGroup&&(
-            <div style={{padding:"12px",background:"rgba(255,255,255,0.03)",borderRadius:12,border:"1px solid rgba(255,255,255,0.06)",marginBottom:10}}>
-              <input value={groupName} onChange={e=>setGroupName(e.target.value)} placeholder="Nom du groupe" style={{...inp,marginBottom:8}}/>
-              <button onClick={handleCreateGroup} disabled={loadingAction||!groupName.trim()} style={{width:"100%",padding:"10px",borderRadius:10,background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:15}}>Créer le groupe</button>
-            </div>
-          )}
-
-          {showJoinGroup&&(
-            <div style={{padding:"12px",background:"rgba(255,255,255,0.03)",borderRadius:12,border:"1px solid rgba(255,255,255,0.06)",marginBottom:10}}>
-              <input value={groupCode} onChange={e=>setGroupCode(e.target.value)} placeholder="Code du groupe (ex: ABC123)" style={{...inp,marginBottom:8}}/>
-              <button onClick={handleJoinGroup} disabled={loadingAction||!groupCode.trim()} style={{width:"100%",padding:"10px",borderRadius:10,background:"#3B82F6",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Bebas Neue',sans-serif",fontSize:15}}>Rejoindre</button>
-            </div>
-          )}
-
-          {groups.length===0&&<div style={{color:"#333",fontSize:13,fontFamily:"'Barlow',sans-serif",textAlign:"center",padding:"10px 0"}}>Aucun groupe — crée ou rejoins un groupe !</div>}
-          {groups.map(g=>(
-            <div key={g.id} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,border:"1px solid rgba(255,255,255,0.04)",marginBottom:6}}>
-              <div style={{width:36,height:36,borderRadius:10,background:"rgba(230,57,70,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>👥</div>
-              <div style={{flex:1}}>
-                <div style={{color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",fontWeight:600}}>{g.name}</div>
-                <div style={{color:"#555",fontSize:11,fontFamily:"'Barlow',sans-serif"}}>Code: {g.code}</div>
-              </div>
-              <button onClick={()=>navigator.clipboard?.writeText(g.code)} style={{padding:"5px 10px",borderRadius:8,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#888",fontSize:11,cursor:"pointer"}}>📋 Copier</button>
             </div>
           ))}
         </div>
       )}
 
-      {/* ── BADGES TAB ── */}
+      {/* BADGES */}
       {subTab==="badges"&&(
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {BADGES.map(badge=>{
@@ -732,10 +362,9 @@ function ProfileTab({ profile, onDelete, onEdit, onFriendAction }) {
 }
 
 // ─── RANKING TAB ──────────────────────────────────────────────────────────────
-function RankingTab({ profile, allProfiles }) {
+function RankingTab({ profile }) {
   const [season, setSeason] = useState(2026);
   const [filterCat, setFilterCat] = useState("all");
-  const [rankView, setRankView] = useState("global");
 
   const seasonResults = profile.results.filter(r => r.year === season);
   const totalPts = seasonResults.reduce((a, r) => a + calcPoints(r.discipline, r.time), 0);
@@ -783,7 +412,7 @@ function RankingTab({ profile, allProfiles }) {
       </div>
 
       {/* Results list */}
-      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:1,color:"#555",marginBottom:10}}>Mes résultats {season}</div>
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:1,color:"#555",marginBottom:10}}>Résultats {season}</div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {filteredResults.length===0&&(
           <div style={{textAlign:"center",color:"#333",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>
@@ -831,10 +460,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [showTrainingModal, setShowTrainingModal] = useState(false);
-  const [showAddMenu, setShowAddMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("ranking");
-  const [editResult, setEditResult] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -860,32 +486,33 @@ export default function App() {
   };
 
   const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin } });
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin }
+    });
   };
 
-  const handleLogout = async () => { await supabase.auth.signOut(); };
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   const handleDelete = async (id) => {
     const { error } = await supabase.from("results").delete().eq("id", id);
     if (!error) setProfile(p => ({ ...p, results: p.results.filter(r => r.id !== id) }));
   };
 
-  const handleEdit = (result) => { setEditResult(result); };
-
-  const handleSaveEdit = (updated) => {
-    setProfile(p => ({ ...p, results: p.results.map(r => r.id === updated.id ? updated : r) }));
-    setEditResult(null);
+  const handleEdit = (result) => {
+    setEditResult(result);
   };
 
   const handleAddResult = async (discipline, time, race, year) => {
     if (!profile) return;
-    const { data, error } = await supabase.from("results").insert({ user_id: profile.id, discipline, time, race, year }).select().single();
-    if (!error && data) setProfile(p => ({ ...p, results: [data, ...p.results] }));
-  };
-
-  const handleAddTraining = async (sport, distance, duration, points) => {
-    if (!profile) return;
-    await supabase.from("trainings").insert({ user_id: profile.id, sport, distance, duration, points });
+    const { data, error } = await supabase.from("results").insert({
+      user_id: profile.id, discipline, time, race, year
+    }).select().single();
+    if (!error && data) {
+      setProfile(p => ({ ...p, results: [data, ...p.results] }));
+    }
   };
 
   if (loading) return (
@@ -896,7 +523,7 @@ export default function App() {
   );
 
   if (!session) return <LoginPage onLogin={handleLogin}/>;
-  if (!profile) return <SetupProfile user={session.user} onComplete={p=>setProfile({...p,results:[]})} />;
+  if (!profile) return <SetupProfile user={session.user} onComplete={p=>setProfile(p)}/>;
 
   const totalPts = profile.results.reduce((a,r) => a + calcPoints(r.discipline, r.time), 0);
   const myBadges = computeBadges(profile.results);
@@ -951,28 +578,17 @@ export default function App() {
         </div>
 
         {/* CONTENT */}
-        {activeTab==="ranking" && <RankingTab profile={profile} allProfiles={[]}/>}
-        {activeTab==="profile" && <ProfileTab profile={profile} onDelete={handleDelete} onEdit={handleEdit}/>}
+        {activeTab==="ranking" && <RankingTab profile={profile}/>}
+        <ProfileTab profile={profile} onDelete={handleDelete} onEdit={handleEdit}/>
+
       </div>
 
       {/* ADD BUTTON */}
       <div style={{position:"fixed",bottom:24,right:24,zIndex:100}}>
-        {showAddMenu&&(
-          <div style={{position:"absolute",bottom:70,right:0,display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
-            <button onClick={()=>{setShowTrainingModal(true);setShowAddMenu(false);}} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderRadius:24,background:"#22C55E",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,whiteSpace:"nowrap",boxShadow:"0 4px 16px rgba(34,197,94,0.4)"}}>
-              🏋️ Entraînement
-            </button>
-            <button onClick={()=>{setShowModal(true);setShowAddMenu(false);}} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderRadius:24,background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,whiteSpace:"nowrap",boxShadow:"0 4px 16px rgba(230,57,70,0.4)"}}>
-              🏁 Course officielle
-            </button>
-          </div>
-        )}
-        <button onClick={()=>setShowAddMenu(!showAddMenu)} style={{width:60,height:60,borderRadius:"50%",background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontSize:28,boxShadow:"0 4px 20px rgba(230,57,70,0.5)",display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.2s",transform:showAddMenu?"rotate(45deg)":"rotate(0)"}}>+</button>
+        <button onClick={()=>setShowModal(true)} style={{width:60,height:60,borderRadius:"50%",background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontSize:28,boxShadow:"0 4px 20px rgba(230,57,70,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
       </div>
 
       {showModal&&<AddResultModal onClose={()=>setShowModal(false)} onAdd={handleAddResult}/>}
-      {showTrainingModal&&<AddTrainingModal onClose={()=>setShowTrainingModal(false)} onAdd={handleAddTraining}/>}
-      {editResult&&<EditResultModal result={editResult} onClose={()=>setEditResult(null)} onSave={handleSaveEdit}/>}
     </>
   );
 }
