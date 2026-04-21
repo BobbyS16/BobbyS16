@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -363,7 +363,11 @@ function DeleteAccountModal({onClose}){
 
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 function HomeTab({profile,results,onAddResult}){
-  const [season,setSeason]=useState(CY);
+  const seasons=useMemo(()=>{
+    const yrs=[...new Set(results.map(r=>r.year))].sort((a,b)=>b-a);
+    return yrs.length>0?yrs:[CY];
+  },[results]);
+  const [season,setSeason]=useState(()=>seasons[0]);
   const [rankFilter,setRankFilter]=useState("amis");
   const [discFilter,setDiscFilter]=useState("Tout");
   const [rankData,setRankData]=useState([]);
@@ -443,11 +447,11 @@ function HomeTab({profile,results,onAddResult}){
       </div>
 
       {/* Season */}
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
-        {[CY-1,CY].map(y=>(
-          <button key={y} onClick={()=>setSeason(y)} style={{padding:"7px 18px",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1}}>{y}</button>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none"}}>
+        {seasons.map(y=>(
+          <button key={y} onClick={()=>setSeason(y)} style={{flexShrink:0,padding:"7px 18px",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1}}>{y}</button>
         ))}
-        {season===CY&&<div style={{fontSize:11,color:"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1}}>● EN COURS</div>}
+        {season===CY&&<div style={{flexShrink:0,fontSize:11,color:"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1}}>● EN COURS</div>}
       </div>
 
       {/* Rank toggle */}
