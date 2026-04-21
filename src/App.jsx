@@ -467,10 +467,10 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
 
       {/* Season */}
       <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
+        <div style={{flexShrink:0,fontSize:11,color:"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1}}>● EN COURS</div>
         {seasons.map(y=>(
           <button key={y} onClick={()=>setSeason(y)} style={{flexShrink:0,padding:"7px 18px",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1}}>{y}</button>
         ))}
-        {season===CY&&<div style={{flexShrink:0,fontSize:11,color:"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1}}>● EN COURS</div>}
       </div>
 
       {/* Rank toggle */}
