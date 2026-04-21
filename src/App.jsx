@@ -375,8 +375,9 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   },[userId,refreshKey]);
 
   const seasons=useMemo(()=>{
-    const yrs=[...new Set(results.map(rYear))].sort((a,b)=>a-b);
-    return yrs.length>0?yrs:[CY];
+    const base=[CY-2,CY-1,CY];
+    const fromData=results.map(rYear);
+    return [...new Set([...base,...fromData])].sort((a,b)=>a-b);
   },[results]);
   const [season,setSeason]=useState(CY);
   const seasonsRef=useRef(null);
