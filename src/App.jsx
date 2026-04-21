@@ -100,19 +100,19 @@ function DrumPicker({values,selectedIndex,onChange,width=80}) {
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
       <div ref={ref} onScroll={onScroll}
         style={{height:"100%",overflowY:"scroll",scrollbarWidth:"none",msOverflowStyle:"none",
-          paddingTop:IH*2,paddingBottom:IH*4,
-          scrollSnapType:"y mandatory",
-          overscrollBehavior:"none"}}>
+          scrollSnapType:"y mandatory",overscrollBehavior:"contain"}}>
+        <div style={{height:IH*2,flexShrink:0}}/>
         {values.map((v,i)=>(
           <div key={i} onClick={()=>{onChange(i);if(ref.current)ref.current.scrollTop=i*IH;}}
             style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",
-              scrollSnapAlign:"center",
+              scrollSnapAlign:"center",flexShrink:0,
               fontFamily:"'Bebas Neue',sans-serif",fontSize:24,
               color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",
               cursor:"pointer",userSelect:"none"}}>
             {v}
           </div>
         ))}
+        <div style={{height:IH*3,flexShrink:0}}/>
       </div>
     </div>
   );
