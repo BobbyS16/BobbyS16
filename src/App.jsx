@@ -242,7 +242,8 @@ function ResultModal({existing,userId,onSave,onClose}){
     const[h,m,s]=timeStr.split(":").map(Number);const t=h*3600+m*60+s;
     if(!t){setError("Sélectionne un temps valide");return;}
     setLoading(true);setError("");
-    const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year:CY,race_date:raceDate||null};
+    const year=raceDate?parseInt(raceDate.slice(0,4)):CY;
+    const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null};
     let err;
     if(existing){({error:err}=await supabase.from("results").update(payload).eq("id",existing.id));}
     else{({error:err}=await supabase.from("results").insert({...payload,user_id:userId}));}
@@ -362,9 +363,18 @@ function DeleteAccountModal({onClose}){
 }
 
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
-function HomeTab({profile,results,onAddResult}){
+const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
+
+function HomeTab({profile,userId,onAddResult,refreshKey}){
+  const [results,setResults]=useState([]);
+  useEffect(()=>{
+    if(!userId)return;
+    supabase.from("results").select("*").eq("user_id",userId)
+      .then(({data})=>setResults(data||[]));
+  },[userId,refreshKey]);
+
   const seasons=useMemo(()=>{
-    const yrs=[...new Set(results.map(r=>r.year))].sort((a,b)=>a-b);
+    const yrs=[...new Set(results.map(rYear))].sort((a,b)=>a-b);
     return yrs.length>0?yrs:[CY];
   },[results]);
   const [season,setSeason]=useState(CY);
@@ -401,7 +411,7 @@ function HomeTab({profile,results,onAddResult}){
     setRankData(ranked);
   };
 
-  const seasonResults=results.filter(r=>r.year===season);
+  const seasonResults=results.filter(r=>rYear(r)===season);
   const totalPts=seasonResults.length?Math.max(...seasonResults.map(r=>calcPoints(r.discipline,r.time))):0;
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time)).slice(0,2);
@@ -623,10 +633,17 @@ function TrainingTab({userId}){
 }
 
 // ── PERF TAB ──────────────────────────────────────────────────────────────────
-function PerfTab({results}){
+function PerfTab({userId,refreshKey}){
+  const [results,setResults]=useState([]);
   const [subTab,setSubTab]=useState("bests");
   const [selDisc,setSelDisc]=useState("marathon");
   const [catFilter,setCat]=useState("Tout");
+
+  useEffect(()=>{
+    if(!userId)return;
+    supabase.from("results").select("*").eq("user_id",userId).order("year",{ascending:false})
+      .then(({data})=>setResults(data||[]));
+  },[userId,refreshKey]);
 
   const byDisc={};
   results.forEach(r=>{if(!byDisc[r.discipline]||r.time<byDisc[r.discipline].time)byDisc[r.discipline]=r;});
@@ -635,7 +652,7 @@ function PerfTab({results}){
     .sort((a,b)=>{const cats=["running","trail","triathlon"];return cats.indexOf(DISCIPLINES[a[0]]?.category)-cats.indexOf(DISCIPLINES[b[0]]?.category);});
 
   const byYear={};
-  [...results].forEach(r=>{if(!byYear[r.year])byYear[r.year]=[];byYear[r.year].push(r);});
+  [...results].forEach(r=>{const y=rYear(r);if(!byYear[y])byYear[y]=[];byYear[y].push(r);});
 
   const discResults=results.filter(r=>r.discipline===selDisc).sort((a,b)=>(a.race_date||`${a.year}-01-01`).localeCompare(b.race_date||`${b.year}-01-01`));
   const progressionData=discResults.map(r=>({label:r.race_date?r.race_date.slice(5):String(r.year),value:calcPoints(selDisc,r.time)}));
@@ -945,6 +962,7 @@ export default function App(){
   const [results,setResults]=useState([]);
   const [tab,setTab]=useState("home");
   const [loading,setLoading]=useState(true);
+  const [resultsKey,setResultsKey]=useState(0);
   const [showAddResult,setAdd]=useState(false);
 
   useEffect(()=>{
@@ -966,7 +984,7 @@ export default function App(){
     const{data}=await supabase.from("results").select("*").eq("user_id",user.id).order("year",{ascending:false});
     setResults(data||[]);
   };
-  const refresh=()=>{loadProfile();loadResults();};
+  const refresh=()=>{loadProfile();loadResults();setResultsKey(k=>k+1);};
 
   if(loading) return <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",alignItems:"center",justifyContent:"center"}}><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><div style={{fontFamily:"'Bebas Neue'",fontSize:40,letterSpacing:4}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div></div>;
   if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen/></>;
@@ -974,10 +992,10 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",minHeight:"100vh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflowX:"hidden"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} results={results} onAddResult={()=>setAdd(true)}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddResult={()=>setAdd(true)} refreshKey={resultsKey}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id}/>}
-      {tab==="perf"    &&<PerfTab    results={results}/>}
+      {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey}/>}
       {tab==="social"  &&<SocialTab  myProfile={profile}/>}
       {tab==="profile" &&<ProfileTab profile={profile} results={results} onRefresh={refresh}/>}
       <NavBar tab={tab} onChange={setTab}/>
