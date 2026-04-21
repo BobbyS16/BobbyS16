@@ -17,8 +17,8 @@ const DISCIPLINES = {
   "trail-xl": { label:"Ultra Trail (100+)",  icon:"⛰️", category:"trail",     refTime:20*3600,      prestige:1.5 },
   "tri-s":    { label:"Triathlon S",         icon:"🏊", category:"triathlon", refTime:55*60,        prestige:1.1 },
   "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2 },
-  "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:3*3600+9*60,  prestige:1.3 },
-  "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:6*3600+13*60, prestige:1.5 },
+  "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3 },
+  "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5 },
 };
 
 const TRAINING_SPORTS = ["Tout","Course à pied","Trail","Vélo","Natation","Autre"];
