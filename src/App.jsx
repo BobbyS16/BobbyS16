@@ -420,6 +420,13 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   const myBadges=computeBadges(results);
   const DISC_TABS=[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Course"},{k:"trail",l:"⛰️ Trail"},{k:"triathlon",l:"🏊 Tri"}];
 
+  const [copied,setCopied]=useState(false);
+  const handleShare=()=>{
+    const url=window.location.origin;
+    if(navigator.share){navigator.share({title:"PaceRank",text:"Rejoins-moi sur PaceRank !",url});}
+    else{navigator.clipboard.writeText(url).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});}
+  };
+
   return (
     <div style={{padding:"0 16px 100px"}}>
       {/* Header */}
@@ -430,7 +437,12 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
           </div>
           <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>COURSE · TRAIL · TRIATHLON</div>
         </div>
-        <button onClick={onAddResult} style={{background:"#E63946",border:"none",borderRadius:14,padding:"10px 16px",color:"#fff",fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,cursor:"pointer"}}>+ RÉSULTAT</button>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:14,padding:"10px 14px",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+            {copied?"✓ Copié !":"🔗 Inviter"}
+          </button>
+          <button onClick={onAddResult} style={{background:"#E63946",border:"none",borderRadius:14,padding:"10px 16px",color:"#fff",fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,cursor:"pointer"}}>+ RÉSULTAT</button>
+        </div>
       </div>
 
       {/* My card */}
