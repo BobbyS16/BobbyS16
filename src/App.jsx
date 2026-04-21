@@ -377,14 +377,14 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   const seasons=useMemo(()=>{
     const base=[CY-2,CY-1,CY];
     const fromData=results.map(rYear);
-    return [...new Set([...base,...fromData])].sort((a,b)=>a-b);
+    return [...new Set([...base,...fromData])].sort((a,b)=>b-a);
   },[results]);
   const [season,setSeason]=useState(CY);
   const seasonsRef=useRef(null);
   useEffect(()=>{
     if(seasons.length>0){
-      setSeason(seasons[seasons.length-1]);
-      setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);
+      setSeason(seasons[0]);
+      setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=0;},50);
     }
   },[seasons]);
   const [rankFilter,setRankFilter]=useState("amis");
