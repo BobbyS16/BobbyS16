@@ -52,12 +52,12 @@ function calcTrainingPts(distKm, sport) {
   return Math.round((base[sport]||6) * (distKm||0));
 }
 function getLevel(pts) {
-  if (pts >= 1800) return {label:"Élite",    color:"#FFD700"};
-  if (pts >= 1500) return {label:"Expert",   color:"#C0C0C0"};
-  if (pts >= 1200) return {label:"Avancé",   color:"#CD7F32"};
-  if (pts >= 900)  return {label:"Confirmé", color:"#E63946"};
-  if (pts >= 600)  return {label:"Interméd.",color:"#4A90D9"};
-  return                  {label:"Débutant", color:"#666"};
+  if (pts >= 900) return {label:"Élite",       color:"#FFD700"};
+  if (pts >= 700) return {label:"Expert",      color:"#C0C0C0"};
+  if (pts >= 500) return {label:"Avancé",      color:"#CD7F32"};
+  if (pts >= 350) return {label:"Confirmé",    color:"#E63946"};
+  if (pts >= 200) return {label:"Interméd.",   color:"#4A90D9"};
+  return                 {label:"Débutant",    color:"#666"};
 }
 function fmtTime(s) {
   if (!s && s !== 0) return "--:--:--";
