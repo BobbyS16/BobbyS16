@@ -1196,19 +1196,20 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Courses</div>
         </div>
       </div>
-      {badges.length>0&&(
-        <div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Badges</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>
-            {badges.map(b=>(
-              <div key={b.id} style={{background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"8px 12px",border:`1px solid ${b.color}44`,textAlign:"center"}}>
-                <div style={{fontSize:20}}>{b.emoji}</div>
-                <div style={{fontSize:9,color:b.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:2,whiteSpace:"nowrap"}}>{b.label}</div>
+      <div>
+        <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Badges ({badges.length}/{BADGES.length})</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>
+          {BADGES.map(b=>{
+            const unlocked=badges.some(x=>x.id===b.id);
+            return (
+              <div key={b.id} style={{background:unlocked?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.02)",borderRadius:12,padding:"8px 12px",border:`1px solid ${unlocked?b.color+"44":"rgba(255,255,255,0.05)"}`,textAlign:"center",opacity:unlocked?1:0.45}}>
+                <div style={{fontSize:20,filter:unlocked?"none":"grayscale(1)"}}>{unlocked?b.emoji:"🔒"}</div>
+                <div style={{fontSize:9,color:unlocked?b.color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:2,whiteSpace:"nowrap"}}>{b.label}</div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      )}
+      </div>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
