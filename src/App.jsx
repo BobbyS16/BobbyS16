@@ -429,7 +429,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   const seasonResults=results.filter(r=>rYear(r)===season);
   const totalPts=sumBestPts(seasonResults);
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
-    .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time)).slice(0,2);
+    .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges(results);
   const DISC_TABS=[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Course"},{k:"trail",l:"⛰️ Trail"},{k:"triathlon",l:"🏊 Tri"}];
 
@@ -475,11 +475,11 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
           </div>
         </div>
         {bests.length>0&&(
-          <div style={{borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12,display:"flex",gap:16}}>
+          <div style={{borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12,display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px"}}>
             {bests.map((r,i)=>{const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
-              <div key={i} style={{flex:1}}>
+              <div key={i}>
                 <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
                 <div style={{fontSize:11,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
               </div>
             );})}
