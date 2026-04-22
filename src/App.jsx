@@ -64,6 +64,14 @@ function getLevel(pts) {
   if (pts >= 200) return {label:"Interméd.",   color:"#4A90D9"};
   return                 {label:"Débutant",    color:"#666"};
 }
+function getSeasonLevel(pts) {
+  if (pts >= 3000) return {label:"Élite",      color:"#FFD700"};
+  if (pts >= 2000) return {label:"Expert",     color:"#C0C0C0"};
+  if (pts >= 1300) return {label:"Avancé",     color:"#CD7F32"};
+  if (pts >= 700)  return {label:"Confirmé",   color:"#E63946"};
+  if (pts >= 300)  return {label:"Interméd.",  color:"#4A90D9"};
+  return                  {label:"Débutant",   color:"#666"};
+}
 function fmtTime(s) {
   if (!s && s !== 0) return "--:--:--";
   const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
@@ -506,7 +514,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
       {/* Ranking list */}
       {rankData.length===0
         ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
-        :rankData.map((p,i)=>{const lv=getLevel(p.pts);return(
+        :rankData.map((p,i)=>{const lv=getSeasonLevel(p.pts);return(
           <div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:p.id===profile?.id?"rgba(230,57,70,0.08)":"rgba(255,255,255,0.03)",border:p.id===profile?.id?"1px solid rgba(230,57,70,0.3)":"1px solid rgba(255,255,255,0.05)"}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
             <Avatar profile={p} size={36}/>
@@ -574,7 +582,7 @@ function RankingTab({myProfile}){
       {filter==="group"&&<Sel value={selGroup||""} onChange={v=>setSelGroup(v)}><option value="">Sélectionne un groupe</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</Sel>}
       {loading?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
       :players.length===0?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
-      :players.map((p,i)=>{const lv=getLevel(p.pts);return(
+      :players.map((p,i)=>{const lv=getSeasonLevel(p.pts);return(
         <div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:p.id===myProfile?.id?"rgba(230,57,70,0.08)":"rgba(255,255,255,0.03)",border:p.id===myProfile?.id?"1px solid rgba(230,57,70,0.3)":"1px solid rgba(255,255,255,0.05)"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
           <Avatar profile={p} size={36}/>
