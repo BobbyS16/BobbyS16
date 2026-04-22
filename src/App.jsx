@@ -982,6 +982,7 @@ function SocialTab({myProfile,onNotifsChange}){
   const [joinCode,setJoinCode]=useState("");
   const [loading,setLoading]=useState(false);
   const [chat,setChat]=useState(null);
+  const [openFriend,setOpenFriend]=useState(null);
 
   useEffect(()=>{loadFriends();loadGroups();loadNotifs();},[]);
 
@@ -992,7 +993,7 @@ function SocialTab({myProfile,onNotifsChange}){
   };
   const loadNotifs=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
-    const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city)").eq("user_id",user.id).eq("read",false).order("created_at",{ascending:false});
+    const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).eq("read",false).order("created_at",{ascending:false});
     setNotifs(data||[]);
   };
   const dismissNotif=async id=>{
@@ -1070,22 +1071,31 @@ function SocialTab({myProfile,onNotifsChange}){
             <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700}}>🔔 Notifications</div>
             <button onClick={markAllNotifsRead} style={{background:"none",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:11,cursor:"pointer",fontWeight:600}}>Tout marquer lu</button>
           </div>
-          {notifs.map(n=>(
-            <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
-              <Avatar profile={n.from_user} size={32}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8"}}><strong>{n.from_user?.name||"Quelqu'un"}</strong> t'a ajouté en ami</div>
+          {notifs.map(n=>{
+            const txt={friend_added:"t'a ajouté en ami",like_result:"a aimé ta course",like_training:"a aimé ton entraînement",comment_result:"a commenté ta course",comment_training:"a commenté ton entraînement"}[n.type]||"";
+            return (
+              <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
+                <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{cursor:"pointer"}}><Avatar profile={n.from_user} size={32}/></div>
+                <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8"}}><strong>{n.from_user?.name||"Quelqu'un"}</strong> {txt}</div>
+                </div>
+                <button onClick={()=>dismissNotif(n.id)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:12}}>✕</button>
               </div>
-              <button onClick={()=>dismissNotif(n.id)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:12}}>✕</button>
-            </div>
-          ))}
+            );
+          })}
         </div>}
         {friends.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun ami — utilise la recherche !</div>}
         {friends.map(f=>{
           const dmId=[myProfile?.id,f.friend_id].sort().join("_");
           return(
           <div key={f.id} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
-            <Avatar profile={f.friend} size={36}/><div style={{flex:1}}><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{f.friend?.name||"Anonyme"}</div><div style={{fontSize:11,color:"rgba(240,237,232,0.35)"}}>{getAgeCat(f.friend?.birth_year)||""}{f.friend?.city?` · ${f.friend.city}`:""}</div></div>
+            <div onClick={()=>setOpenFriend(f.friend)} style={{display:"flex",alignItems:"center",gap:12,flex:1,cursor:"pointer",minWidth:0}}>
+              <Avatar profile={f.friend} size={36}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.friend?.name||"Anonyme"}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.35)"}}>{getAgeCat(f.friend?.birth_year)||""}{f.friend?.city?` · ${f.friend.city}`:""}</div>
+              </div>
+            </div>
             <button onClick={()=>setChat({type:"dm",id:dmId,title:f.friend?.name||"Message",friendId:f.friend_id})} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:15}}>💬</button>
             <button onClick={()=>removeFriend(f.friend_id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(230,57,70,0.1)",color:"#E63946",border:"none",cursor:"pointer",fontSize:13}}>✕</button>
           </div>
@@ -1115,6 +1125,7 @@ function SocialTab({myProfile,onNotifsChange}){
       {showJoin&&<Modal onClose={()=>setJoin(false)}><div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:"#F0EDE8",marginBottom:20}}>Rejoindre un groupe</div><Lbl c="Code du groupe"/><Inp value={joinCode} onChange={setJoinCode} placeholder="Ex: ABC123"/><Btn onClick={joinGroup} mb={0}>{loading?"Recherche...":"Rejoindre"}</Btn></Modal>}
       {chat?.type==="dm"&&<ChatModal myId={myProfile?.id} title={`💬 ${chat.title}`} table="direct_messages" filterCol="sender_id" filterId={chat.id} friendId={chat.friendId} onClose={()=>setChat(null)}/>}
       {chat?.type==="group"&&<ChatModal myId={myProfile?.id} title={`🏠 ${chat.title}`} table="group_messages" filterCol="group_id" filterId={chat.id} onClose={()=>setChat(null)}/>}
+      {openFriend&&<FriendProfileModal friend={openFriend} myId={myProfile?.id} onClose={()=>setOpenFriend(null)}/>}
     </div>
   );
 }
@@ -1179,6 +1190,184 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
+    </Modal>
+  );
+}
+
+// ── FRIEND PROFILE MODAL ──────────────────────────────────────────────────────
+function ActivityCard({myId,activityType,activityId,children}){
+  const [likes,setLikes]=useState([]);
+  const [comments,setComments]=useState([]);
+  const [showComments,setShowComments]=useState(false);
+  const [text,setText]=useState("");
+  const [sending,setSending]=useState(false);
+  const liked=likes.some(l=>l.user_id===myId);
+
+  useEffect(()=>{loadLikes();loadComments();},[activityId]);
+
+  const loadLikes=async()=>{
+    const{data}=await supabase.from("activity_likes").select("user_id").eq("activity_type",activityType).eq("activity_id",activityId);
+    setLikes(data||[]);
+  };
+  const loadComments=async()=>{
+    const{data}=await supabase.from("activity_comments").select("*, user:profiles(id,name,avatar)").eq("activity_type",activityType).eq("activity_id",activityId).order("created_at",{ascending:true});
+    setComments(data||[]);
+  };
+  const toggleLike=async()=>{
+    if(liked){
+      await supabase.from("activity_likes").delete().eq("user_id",myId).eq("activity_type",activityType).eq("activity_id",activityId);
+      setLikes(l=>l.filter(x=>x.user_id!==myId));
+    }else{
+      await supabase.from("activity_likes").insert({user_id:myId,activity_type:activityType,activity_id:activityId});
+      setLikes(l=>[...l,{user_id:myId}]);
+    }
+  };
+  const sendComment=async()=>{
+    if(!text.trim()||sending)return;
+    setSending(true);
+    const{data}=await supabase.from("activity_comments").insert({user_id:myId,activity_type:activityType,activity_id:activityId,content:text.trim()}).select("*, user:profiles(id,name,avatar)").single();
+    if(data)setComments(c=>[...c,data]);
+    setText("");setSending(false);
+  };
+  const deleteComment=async id=>{
+    await supabase.from("activity_comments").delete().eq("id",id);
+    setComments(c=>c.filter(x=>x.id!==id));
+  };
+
+  return (
+    <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px 14px",marginBottom:8,border:"1px solid rgba(255,255,255,0.05)"}}>
+      {children}
+      <div style={{display:"flex",gap:14,alignItems:"center",marginTop:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+        <button onClick={toggleLike} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:5,padding:0,color:liked?"#E63946":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:600}}>
+          <span style={{fontSize:15}}>{liked?"❤️":"🤍"}</span>{likes.length>0&&likes.length}
+        </button>
+        <button onClick={()=>setShowComments(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:5,padding:0,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:600}}>
+          <span style={{fontSize:14}}>💬</span>{comments.length>0&&comments.length}
+        </button>
+      </div>
+      {showComments&&(
+        <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+          {comments.map(c=>(
+            <div key={c.id} style={{display:"flex",gap:8,marginBottom:8,alignItems:"flex-start"}}>
+              <Avatar profile={c.user} size={26}/>
+              <div style={{flex:1,minWidth:0,background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"6px 10px"}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.5)",fontWeight:700}}>{c.user?.name||"?"}</div>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",marginTop:2,wordBreak:"break-word"}}>{c.content}</div>
+              </div>
+              {c.user_id===myId&&<button onClick={()=>deleteComment(c.id)} style={{background:"none",border:"none",color:"rgba(230,57,70,0.6)",cursor:"pointer",fontSize:11,padding:"2px 4px"}}>✕</button>}
+            </div>
+          ))}
+          <div style={{display:"flex",gap:6,marginTop:6}}>
+            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendComment();}} placeholder="Commenter…" style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"8px 12px",color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",outline:"none"}}/>
+            <button onClick={sendComment} disabled={!text.trim()||sending} style={{background:"#E63946",border:"none",borderRadius:10,padding:"0 14px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",opacity:!text.trim()||sending?0.4:1}}>OK</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FriendProfileModal({friend,myId,onClose}){
+  const [results,setResults]=useState([]);
+  const [trainings,setTrainings]=useState([]);
+  const [season,setSeason]=useState(CY);
+  const [tab,setTab]=useState("races");
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{loadAll();},[friend.id]);
+
+  const loadAll=async()=>{
+    setLoading(true);
+    const[{data:r},{data:t}]=await Promise.all([
+      supabase.from("results").select("*").eq("user_id",friend.id).order("year",{ascending:false}),
+      supabase.from("trainings").select("*").eq("user_id",friend.id).order("date",{ascending:false}),
+    ]);
+    setResults(r||[]);setTrainings(t||[]);setLoading(false);
+  };
+
+  const seasonResults=results.filter(r=>r.year===season);
+  const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
+  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+  const lv=getSeasonLevel(seasonPts);
+  const badges=computeBadges(results);
+
+  return (
+    <Modal onClose={onClose}>
+      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
+        <Avatar profile={friend} size={64} highlight/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{friend.name||"Athlète"}</div>
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[friend.city,getAgeCat(friend.birth_year)].filter(Boolean).join(" · ")}</div>
+          <div style={{marginTop:4,display:"flex",gap:10,alignItems:"baseline"}}>
+            <span style={{fontFamily:"'Bebas Neue'",fontSize:24,color:lv.color,letterSpacing:1}}>{seasonPts}</span>
+            <span style={{fontSize:9,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison {season}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",scrollbarWidth:"none",paddingBottom:4}}>
+        {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
+          <button key={y} onClick={()=>setSeason(y)} style={{flexShrink:0,padding:"6px 14px",borderRadius:18,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:1}}>{y}</button>
+        ))}
+      </div>
+
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["races",`🏁 Courses (${seasonResults.length})`],["trainings",`🏋️ Entraînements (${seasonTrainings.length})`]].map(([k,l])=>(
+          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:tab===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:tab===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>{l}</button>
+        ))}
+      </div>
+
+      {loading?(
+        <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+      ):tab==="races"?(
+        seasonResults.length===0?
+          <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune course pour cette saison</div>
+        :seasonResults.map(r=>{
+          const pts=calcPoints(r.discipline,r.time);
+          const ptsLv=getLevel(pts);
+          return (
+            <ActivityCard key={r.id} myId={myId} activityType="result" activityId={r.id}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:3}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                  {r.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race}</div>}
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:ptsLv.color,letterSpacing:1}}>{pts}</div>
+                  <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
+                </div>
+              </div>
+            </ActivityCard>
+          );
+        })
+      ):(
+        seasonTrainings.length===0?
+          <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun entraînement pour cette saison</div>
+        :seasonTrainings.map(t=>{
+          const pts=t.points||calcTrainingPts(t.distance,t.sport,t.duration);
+          return (
+            <ActivityCard key={t.id} myId={myId} activityType="training" activityId={t.id}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
+                  <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",marginTop:2,fontFamily:"'Barlow',sans-serif"}}>{t.date}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
+                </div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:"#E63946",flexShrink:0}}>+{pts}pts</div>
+              </div>
+            </ActivityCard>
+          );
+        })
+      )}
+
+      {badges.length>0&&(
+        <div style={{marginTop:18}}>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Badges</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {badges.map(b=><div key={b.id} title={b.label} style={{fontSize:22,padding:"6px 8px",background:"rgba(255,255,255,0.04)",borderRadius:10,border:"1px solid rgba(255,255,255,0.06)"}}>{b.emoji}</div>)}
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
