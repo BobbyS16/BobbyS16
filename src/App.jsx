@@ -644,14 +644,15 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
 
 // ── RANKING TAB ───────────────────────────────────────────────────────────────
 function RankingTab({myProfile}){
-  const [filter,setFilter]=useState("global");
+  const [filter,setFilter]=useState("group");
+  const [season,setSeason]=useState(CY);
   const [discFilter,setDisc]=useState("marathon");
   const [players,setPlayers]=useState([]);
   const [loading,setLoading]=useState(true);
   const [groups,setGroups]=useState([]);
   const [selGroup,setSelGroup]=useState(null);
 
-  useEffect(()=>{loadPlayers();},[filter,discFilter,selGroup]);
+  useEffect(()=>{loadPlayers();},[filter,discFilter,selGroup,season]);
   useEffect(()=>{loadMyGroups();},[]);
 
   const loadMyGroups=async()=>{
@@ -665,10 +666,11 @@ function RankingTab({myProfile}){
     const{data:profiles}=await supabase.from("profiles").select("*");
     const{data:results}=await supabase.from("results").select("*");
     if(!profiles||!results){setLoading(false);return;}
+    const seasonResults=results.filter(r=>rYear(r)===season);
     let pool=profiles;
     if(filter==="group"&&selGroup){const{data:members}=await supabase.from("group_members").select("user_id").eq("group_id",selGroup);const ids=new Set(members?.map(m=>m.user_id)||[]);pool=profiles.filter(p=>ids.has(p.id));}
     let display=pool.map(p=>{
-      const pRes=results.filter(r=>r.user_id===p.id);
+      const pRes=seasonResults.filter(r=>r.user_id===p.id);
       const pts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
       return{...p,pts};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
@@ -678,11 +680,20 @@ function RankingTab({myProfile}){
     setPlayers(display);setLoading(false);
   };
 
-  const FILTERS=[{k:"global",l:"🌍 Global"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"group",l:"👥 Groupe"}];
+  const FILTERS=[{k:"group",l:"👥 Groupe"},{k:"global",l:"🌍 Global"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"}];
 
   return (
     <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:16}}>Rank</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:12}}>Rank</div>
+      {/* Season selector */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,overflowX:"auto",scrollbarWidth:"none",paddingBottom:2}}>
+        {[CY-2,CY-1,CY].map(y=>(
+          <button key={y} onClick={()=>setSeason(y)} style={{flexShrink:0,padding:"6px 16px",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:1,display:"flex",alignItems:"center",gap:5}}>
+            {y}
+            {y===CY&&<span style={{fontSize:8,color:season===y?"rgba(255,255,255,0.85)":"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>en cours</span>}
+          </button>
+        ))}
+      </div>
       <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:12,scrollbarWidth:"none"}}>
         {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{flexShrink:0,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap"}}>{f.l}</button>)}
       </div>
