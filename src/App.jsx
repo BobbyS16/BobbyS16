@@ -724,7 +724,7 @@ function PerfTab({userId,refreshKey}){
         <div>
           {Object.entries(byYear).sort((a,b)=>b[0]-a[0]).map(([yr,res])=>(
             <div key={yr} style={{marginBottom:18}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:"rgba(240,237,232,0.4)",letterSpacing:2,marginBottom:7}}>{yr}</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",fontWeight:700,letterSpacing:2,marginBottom:7}}>{yr}</div>
               {[...res].sort((a,b)=>{const cats=["running","trail","triathlon"];return cats.indexOf(DISCIPLINES[a.discipline]?.category)-cats.indexOf(DISCIPLINES[b.discipline]?.category);}).map((r,i)=>{
                 const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
                 <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
