@@ -382,7 +382,7 @@ function DeleteAccountModal({onClose}){
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
 
-function HomeTab({profile,userId,onAddResult,refreshKey}){
+function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
   const [results,setResults]=useState([]);
   useEffect(()=>{
     if(!userId)return;
@@ -459,7 +459,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
       </div>
 
       {/* My card */}
-      <div style={{background:"linear-gradient(135deg,rgba(230,57,70,0.15),rgba(230,57,70,0.04))",border:"1px solid rgba(230,57,70,0.25)",borderRadius:18,padding:"16px",marginBottom:16}}>
+      <div onClick={onOpenProfile} style={{background:"linear-gradient(135deg,rgba(230,57,70,0.15),rgba(230,57,70,0.04))",border:"1px solid rgba(230,57,70,0.25)",borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer"}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0}}>
           <div style={{position:"relative"}}>
             <Avatar profile={profile} size={52} highlight/>
@@ -861,92 +861,70 @@ function SocialTab({myProfile}){
   );
 }
 
-// ── PROFILE TAB ───────────────────────────────────────────────────────────────
-function ProfileTab({profile,results,onRefresh}){
+// ── PROFILE MODAL ─────────────────────────────────────────────────────────────
+function ProfileModal({profile,results,onRefresh,onClose}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
-  const [editResult,setEditResult]=useState(null);
-  const [confirmDeleteId,setConfirmDeleteId]=useState(null);
-  const [deleteError,setDeleteError]=useState("");
+  const [friendCount,setFriendCount]=useState(0);
   const badges=computeBadges(results);
   const lv=getLevel(results.length?Math.max(...results.map(r=>calcPoints(r.discipline,r.time))):0);
 
-  const deleteResult=async id=>{
-    setDeleteError("");
-    try{
-      const{data,error}=await supabase.from("results").delete().eq("id",id).select();
-      if(error) throw new Error(error.message);
-      if(!data||data.length===0) throw new Error("Suppression échouée");
-      setConfirmDeleteId(null);
-      onRefresh();
-    }catch(e){
-      setDeleteError("Erreur : "+(e.message||"inconnue"));
-      setConfirmDeleteId(null);
-    }
-  };
+  useEffect(()=>{
+    supabase.from("friendships").select("id",{count:"exact"}).eq("user_id",profile.id).eq("status","accepted")
+      .then(({count})=>setFriendCount(count||0));
+  },[profile.id]);
 
   return (
-    <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:20,marginBottom:14}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Profil</div>
+    <Modal onClose={onClose}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:2,color:"#F0EDE8"}}>Mon Profil</div>
         <div style={{display:"flex",gap:6}}>
           <button onClick={()=>setShowEdit(true)} style={{padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>✏️ Éditer</button>
           <button onClick={async()=>{await supabase.auth.signOut();}} style={{padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>Déco</button>
         </div>
       </div>
-      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14}}>
-        <Avatar profile={profile} size={68} highlight/>
+      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
+        <Avatar profile={profile} size={64} highlight/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.name||"Athlète"}</div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[profile.city,getAgeCat(profile.birth_year),profile.gender,profile.nationality].filter(Boolean).join(" · ")}</div>
-          <div style={{marginTop:5}}><span style={{fontFamily:"'Bebas Neue'",fontSize:18,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
+          <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:18}}>
+        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#E63946"}}>{friendCount}</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Amis</div>
+        </div>
+        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#E63946"}}>{badges.length}</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Badges</div>
+        </div>
+        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#E63946"}}>{results.length}</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Courses</div>
         </div>
       </div>
       {badges.length>0&&(
-        <div style={{display:"flex",gap:7,overflowX:"auto",paddingBottom:8,marginBottom:14,scrollbarWidth:"none"}}>
-          {badges.map(b=>(
-            <div key={b.id} title={b.desc||b.label} style={{flexShrink:0,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"7px 11px",border:`1px solid ${b.color}44`,textAlign:"center"}}>
-              <div style={{fontSize:19}}>{b.emoji}</div>
-              <div style={{fontSize:8,color:b.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:2,whiteSpace:"nowrap"}}>{b.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-      <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Mes résultats</div>
-      {deleteError&&<div style={{color:"#E63946",fontSize:12,marginBottom:10,fontFamily:"'Barlow',sans-serif"}}>{deleteError}</div>}
-      {results.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat !</div>}
-      {[...results].sort((a,b)=>(b.race_date||b.year+"").localeCompare(a.race_date||a.year+"")).map((r,i)=>{
-        const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
-        <div key={r.id||i} style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px 14px",marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,color:"rgba(240,237,232,0.45)"}}>{DISCIPLINES[r.discipline]?.icon} {r.race||DISCIPLINES[r.discipline]?.label}</div>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:lv.color,letterSpacing:1}}>{fmtTime(r.time)}</div>
-              <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{r.race_date||r.year}</div>
-            </div>
-            <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
-              {confirmDeleteId===r.id?(
-                <>
-                  <button onClick={()=>deleteResult(r.id)} style={{padding:"6px 10px",borderRadius:8,background:"#E63946",border:"none",color:"#fff",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>Oui</button>
-                  <button onClick={()=>setConfirmDeleteId(null)} style={{padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif"}}>Non</button>
-                </>
-              ):(
-                <>
-                  <button onClick={()=>setEditResult(r)} style={{padding:"6px 10px",borderRadius:8,background:"rgba(255,255,255,0.06)",border:"none",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:13}}>✏️</button>
-                  <button onClick={()=>setConfirmDeleteId(r.id)} style={{padding:"6px 10px",borderRadius:8,background:"rgba(230,57,70,0.1)",border:"none",color:"#E63946",cursor:"pointer",fontSize:13}}>🗑️</button>
-                </>
-              )}
-            </div>
+        <div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Badges</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>
+            {badges.map(b=>(
+              <div key={b.id} style={{background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"8px 12px",border:`1px solid ${b.color}44`,textAlign:"center"}}>
+                <div style={{fontSize:20}}>{b.emoji}</div>
+                <div style={{fontSize:9,color:b.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:2,whiteSpace:"nowrap"}}>{b.label}</div>
+              </div>
+            ))}
           </div>
         </div>
-      );})}
-      <button onClick={()=>setDelAcc(true)} style={{marginTop:20,width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
+      )}
+      <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
-      {editResult&&<ResultModal existing={editResult} userId={profile.id} onSave={()=>{setEditResult(null);onRefresh();}} onClose={()=>setEditResult(null)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
-    </div>
+    </Modal>
   );
 }
+
 
 // ── NAV BAR ───────────────────────────────────────────────────────────────────
 function NavBar({tab,onChange}){
@@ -956,7 +934,6 @@ function NavBar({tab,onChange}){
     {k:"training",icon:"🏋️",label:"Training"},
     {k:"perf",    icon:"📈",label:"Stats"},
     {k:"social",  icon:"👥",label:"Social"},
-    {k:"profile", icon:"👤",label:"Profil"},
   ];
   return (
     <div style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(14,14,14,0.97)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",padding:"8px 0 20px",zIndex:100}}>
@@ -993,6 +970,7 @@ export default function App(){
   const [tab,setTab]=useState("home");
   const [loading,setLoading]=useState(true);
   const [resultsKey,setResultsKey]=useState(0);
+  const [showProfile,setShowProfile]=useState(false);
   const [showAddResult,setAdd]=useState(false);
 
   useEffect(()=>{
@@ -1022,14 +1000,14 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",minHeight:"100vh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflowX:"hidden"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddResult={()=>setAdd(true)} refreshKey={resultsKey}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddResult={()=>setAdd(true)} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey}/>}
       {tab==="social"  &&<SocialTab  myProfile={profile}/>}
-      {tab==="profile" &&<ProfileTab profile={profile} results={results} onRefresh={refresh}/>}
       <NavBar tab={tab} onChange={setTab}/>
       {showAddResult&&<ResultModal userId={profile?.id} onSave={()=>{setAdd(false);refresh();}} onClose={()=>setAdd(false)}/>}
+      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
     </div>
   );
 }
