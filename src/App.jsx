@@ -1573,7 +1573,7 @@ export default function App(){
   if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen/></>;
 
   return (
-    <div style={{background:"#0e0e0e",minHeight:"100vh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflowX:"hidden"}}>
+    <div style={{background:"#0e0e0e",minHeight:"100vh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflowX:"hidden",paddingTop:"env(safe-area-inset-top)"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
       {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddResult={()=>setAdd(true)} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
