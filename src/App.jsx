@@ -1001,13 +1001,11 @@ function SocialTab({myProfile}){
     setSearchRes(data||[]);
   };
   const addFriend=async friendId=>{
-    const{data:{user}}=await supabase.auth.getUser();
-    await supabase.from("friendships").upsert({user_id:user.id,friend_id:friendId,status:"accepted"},{onConflict:"user_id,friend_id"});
+    await supabase.rpc("add_friend",{friend_id:friendId});
     setSearchRes(s=>s.filter(p=>p.id!==friendId));loadFriends();
   };
   const removeFriend=async friendId=>{
-    const{data:{user}}=await supabase.auth.getUser();
-    await supabase.from("friendships").delete().eq("user_id",user.id).eq("friend_id",friendId);
+    await supabase.rpc("remove_friend",{friend_id:friendId});
     loadFriends();
   };
   const createGroup=async()=>{
