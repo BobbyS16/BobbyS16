@@ -124,6 +124,24 @@ function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
     return()=>clearTimeout(t);
   },[]);
 
+  // Empêcher la propagation native du touchmove pour ne pas être bloqué
+  // par le preventDefault global du Modal parent (qui bloque le scroll tactile).
+  useEffect(()=>{
+    const el=ref.current;
+    if(!el)return;
+    const stop=e=>e.stopPropagation();
+    el.addEventListener("touchstart",stop,{passive:true});
+    el.addEventListener("touchmove",stop,{passive:true});
+    el.addEventListener("touchend",stop,{passive:true});
+    el.addEventListener("wheel",stop,{passive:true});
+    return()=>{
+      el.removeEventListener("touchstart",stop);
+      el.removeEventListener("touchmove",stop);
+      el.removeEventListener("touchend",stop);
+      el.removeEventListener("wheel",stop);
+    };
+  },[]);
+
   const onScroll=useCallback(()=>{
     if(!ref.current)return;
     const absIdx=Math.round(ref.current.scrollTop/IH);
@@ -140,14 +158,11 @@ function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
     }
   },[N,onChange,selectedIndex,loop,COPIES,MIDDLE]);
 
-  const stop=e=>e.stopPropagation();
-
   return (
     <div style={{position:"relative",width,height:IH*3,overflow:"hidden",flexShrink:0}}>
       <div style={{position:"absolute",inset:0,zIndex:2,pointerEvents:"none",background:"linear-gradient(to bottom,#161616 0%,transparent 30%,transparent 70%,#161616 100%)"}}/>
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
       <div ref={ref} onScroll={onScroll}
-        onTouchStart={stop} onTouchMove={stop} onTouchEnd={stop}
         style={{height:"100%",overflowY:"scroll",scrollbarWidth:"none",msOverflowStyle:"none",
           scrollSnapType:"y mandatory",overscrollBehavior:"contain",WebkitOverflowScrolling:"touch",touchAction:"pan-y"}}>
         <div style={{height:IH,flexShrink:0}}/>
