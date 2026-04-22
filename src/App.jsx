@@ -951,7 +951,7 @@ function NavBar({tab,onChange}){
     {k:"home",    icon:"🏠",label:"Accueil"},
     {k:"ranking", icon:"🏆",label:"Classement"},
     {k:"training",icon:"🏋️",label:"Training"},
-    {k:"perf",    icon:"📈",label:"Perfs"},
+    {k:"perf",    icon:"📈",label:"Stats"},
     {k:"social",  icon:"👥",label:"Social"},
     {k:"profile", icon:"👤",label:"Profil"},
   ];
