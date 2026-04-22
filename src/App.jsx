@@ -668,19 +668,18 @@ function RankingTab({myProfile}){
 
   const loadPlayers=async()=>{
     setLoading(true);
-    const{data:{user}}=await supabase.auth.getUser();
     const{data:profiles}=await supabase.from("profiles").select("*");
     const{data:results}=await supabase.from("results").select("*");
-    const{data:myTrainings}=await supabase.from("trainings").select("date,points").eq("user_id",user.id);
+    const{data:trainings}=await supabase.from("trainings").select("user_id,date,points");
     if(!profiles||!results){setLoading(false);return;}
     const seasonResults=results.filter(r=>rYear(r)===season);
-    const myTPts=(myTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season).reduce((s,t)=>s+(t.points||0),0);
+    const seasonTrainings=(trainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
     let pool=profiles;
     if(filter==="group"&&selGroup){const{data:members}=await supabase.from("group_members").select("user_id").eq("group_id",selGroup);const ids=new Set(members?.map(m=>m.user_id)||[]);pool=profiles.filter(p=>ids.has(p.id));}
     let display=pool.map(p=>{
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
       const racePts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
-      const tPts=p.id===user.id?myTPts:0;
+      const tPts=seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||0),0);
       return{...p,pts:racePts+tPts};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
     const myAgeCat=getAgeCat(myProfile?.birth_year);
