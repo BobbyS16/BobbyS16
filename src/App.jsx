@@ -778,10 +778,11 @@ function RankingTab({myProfile}){
     const myAgeCat=getAgeCat(myProfile?.birth_year);
     if(filter==="age_cat") display=display.filter(p=>getAgeCat(p.birth_year)===myAgeCat);
     if(filter==="gender")  display=display.filter(p=>p.gender===myProfile?.gender);
+    if(filter==="city")    display=display.filter(p=>p.city&&myProfile?.city&&p.city.trim().toLowerCase()===myProfile.city.trim().toLowerCase());
     setPlayers(display);setLoading(false);
   };
 
-  const FILTERS=[{k:"group",l:"👥 Groupe"},{k:"global",l:"🌍 Global"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"}];
+  const FILTERS=[{k:"group",l:"👥 Groupe"},{k:"global",l:"🌍 Global"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
   return (
     <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
