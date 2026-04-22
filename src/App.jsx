@@ -385,10 +385,14 @@ function TrainingModal({userId,onSave,onClose}){
   const [duration,setDur]=useState("00:00:00");
   const [date,setDate]=useState("");
   const [loading,setLoading]=useState(false);
+  const [error,setErr]=useState("");
   const handleSave=async()=>{
-    if(!dist)return;setLoading(true);
-    await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,denivele:sport==="Trail"?(parseFloat(deniv)||0):null,duration_str:duration,training_date:date||new Date().toISOString().split("T")[0]});
-    setLoading(false);onSave();
+    if(!dist)return;
+    setLoading(true);setErr("");
+    const{error:err}=await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,denivele:sport==="Trail"?(parseFloat(deniv)||0):null,duration_str:duration,note:null,training_date:date||new Date().toISOString().split("T")[0]});
+    setLoading(false);
+    if(err){setErr("Erreur lors de l'enregistrement");return;}
+    onSave();
   };
   return (
     <Modal onClose={onClose}>
@@ -400,6 +404,7 @@ function TrainingModal({userId,onSave,onClose}){
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><TimePicker value={duration} onChange={setDur}/></div>
       <Lbl c="Date"/>
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={date} onChange={setDate}/></div>
+      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Valider"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
     </Modal>
