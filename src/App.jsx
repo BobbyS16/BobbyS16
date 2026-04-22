@@ -400,7 +400,7 @@ function Avatar({profile,size=48,highlight=false}){
   const initials=(profile?.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   return (
     <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:highlight?"#E63946":"rgba(255,255,255,0.1)",border:highlight?"3px solid #E63946":"2px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:size*0.35,color:"#fff",letterSpacing:1}}>
-      {profile?.avatar?<img src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>:initials}
+      {profile?.avatar?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>:initials}
     </div>
   );
 }
@@ -487,9 +487,19 @@ function EditProfileModal({profile,onSave,onClose}){
   const [gender,setGender]=useState(profile.gender||"");
   const [nat,setNat]=useState(profile.nationality||"");
   const [avFile,setAvFile]=useState(null);
+  const [avPreview,setAvPreview]=useState(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
   const fileRef=useRef(null);
+  const onPick=e=>{
+    const f=e.target.files?.[0];
+    if(!f)return;
+    setAvFile(f);
+    const reader=new FileReader();
+    reader.onload=ev=>setAvPreview(ev.target.result);
+    reader.onerror=()=>setError("Impossible de lire le fichier");
+    reader.readAsDataURL(f);
+  };
   const handleSave=async()=>{
     setLoading(true);setError("");
     let avatar_url=profile.avatar;
@@ -510,11 +520,12 @@ function EditProfileModal({profile,onSave,onClose}){
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginBottom:20}}>Modifier le profil</div>
       <Lbl c="Photo de profil"/>
-      <label style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,cursor:"pointer"}}>
-        <Avatar profile={{...profile,avatar:avFile?URL.createObjectURL(avFile):profile.avatar}} size={56}/>
+      <label style={{display:"flex",alignItems:"center",gap:12,marginBottom:8,cursor:"pointer"}}>
+        <Avatar profile={{...profile,avatar:avPreview||profile.avatar}} size={56}/>
         <span style={{padding:"10px 14px",borderRadius:12,background:"rgba(230,57,70,0.12)",border:"1px solid rgba(230,57,70,0.3)",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>📷 Changer la photo</span>
-        <input ref={fileRef} type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(f)setAvFile(f);}} style={{position:"absolute",width:1,height:1,padding:0,margin:-1,overflow:"hidden",clip:"rect(0,0,0,0)",whiteSpace:"nowrap",border:0}}/>
+        <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{position:"absolute",width:1,height:1,padding:0,margin:-1,overflow:"hidden",clip:"rect(0,0,0,0)",whiteSpace:"nowrap",border:0}}/>
       </label>
+      {avFile&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginBottom:16,paddingLeft:2}}>📎 {avFile.name} · {(avFile.size/1024/1024).toFixed(2)} Mo</div>}
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Lbl c="Nom complet"/><Inp value={name} onChange={setName} placeholder="Ton nom"/>
       <Lbl c="Ville"/><Inp value={city} onChange={setCity} placeholder="Ta ville"/>
