@@ -21,7 +21,7 @@ const DISCIPLINES = {
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5 },
 };
 
-const TRAINING_SPORTS = ["Tout","Course à pied","Trail","Vélo","Natation","Autre"];
+const TRAINING_SPORTS = ["Tout","Run","Trail","Vélo","Natation","Autre"];
 const MONTHS_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
 const CY = new Date().getFullYear();
 
@@ -53,7 +53,7 @@ function sumBestPts(results) {
   return Object.values(best).reduce((s,p)=>s+p,0);
 }
 function calcTrainingPts(distKm, sport) {
-  const base = {"Course à pied":10,"Trail":12,"Vélo":4,"Natation":15,"Autre":6};
+  const base = {"Run":10,"Trail":12,"Vélo":4,"Natation":15,"Autre":6};
   return Math.round((base[sport]||6) * (distKm||0));
 }
 function getLevel(pts) {
@@ -283,7 +283,7 @@ function ResultModal({existing,userId,onSave,onClose}){
 
 // ── TRAINING MODAL ────────────────────────────────────────────────────────────
 function TrainingModal({userId,onSave,onClose}){
-  const [sport,setSport]=useState("Course à pied");
+  const [sport,setSport]=useState("Run");
   const [dist,setDist]=useState("");
   const [deniv,setDeniv]=useState("");
   const [duration,setDur]=useState("00:00:00");
@@ -431,7 +431,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges(results);
-  const DISC_TABS=[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Course"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"}];
+  const DISC_TABS=[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"}];
 
   const [copied,setCopied]=useState(false);
   const handleShare=()=>{
@@ -448,7 +448,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
           <div style={{fontFamily:"'Bebas Neue'",fontSize:36,letterSpacing:3,lineHeight:1}}>
             <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
           </div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>COURSE · TRIATHLON · TRAIL</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>RUN · TRIATHLON · TRAIL</div>
         </div>
         <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:14,padding:"10px 14px",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>
           {copied?"✓ Copié !":"🔗 Inviter"}
@@ -691,7 +691,7 @@ function PerfTab({userId,refreshKey}){
 
       {subTab==="bests"&&(
         <div>
-          {[{cat:"running",label:"🏃 Course"},{cat:"triathlon",label:"🏊 Triathlon"},{cat:"trail",label:"⛰️ Trail"}].map(({cat,label})=>{
+          {[{cat:"running",label:"🏃 Run"},{cat:"triathlon",label:"🏊 Triathlon"},{cat:"trail",label:"⛰️ Trail"}].map(({cat,label})=>{
             const catDiscs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat);
             const catBests=catDiscs.map(([disc])=>byDisc[disc]?[disc,byDisc[disc]]:null).filter(Boolean);
             return(
@@ -973,7 +973,7 @@ function AuthScreen(){
   return (
     <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:72,lineHeight:1,letterSpacing:6}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div>
-      <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",letterSpacing:4,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:60}}>Course · Trail · Triathlon</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",letterSpacing:4,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:60}}>Run · Trail · Triathlon</div>
       <button onClick={signIn} style={{background:"#fff",color:"#111",border:"none",borderRadius:16,padding:"16px 40px",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
         <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.6 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.1-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.6 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.3 0-9.6-3-11.3-7.5l-6.6 5.1C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.5-2.5 4.6-4.6 6l6.2 5.2C41 35.6 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
         Continuer avec Google
