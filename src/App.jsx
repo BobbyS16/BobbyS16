@@ -96,17 +96,79 @@ function fmtTime(s) {
 }
 
 const BADGES = [
-  {id:"first_race",   emoji:"🎽",label:"Première foulée", color:"#E63946",check:r=>r.length>=1},
-  {id:"five_races",   emoji:"🔥",label:"Série de 5",      color:"#FF6B35",check:r=>r.length>=5},
-  {id:"ten_races",    emoji:"💎",label:"Vétéran",         color:"#9B59B6",check:r=>r.length>=10},
-  {id:"sub4_marathon",emoji:"🏆",label:"Sub-4h Marathon", color:"#FFD700",check:r=>r.some(x=>x.discipline==="marathon"&&x.time<4*3600)},
-  {id:"sub2_semi",    emoji:"⚡",label:"Sub-2h Semi",     color:"#FFD700",check:r=>r.some(x=>x.discipline==="semi"&&x.time<2*3600)},
-  {id:"sub20_5k",     emoji:"🚀",label:"Sub-20 5km",      color:"#FFD700",check:r=>r.some(x=>x.discipline==="5km"&&x.time<20*60)},
-  {id:"ironman",      emoji:"🦾",label:"Ironman",         color:"#E63946",check:r=>r.some(x=>x.discipline==="tri-xl")},
-  {id:"ultra",        emoji:"🏔️",label:"Ultra Trail",     color:"#27AE60",check:r=>r.some(x=>x.discipline==="trail-xl")},
-  {id:"multisport",   emoji:"🎯",label:"Multi-Sport",     color:"#3498DB",check:r=>new Set(r.map(x=>DISCIPLINES[x.discipline]?.category)).size>=3},
+  // Course à pied
+  {id:"finisher_marathon", cat:"Course",     emoji:"🏁", label:"Finisher Marathon",  color:"#E63946", check:({results})=>results.some(r=>r.discipline==="marathon")},
+  {id:"sub4_marathon",     cat:"Course",     emoji:"🥉", label:"Sub-4h Marathon",    color:"#CD7F32", check:({results})=>results.some(r=>r.discipline==="marathon"&&r.time<4*3600)},
+  {id:"sub3h30_marathon",  cat:"Course",     emoji:"🥈", label:"Sub-3h30 Marathon",  color:"#C0C0C0", check:({results})=>results.some(r=>r.discipline==="marathon"&&r.time<3*3600+30*60)},
+  {id:"sub3_marathon",     cat:"Course",     emoji:"🥇", label:"Sub-3h Marathon",    color:"#FFD700", check:({results})=>results.some(r=>r.discipline==="marathon"&&r.time<3*3600)},
+  {id:"sub1h40_semi",      cat:"Course",     emoji:"⚡", label:"Sub-1h40 Semi",      color:"#FF6B35", check:({results})=>results.some(r=>r.discipline==="semi"&&r.time<1*3600+40*60)},
+  {id:"sub1h30_semi",      cat:"Course",     emoji:"⚡", label:"Sub-1h30 Semi",      color:"#FFD700", check:({results})=>results.some(r=>r.discipline==="semi"&&r.time<1*3600+30*60)},
+  {id:"sub50_10k",         cat:"Course",     emoji:"🏃", label:"Sub-50 10km",        color:"#FF6B35", check:({results})=>results.some(r=>r.discipline==="10km"&&r.time<50*60)},
+  {id:"sub40_10k",         cat:"Course",     emoji:"🏃", label:"Sub-40 10km",        color:"#FFD700", check:({results})=>results.some(r=>r.discipline==="10km"&&r.time<40*60)},
+  {id:"sub30_5k",          cat:"Course",     emoji:"💨", label:"Sub-30 5km",         color:"#FF6B35", check:({results})=>results.some(r=>r.discipline==="5km"&&r.time<30*60)},
+  {id:"sub18_5k",          cat:"Course",     emoji:"🚀", label:"Sub-18 5km",         color:"#FFD700", check:({results})=>results.some(r=>r.discipline==="5km"&&r.time<18*60)},
+  {id:"finisher_100k",     cat:"Course",     emoji:"💯", label:"Finisher 100 km",    color:"#27AE60", check:({results,trainings})=>results.some(r=>r.discipline==="trail-xl")||(trainings||[]).some(t=>(t.distance||0)>=100)},
+
+  // Trail
+  {id:"first_trail",       cat:"Trail",      emoji:"⛰️", label:"Premier trail",      color:"#27AE60", check:({results})=>results.some(r=>DISCIPLINES[r.discipline]?.category==="trail")},
+  {id:"ultra_trail",       cat:"Trail",      emoji:"🏔️", label:"Ultra traileur",     color:"#27AE60", check:({results})=>results.some(r=>r.discipline==="trail-xl")},
+
+  // Triathlon
+  {id:"first_tri",         cat:"Triathlon",  emoji:"🏊", label:"Premier triathlon",  color:"#3498DB", check:({results})=>results.some(r=>DISCIPLINES[r.discipline]?.category==="triathlon")},
+  {id:"triple_crown",      cat:"Triathlon",  emoji:"👑", label:"Triple couronne",    color:"#FFD700", check:({results})=>{const ds=new Set(results.map(r=>r.discipline));return ds.has("tri-s")&&ds.has("tri-m")&&ds.has("tri-l");}},
+  {id:"quad_crown",        cat:"Triathlon",  emoji:"👑", label:"Quadruple couronne", color:"#FFD700", check:({results})=>{const ds=new Set(results.map(r=>r.discipline));return ds.has("tri-s")&&ds.has("tri-m")&&ds.has("tri-l")&&ds.has("tri-xl");}},
+  {id:"ironman",           cat:"Triathlon",  emoji:"🦾", label:"Ironman",            color:"#E63946", check:({results})=>results.some(r=>r.discipline==="tri-xl")},
+
+  // Régularité
+  {id:"active_3_months",   cat:"Régularité", emoji:"📅", label:"Actif 3 mois",       color:"#3498DB", check:({trainings})=>{
+    const ms=[...new Set((trainings||[]).map(t=>t.date?.slice(0,7)).filter(Boolean))].sort();
+    let streak=0,prev=null;
+    for(const m of ms){
+      if(!prev){streak=1;}else{const[py,pm]=prev.split("-").map(Number),[y,mo]=m.split("-").map(Number);if(y*12+mo===py*12+pm+1)streak++;else streak=1;}
+      if(streak>=3)return true;
+      prev=m;
+    }
+    return false;
+  }},
+  {id:"ten_races_year",    cat:"Régularité", emoji:"🔟", label:"10 courses / an",    color:"#FF6B35", check:({results})=>{const by={};results.forEach(r=>{by[r.year]=(by[r.year]||0)+1;});return Object.values(by).some(n=>n>=10);}},
+  {id:"four_seasons",      cat:"Régularité", emoji:"🍂", label:"4 saisons",          color:"#9B59B6", check:({results})=>{const yq={};(results||[]).forEach(r=>{if(!r.race_date)return;const d=new Date(r.race_date);if(isNaN(d))return;const y=d.getFullYear(),q=Math.floor(d.getMonth()/3);if(!yq[y])yq[y]=new Set();yq[y].add(q);});return Object.values(yq).some(qs=>qs.size>=4);}},
+  {id:"loyal",             cat:"Régularité", emoji:"⭐", label:"Toujours là",        color:"#FFD700", check:({profile})=>!!profile?.created_at&&(Date.now()-new Date(profile.created_at).getTime())>=2*365*24*3600*1000},
+
+  // Social
+  {id:"first_friend",      cat:"Social",     emoji:"🤝", label:"Premier ami",        color:"#E63946", check:({friendCount})=>friendCount>=1},
+  {id:"five_friends",      cat:"Social",     emoji:"👥", label:"5 amis",             color:"#FF6B35", check:({friendCount})=>friendCount>=5},
+  {id:"twenty_friends",    cat:"Social",     emoji:"👨‍👩‍👧", label:"20 amis",         color:"#FFD700", check:({friendCount})=>friendCount>=20},
+  {id:"fifty_friends",     cat:"Social",     emoji:"🎉", label:"50 amis",            color:"#FFD700", check:({friendCount})=>friendCount>=50},
+  {id:"group_creator",     cat:"Social",     emoji:"🏠", label:"Créateur de groupe", color:"#3498DB", check:({groupsCreated})=>groupsCreated>=1},
+
+  // Fun
+  {id:"comeback",          cat:"Fun",        emoji:"💪", label:"Comeback",           color:"#E63946", check:({trainings,results})=>{
+    const ds=[...(results||[]).map(r=>r.race_date).filter(Boolean),...(trainings||[]).map(t=>t.date).filter(Boolean)].map(d=>new Date(d).getTime()).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+    if(ds.length<2)return false;
+    const six=6*30*24*3600*1000;
+    for(let i=1;i<ds.length;i++)if(ds[i]-ds[i-1]>=six)return true;
+    return false;
+  }},
+  {id:"obsessed",          cat:"Fun",        emoji:"🔥", label:"Obsédé",             color:"#FF6B35", check:({trainings})=>{if(!trainings?.length)return false;const by={};(trainings||[]).forEach(t=>{if(!t.date)return;const m=t.date.slice(0,7);by[m]=(by[m]||0)+1;});return Object.values(by).some(n=>n>=10);}},
+  {id:"rookie",            cat:"Fun",        emoji:"🌱", label:"Rookie",             color:"#27AE60", check:({trainings,results,profile})=>{
+    if(!profile?.created_at)return false;
+    const t0=new Date(profile.created_at).getTime(),end=t0+7*24*3600*1000;
+    const acts=[...(results||[]).map(r=>r.race_date||r.created_at).filter(Boolean),...(trainings||[]).map(t=>t.date||t.created_at).filter(Boolean)].map(d=>new Date(d).getTime()).filter(n=>!isNaN(n));
+    return acts.filter(n=>n>=t0&&n<=end).length>=3;
+  }},
 ];
-function computeBadges(results) { return BADGES.filter(b=>b.check(results||[])); }
+const BADGE_CATEGORIES=[
+  {key:"Course",     label:"🏃 Course à pied"},
+  {key:"Trail",      label:"⛰️ Trail"},
+  {key:"Triathlon",  label:"🏊 Triathlon"},
+  {key:"Régularité", label:"📅 Régularité"},
+  {key:"Social",     label:"👥 Social"},
+  {key:"Fun",        label:"🔥 Fun"},
+];
+function computeBadges(ctx={}) {
+  const c={results:[],trainings:[],profile:null,friendCount:0,groupsCreated:0,...ctx};
+  return BADGES.filter(b=>b.check(c));
+}
 
 // ── DRUM PICKER ───────────────────────────────────────────────────────────────
 function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
@@ -528,7 +590,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
     const ranked=pool.map(p=>{
       const pRes=allResults.filter(r=>r.user_id===p.id&&(discFilter==="All"||DISCIPLINES[r.discipline]?.category===discFilter));
       const pts=sumBestPts(pRes);
-      const badges=computeBadges(allResults.filter(r=>r.user_id===p.id));
+      const badges=computeBadges({results:allResults.filter(r=>r.user_id===p.id)});
       return{...p,pts,badges};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
     setRankData(ranked);
@@ -539,7 +601,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
   const totalPts=sumBestPts(seasonResults)+trainingPts;
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
-  const myBadges=computeBadges(results);
+  const myBadges=computeBadges({results});
   const myLv=getSeasonLevel(totalPts);
   const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"}];
 
@@ -1152,17 +1214,53 @@ function SocialTab({myProfile,onNotifsChange}){
   );
 }
 
+// ── BADGES BY CATEGORY ────────────────────────────────────────────────────────
+function BadgesByCategory({badges}){
+  const unlockedIds=new Set(badges.map(b=>b.id));
+  return (
+    <div style={{marginBottom:18}}>
+      <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Badges ({badges.length}/{BADGES.length})</div>
+      {BADGE_CATEGORIES.map(cat=>{
+        const items=BADGES.filter(b=>b.cat===cat.key);
+        if(!items.length) return null;
+        return (
+          <div key={cat.key} style={{marginBottom:12}}>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",letterSpacing:1,fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:6}}>{cat.label}</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {items.map(b=>{
+                const un=unlockedIds.has(b.id);
+                return (
+                  <div key={b.id} title={b.label} style={{background:un?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.02)",borderRadius:12,padding:"8px 10px",border:`1px solid ${un?b.color+"44":"rgba(255,255,255,0.05)"}`,textAlign:"center",opacity:un?1:0.45,minWidth:74}}>
+                    <div style={{fontSize:20,filter:un?"none":"grayscale(1)"}}>{un?b.emoji:"🔒"}</div>
+                    <div style={{fontSize:9,color:un?b.color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:2,whiteSpace:"nowrap"}}>{b.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── PROFILE MODAL ─────────────────────────────────────────────────────────────
 function ProfileModal({profile,results,onRefresh,onClose}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
   const [friendCount,setFriendCount]=useState(0);
-  const badges=computeBadges(results);
+  const [trainings,setTrainings]=useState([]);
+  const [groupsCreated,setGroupsCreated]=useState(0);
+  const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const lv=getLevel(results.length?Math.max(...results.map(r=>calcPoints(r.discipline,r.time))):0);
 
   useEffect(()=>{
-    supabase.from("friendships").select("id",{count:"exact"}).eq("user_id",profile.id).eq("status","accepted")
+    supabase.from("friendships").select("id",{count:"exact",head:true}).eq("user_id",profile.id).eq("status","accepted")
       .then(({count})=>setFriendCount(count||0));
+    supabase.from("trainings").select("date,distance,duration,sport,points").eq("user_id",profile.id)
+      .then(({data})=>setTrainings(data||[]));
+    supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",profile.id)
+      .then(({count})=>setGroupsCreated(count||0));
   },[profile.id]);
 
   return (
@@ -1196,20 +1294,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Courses</div>
         </div>
       </div>
-      <div>
-        <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Badges ({badges.length}/{BADGES.length})</div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>
-          {BADGES.map(b=>{
-            const unlocked=badges.some(x=>x.id===b.id);
-            return (
-              <div key={b.id} style={{background:unlocked?"rgba(255,255,255,0.04)":"rgba(255,255,255,0.02)",borderRadius:12,padding:"8px 12px",border:`1px solid ${unlocked?b.color+"44":"rgba(255,255,255,0.05)"}`,textAlign:"center",opacity:unlocked?1:0.45}}>
-                <div style={{fontSize:20,filter:unlocked?"none":"grayscale(1)"}}>{unlocked?b.emoji:"🔒"}</div>
-                <div style={{fontSize:9,color:unlocked?b.color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:2,whiteSpace:"nowrap"}}>{b.label}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <BadgesByCategory badges={badges}/>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
@@ -1293,6 +1378,9 @@ function ActivityCard({myId,activityType,activityId,children}){
 function FriendProfileModal({friend,myId,onClose}){
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
+  const [fullProfile,setFullProfile]=useState(friend);
+  const [friendCount,setFriendCount]=useState(0);
+  const [groupsCreated,setGroupsCreated]=useState(0);
   const [season,setSeason]=useState(CY);
   const [tab,setTab]=useState("races");
   const [loading,setLoading]=useState(true);
@@ -1301,18 +1389,24 @@ function FriendProfileModal({friend,myId,onClose}){
 
   const loadAll=async()=>{
     setLoading(true);
-    const[{data:r},{data:t}]=await Promise.all([
+    const[{data:r},{data:t},{data:prof},{count:fc},{count:gc}]=await Promise.all([
       supabase.from("results").select("*").eq("user_id",friend.id).order("year",{ascending:false}),
       supabase.from("trainings").select("*").eq("user_id",friend.id).order("date",{ascending:false}),
+      supabase.from("profiles").select("*").eq("id",friend.id).single(),
+      supabase.from("friendships").select("id",{count:"exact",head:true}).eq("user_id",friend.id).eq("status","accepted"),
+      supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",friend.id),
     ]);
-    setResults(r||[]);setTrainings(t||[]);setLoading(false);
+    setResults(r||[]);setTrainings(t||[]);
+    if(prof)setFullProfile(prof);
+    setFriendCount(fc||0);setGroupsCreated(gc||0);
+    setLoading(false);
   };
 
   const seasonResults=results.filter(r=>r.year===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
   const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
   const lv=getSeasonLevel(seasonPts);
-  const badges=computeBadges(results);
+  const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
 
   return (
     <Modal onClose={onClose}>
@@ -1383,14 +1477,7 @@ function FriendProfileModal({friend,myId,onClose}){
         })
       )}
 
-      {badges.length>0&&(
-        <div style={{marginTop:18}}>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Badges</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {badges.map(b=><div key={b.id} title={b.label} style={{fontSize:22,padding:"6px 8px",background:"rgba(255,255,255,0.04)",borderRadius:10,border:"1px solid rgba(255,255,255,0.06)"}}>{b.emoji}</div>)}
-          </div>
-        </div>
-      )}
+      <div style={{marginTop:18}}><BadgesByCategory badges={badges}/></div>
     </Modal>
   );
 }
