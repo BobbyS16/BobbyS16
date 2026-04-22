@@ -391,7 +391,7 @@ function TrainingModal({userId,onSave,onClose}){
     setLoading(true);setErr("");
     const{error:err}=await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,denivele:sport==="Trail"?(parseFloat(deniv)||0):null,duration_str:duration,note:"",training_date:date||new Date().toISOString().split("T")[0]});
     setLoading(false);
-    if(err){setErr("Erreur lors de l'enregistrement");return;}
+    if(err){setErr(err.message||err.details||JSON.stringify(err));return;}
     onSave();
   };
   return (
