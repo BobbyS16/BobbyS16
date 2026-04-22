@@ -197,20 +197,23 @@ function BarChart({data,color="#E63946",unit="km",title=""}) {
   );
 }
 
-function LineChart({data,color="#E63946",title=""}) {
+function LineChart({data,color="#E63946",title="",invert=false,formatY=null}) {
   if(!data||data.length<2) return <div style={{textAlign:"center",color:"rgba(240,237,232,0.2)",fontSize:12,padding:"20px 0",fontFamily:"'Barlow',sans-serif"}}>Ajoute au moins 2 résultats</div>;
   const vals=data.map(d=>d.value),min=Math.min(...vals),max=Math.max(...vals),range=max-min||1;
-  const W=300,H=80,P=10;
-  const pts=data.map((d,i)=>({x:P+(i/(data.length-1))*(W-P*2),y:P+(1-(d.value-min)/range)*(H-P*2),...d}));
+  const W=300,H=90,P=10,PL=formatY?30:10;
+  const getY=v=>invert?P+(v-min)/range*(H-P*2):P+(1-(v-min)/range)*(H-P*2);
+  const pts=data.map((d,i)=>({x:PL+(i/(data.length-1))*(W-PL-P),y:getY(d.value),...d}));
   const path=pts.map((p,i)=>`${i===0?"M":"L"}${p.x},${p.y}`).join(" ");
+  const yTicks=formatY?[min,min+range/2,max]:[];
   return (
     <div>
       {title&&<div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:12}}>{title}</div>}
       <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",overflow:"visible"}}>
         <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.3"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
+        {formatY&&yTicks.map((v,i)=><text key={i} x={PL-4} y={getY(v)+3} textAnchor="end" fill="rgba(240,237,232,0.3)" fontSize="7" fontFamily="Barlow,sans-serif">{formatY(v)}</text>)}
         <path d={`${path} L${pts[pts.length-1].x},${H} L${pts[0].x},${H} Z`} fill="url(#lg)"/>
         <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        {pts.map((p,i)=>(<g key={i}><circle cx={p.x} cy={p.y} r="4" fill={color}/><text x={p.x} y={H} textAnchor="middle" fill="rgba(240,237,232,0.3)" fontSize="8" fontFamily="Barlow,sans-serif">{p.label}</text></g>))}
+        {pts.map((p,i)=>(<g key={i}><circle cx={p.x} cy={p.y} r="4" fill={color}/><text x={p.x} y={H+8} textAnchor="middle" fill="rgba(240,237,232,0.3)" fontSize="8" fontFamily="Barlow,sans-serif">{p.label}</text></g>))}
       </svg>
     </div>
   );
@@ -678,7 +681,7 @@ function PerfTab({userId,refreshKey}){
   [...results].forEach(r=>{const y=rYear(r);if(!byYear[y])byYear[y]=[];byYear[y].push(r);});
 
   const discResults=results.filter(r=>r.discipline===selDisc).sort((a,b)=>(a.race_date||`${a.year}-01-01`).localeCompare(b.race_date||`${b.year}-01-01`));
-  const progressionData=discResults.map(r=>({label:r.race_date?r.race_date.slice(5):String(r.year),value:calcPoints(selDisc,r.time)}));
+  const progressionData=discResults.map(r=>({label:String(rYear(r)),value:r.time}));
 
   return (
     <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
@@ -739,7 +742,7 @@ function PerfTab({userId,refreshKey}){
         <div>
           <Sel value={selDisc} onChange={setSelDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>
           <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"16px",marginBottom:14,border:"1px solid rgba(255,255,255,0.06)"}}>
-            <LineChart data={progressionData} color="#E63946" title={`Progression ${DISCIPLINES[selDisc]?.label}`}/>
+            <LineChart data={progressionData} color="#E63946" title={`Progression ${DISCIPLINES[selDisc]?.label}`} invert={true} formatY={v=>`${(v/3600).toFixed(1)}h`}/>
           </div>
           {discResults.map((r,i)=>{const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
