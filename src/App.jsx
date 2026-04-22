@@ -258,6 +258,15 @@ function Modal({onClose,children}) {
   const startY=useRef(null);
   const dragging=useRef(false);
   const scrollRef=useRef(null);
+  const overlayRef=useRef(null);
+
+  useEffect(()=>{
+    const el=overlayRef.current;
+    if(!el)return;
+    const prevent=e=>{if(e.cancelable)e.preventDefault();};
+    el.addEventListener("touchmove",prevent,{passive:false});
+    return()=>el.removeEventListener("touchmove",prevent);
+  },[]);
   const onTouchStart=e=>{startY.current=e.touches[0].clientY;dragging.current=false;};
   const onTouchMove=e=>{
     const atTop=!scrollRef.current||scrollRef.current.scrollTop===0;
@@ -266,7 +275,7 @@ function Modal({onClose,children}) {
   };
   const onTouchEnd=()=>{if(dy>80)onClose();else setDy(0);dragging.current=false;};
   return (
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}}>
+    <div ref={overlayRef} onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}}>
       <div onClick={e=>e.stopPropagation()} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:"92vh",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease"}}>
         <div style={{padding:"16px 20px 0",flexShrink:0}}>
