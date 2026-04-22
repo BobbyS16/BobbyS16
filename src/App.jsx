@@ -112,8 +112,9 @@ function computeBadges(results) { return BADGES.filter(b=>b.check(results||[]));
 function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
   const ref=useRef(null), IH=40;
   const N=values.length;
-  const COPIES=loop?5:1;
+  const COPIES=loop?21:1;
   const MIDDLE=Math.floor(COPIES/2);
+  const SAFE=Math.floor(COPIES/3); // si on quitte la zone centrale, on téléporte
   const settleTimer=useRef(null);
 
   useEffect(()=>{
@@ -134,13 +135,13 @@ function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
       settleTimer.current=setTimeout(()=>{
         if(!ref.current)return;
         const cur=Math.round(ref.current.scrollTop/IH);
-        if(cur<N||cur>=(COPIES-1)*N){
+        if(cur<SAFE*N||cur>=(COPIES-SAFE)*N){
           const m=((cur%N)+N)%N;
           ref.current.scrollTop=(MIDDLE*N+m)*IH;
         }
-      },200);
+      },180);
     }
-  },[N,onChange,selectedIndex,loop,COPIES,MIDDLE]);
+  },[N,onChange,selectedIndex,loop,COPIES,MIDDLE,SAFE]);
 
   return (
     <div style={{position:"relative",width,height:IH*3,overflow:"hidden",flexShrink:0}}>
