@@ -510,11 +510,11 @@ function EditProfileModal({profile,onSave,onClose}){
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginBottom:20}}>Modifier le profil</div>
       <Lbl c="Photo de profil"/>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+      <label style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,cursor:"pointer"}}>
         <Avatar profile={{...profile,avatar:avFile?URL.createObjectURL(avFile):profile.avatar}} size={56}/>
-        <button type="button" onClick={()=>fileRef.current?.click()} style={{padding:"10px 14px",borderRadius:12,background:"rgba(230,57,70,0.12)",border:"1px solid rgba(230,57,70,0.3)",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>📷 Changer la photo</button>
-        <input ref={fileRef} type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(f)setAvFile(f);}} style={{display:"none"}}/>
-      </div>
+        <span style={{padding:"10px 14px",borderRadius:12,background:"rgba(230,57,70,0.12)",border:"1px solid rgba(230,57,70,0.3)",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>📷 Changer la photo</span>
+        <input ref={fileRef} type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(f)setAvFile(f);}} style={{position:"absolute",width:1,height:1,padding:0,margin:-1,overflow:"hidden",clip:"rect(0,0,0,0)",whiteSpace:"nowrap",border:0}}/>
+      </label>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Lbl c="Nom complet"/><Inp value={name} onChange={setName} placeholder="Ton nom"/>
       <Lbl c="Ville"/><Inp value={city} onChange={setCity} placeholder="Ta ville"/>
