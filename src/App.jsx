@@ -389,7 +389,9 @@ function TrainingModal({userId,onSave,onClose}){
   const handleSave=async()=>{
     if(!dist)return;
     setLoading(true);setErr("");
-    const{error:err}=await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,denivele:sport==="Trail"?(parseFloat(deniv)||0):null,duration_str:duration,note:"",training_date:date||new Date().toISOString().split("T")[0]});
+    const payload={user_id:userId,sport,distance:parseFloat(dist)||0,duration_str:duration,note:"",training_date:date||new Date().toISOString().split("T")[0]};
+    if(sport==="Trail")payload.denivele=parseFloat(deniv)||0;
+    const{error:err}=await supabase.from("trainings").insert(payload);
     setLoading(false);
     if(err){setErr(err.message||err.details||JSON.stringify(err));return;}
     onSave();
