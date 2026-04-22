@@ -21,7 +21,7 @@ const DISCIPLINES = {
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5 },
 };
 
-const TRAINING_SPORTS = ["Tout","Run","Vélo","Natation","Trail"];
+const TRAINING_SPORTS = ["All","Run","Vélo","Natation","Trail"];
 const MONTHS_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
 const CY = new Date().getFullYear();
 
@@ -298,7 +298,7 @@ function TrainingModal({userId,onSave,onClose}){
   return (
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginBottom:20}}>Ajouter un entraînement</div>
-      <Lbl c="Sport"/><Sel value={sport} onChange={setSport}>{TRAINING_SPORTS.filter(s=>s!=="Tout").map(s=><option key={s} value={s}>{s}</option>)}</Sel>
+      <Lbl c="Sport"/><Sel value={sport} onChange={setSport}>{TRAINING_SPORTS.filter(s=>s!=="All").map(s=><option key={s} value={s}>{s}</option>)}</Sel>
       <Lbl c="Distance (km)"/><Inp value={dist} onChange={setDist} placeholder="Ex: 12.5" type="number"/>
       {sport==="Trail"&&<><Lbl c="Dénivelé (m)"/><Inp value={deniv} onChange={setDeniv} placeholder="Ex: 800" type="number"/></>}
       <Lbl c="Durée"/>
@@ -401,7 +401,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
     }
   },[seasons]);
   const [rankFilter,setRankFilter]=useState("amis");
-  const [discFilter,setDiscFilter]=useState("Tout");
+  const [discFilter,setDiscFilter]=useState("All");
   const [rankData,setRankData]=useState([]);
 
   useEffect(()=>{loadRanking();},[season,rankFilter,discFilter]);
@@ -418,7 +418,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
       pool=allProfiles.filter(p=>ids.has(p.id));
     }
     const ranked=pool.map(p=>{
-      const pRes=allResults.filter(r=>r.user_id===p.id&&(discFilter==="Tout"||DISCIPLINES[r.discipline]?.category===discFilter));
+      const pRes=allResults.filter(r=>r.user_id===p.id&&(discFilter==="All"||DISCIPLINES[r.discipline]?.category===discFilter));
       const pts=sumBestPts(pRes);
       const badges=computeBadges(allResults.filter(r=>r.user_id===p.id));
       return{...p,pts,badges};
@@ -431,7 +431,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges(results);
-  const DISC_TABS=[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"}];
+  const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"}];
 
   const [copied,setCopied]=useState(false);
   const handleShare=()=>{
@@ -604,7 +604,7 @@ function RankingTab({myProfile}){
 function TrainingTab({userId}){
   const [trainings,setTrainings]=useState([]);
   const [showAdd,setShowAdd]=useState(false);
-  const [selSport,setSelSport]=useState("Tout");
+  const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
 
   useEffect(()=>{loadTrainings();},[]);
@@ -614,7 +614,7 @@ function TrainingTab({userId}){
     setTrainings(data||[]);
   };
 
-  const filtered=trainings.filter(t=>(selSport==="Tout"||t.sport===selSport)&&new Date(t.training_date).getFullYear()===selYear);
+  const filtered=trainings.filter(t=>(selSport==="All"||t.sport===selSport)&&new Date(t.training_date).getFullYear()===selYear);
   const monthlyDist=MONTHS_FR.map((label,i)=>({label,value:Math.round(filtered.filter(t=>new Date(t.training_date).getMonth()===i).reduce((s,t)=>s+(t.distance||0),0))}));
   const totalDist=filtered.reduce((s,t)=>s+(t.distance||0),0);
   const totalPts=filtered.reduce((s,t)=>s+calcTrainingPts(t.distance,t.sport),0);
@@ -633,7 +633,7 @@ function TrainingTab({userId}){
         {[CY-1,CY].map(y=><button key={y} onClick={()=>setSelYear(y)} style={{flex:1,padding:"7px 0",borderRadius:10,border:"none",cursor:"pointer",background:selYear===y?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:selYear===y?"#E63946":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14}}>{y}</button>)}
       </div>
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-        {[{l:"Distance",v:`${totalDist.toFixed(1)} km`},{l:"Points training",v:totalPts},...(selSport==="Trail"||selSport==="Tout"?[{l:"Dénivelé",v:`${totalDeniv}m`}]:[])].map(({l,v})=>(
+        {[{l:"Distance",v:`${totalDist.toFixed(1)} km`},{l:"Points training",v:totalPts},...(selSport==="Trail"||selSport==="All"?[{l:"Dénivelé",v:`${totalDeniv}m`}]:[])].map(({l,v})=>(
           <div key={l} style={{flex:1,minWidth:80,padding:"10px",background:"rgba(255,255,255,0.03)",borderRadius:12,border:"1px solid rgba(255,255,255,0.06)",textAlign:"center"}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#E63946",letterSpacing:1}}>{v}</div>
             <div style={{fontSize:9,color:"rgba(240,237,232,0.3)",letterSpacing:1,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{l}</div>
