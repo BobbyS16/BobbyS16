@@ -21,7 +21,7 @@ const DISCIPLINES = {
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5 },
 };
 
-const TRAINING_SPORTS = ["Tout","Run","Trail","Vélo","Natation","Autre"];
+const TRAINING_SPORTS = ["Tout","Run","Vélo","Natation","Trail"];
 const MONTHS_FR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
 const CY = new Date().getFullYear();
 
@@ -53,7 +53,7 @@ function sumBestPts(results) {
   return Object.values(best).reduce((s,p)=>s+p,0);
 }
 function calcTrainingPts(distKm, sport) {
-  const base = {"Run":10,"Trail":12,"Vélo":4,"Natation":15,"Autre":6};
+  const base = {"Run":10,"Trail":12,"Vélo":4,"Natation":15};
   return Math.round((base[sport]||6) * (distKm||0));
 }
 function getLevel(pts) {
