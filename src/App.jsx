@@ -573,7 +573,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
         {seasons.map(y=>(
           <button key={y} onClick={()=>setSeason(y)} style={{flexShrink:0,padding:"7px 18px",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",gap:6}}>
             {y}
-            {y===CY&&<span style={{fontSize:8,color:season===y?"#fff":"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1}}>●</span>}
+            {y===CY&&<span style={{fontSize:9,color:season===y?"rgba(255,255,255,0.85)":"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>en cours</span>}
           </button>
         ))}
       </div>
