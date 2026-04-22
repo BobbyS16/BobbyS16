@@ -230,19 +230,23 @@ function SwipeRow({children,onEdit,onDelete}){
     if(!dragging.current)return;
     const dx=e.touches[0].clientX-startX.current;
     if(dx<0)setOffset(Math.max(dx,-W));
-    else if(offset<0)setOffset(Math.min(dx+offset,0));
+    else setOffset(Math.min(dx+offset,0));
   };
   const onTouchEnd=()=>{dragging.current=false;setOffset(o=>o<-W/2?-W:0);};
   const close=()=>setOffset(0);
+  const tr=dragging.current?"none":"transform 0.25s ease";
   return(
-    <div style={{position:"relative",overflow:"hidden",borderRadius:12,marginBottom:6}}>
-      <div style={{position:"absolute",right:0,top:0,bottom:0,width:W,display:"flex"}}>
-        <button onClick={()=>{close();onEdit();}} style={{flex:1,background:"rgba(255,255,255,0.12)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>
-        <button onClick={()=>{close();onDelete();}} style={{flex:1,background:"rgba(255,255,255,0.08)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>🗑️</button>
-      </div>
-      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-        style={{transform:`translateX(${offset}px)`,transition:dragging.current?"none":"transform 0.25s ease",position:"relative",zIndex:1,background:"#161616"}}>
-        {children}
+    <div style={{overflow:"hidden",borderRadius:12,marginBottom:6}}>
+      <div style={{position:"relative"}}>
+        <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+          style={{transform:`translateX(${offset}px)`,transition:tr}}>
+          {children}
+        </div>
+        <div style={{position:"absolute",top:0,bottom:0,right:0,width:W,display:"flex",
+          transform:`translateX(${W+offset}px)`,transition:tr}}>
+          <button onClick={()=>{close();onEdit();}} style={{flex:1,background:"rgba(255,255,255,0.12)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>
+          <button onClick={()=>{close();onDelete();}} style={{flex:1,background:"rgba(255,255,255,0.07)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>🗑️</button>
+        </div>
       </div>
     </div>
   );
