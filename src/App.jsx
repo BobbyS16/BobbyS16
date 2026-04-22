@@ -396,6 +396,15 @@ function Btn({children,onClick,variant="primary",mb=8,disabled=false,style={}}){
   const v={primary:{background:"#E63946",color:"#fff"},secondary:{background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)"},danger:{background:"rgba(230,57,70,0.15)",color:"#E63946"}};
   return <button onClick={onClick} disabled={disabled} style={{border:"none",borderRadius:14,cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,padding:"13px 0",width:"100%",transition:"opacity 0.2s",marginBottom:mb,...v[variant],...style,opacity:disabled?0.4:1}}>{children}</button>;
 }
+function PhotoViewer({src,onClose}){
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:500,cursor:"pointer",padding:20}}>
+      <img src={src} style={{maxWidth:"100%",maxHeight:"100%",borderRadius:12,boxShadow:"0 10px 40px rgba(0,0,0,0.5)"}}/>
+      <button onClick={onClose} style={{position:"absolute",top:"env(safe-area-inset-top, 20px)",right:20,width:40,height:40,borderRadius:"50%",background:"rgba(255,255,255,0.12)",color:"#fff",border:"none",fontSize:20,cursor:"pointer"}}>✕</button>
+    </div>
+  );
+}
+
 function Avatar({profile,size=48,highlight=false}){
   const initials=(profile?.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   return (
@@ -1269,6 +1278,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [friendCount,setFriendCount]=useState(0);
   const [trainings,setTrainings]=useState([]);
   const [groupsCreated,setGroupsCreated]=useState(0);
+  const [showPhoto,setShowPhoto]=useState(false);
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const lv=getLevel(results.length?Math.max(...results.map(r=>calcPoints(r.discipline,r.time))):0);
 
@@ -1291,7 +1301,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         </div>
       </div>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
-        <Avatar profile={profile} size={64} highlight/>
+        <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.name||"Athlète"}</div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[profile.city,getAgeCat(profile.birth_year),profile.gender,profile.nationality].filter(Boolean).join(" · ")}</div>
@@ -1315,6 +1325,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       <BadgesByCategory badges={badges}/>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
+      {showPhoto&&profile?.avatar&&<PhotoViewer src={profile.avatar} onClose={()=>setShowPhoto(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
     </Modal>
   );
@@ -1402,6 +1413,7 @@ function FriendProfileModal({friend,myId,onClose}){
   const [season,setSeason]=useState(CY);
   const [tab,setTab]=useState("races");
   const [loading,setLoading]=useState(true);
+  const [showPhoto,setShowPhoto]=useState(false);
 
   useEffect(()=>{loadAll();},[friend.id]);
 
@@ -1429,7 +1441,7 @@ function FriendProfileModal({friend,myId,onClose}){
   return (
     <Modal onClose={onClose}>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
-        <Avatar profile={friend} size={64} highlight/>
+        <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{friend.name||"Athlète"}</div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[friend.city,getAgeCat(friend.birth_year)].filter(Boolean).join(" · ")}</div>
@@ -1496,6 +1508,7 @@ function FriendProfileModal({friend,myId,onClose}){
       )}
 
       <div style={{marginTop:18}}><BadgesByCategory badges={badges}/></div>
+      {showPhoto&&fullProfile?.avatar&&<PhotoViewer src={fullProfile.avatar} onClose={()=>setShowPhoto(false)}/>}
     </Modal>
   );
 }
