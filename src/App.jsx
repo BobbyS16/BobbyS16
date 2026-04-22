@@ -114,13 +114,7 @@ function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
   const N=values.length;
   const COPIES=loop?5:1;
   const MIDDLE=Math.floor(COPIES/2);
-  const touchY=useRef(0);
-  const startTop=useRef(0);
-  const dragging=useRef(false);
-  const lastY=useRef(0);
-  const lastT=useRef(0);
-  const velocity=useRef(0);
-  const animRef=useRef(null);
+  const settleTimer=useRef(null);
 
   useEffect(()=>{
     if(!ref.current)return;
@@ -130,115 +124,42 @@ function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
     return()=>clearTimeout(t);
   },[]);
 
-  const wrap=top=>{
-    if(!loop) return Math.max(0,Math.min((N-1)*IH,top));
-    const ws=N*IH, minTop=N*IH, maxTop=(COPIES-1)*N*IH;
-    while(top<minTop) top+=ws;
-    while(top>=maxTop) top-=ws;
-    return top;
-  };
-  const notify=top=>{
-    const idx=Math.round(top/IH);
-    const mod=loop?((idx%N)+N)%N:Math.max(0,Math.min(N-1,idx));
-    if(mod!==selectedIndex) onChange(mod);
-    return mod;
-  };
-  const animSnap=mod=>{
-    if(!ref.current) return;
-    const target=(loop?MIDDLE*N+mod:mod)*IH;
-    ref.current.style.scrollBehavior="smooth";
-    ref.current.scrollTop=target;
-    setTimeout(()=>{if(ref.current)ref.current.style.scrollBehavior="auto";},260);
-  };
-
-  const onTouchStart=e=>{
-    e.stopPropagation();
-    cancelAnimationFrame(animRef.current);
-    dragging.current=true;
-    touchY.current=e.touches[0].clientY;
-    startTop.current=ref.current?ref.current.scrollTop:0;
-    lastY.current=e.touches[0].clientY;
-    lastT.current=performance.now();
-    velocity.current=0;
-  };
-  const onTouchMove=e=>{
-    e.stopPropagation();
-    if(!dragging.current||!ref.current) return;
-    const y=e.touches[0].clientY, now=performance.now();
-    const dt=Math.max(1,now-lastT.current);
-    velocity.current=(lastY.current-y)/dt;
-    lastY.current=y; lastT.current=now;
-    let newTop=startTop.current+(touchY.current-y);
+  const onScroll=useCallback(()=>{
+    if(!ref.current)return;
+    const absIdx=Math.round(ref.current.scrollTop/IH);
+    const mod=loop?((absIdx%N)+N)%N:Math.max(0,Math.min(N-1,absIdx));
+    if(mod!==selectedIndex)onChange(mod);
     if(loop){
-      const ws=N*IH, minTop=N*IH, maxTop=(COPIES-1)*N*IH;
-      while(newTop<minTop){newTop+=ws;startTop.current+=ws;}
-      while(newTop>=maxTop){newTop-=ws;startTop.current-=ws;}
-    }else{
-      newTop=Math.max(0,Math.min((N-1)*IH,newTop));
+      clearTimeout(settleTimer.current);
+      settleTimer.current=setTimeout(()=>{
+        if(!ref.current)return;
+        const cur=Math.round(ref.current.scrollTop/IH);
+        if(cur<N||cur>=(COPIES-1)*N){
+          const m=((cur%N)+N)%N;
+          ref.current.scrollTop=(MIDDLE*N+m)*IH;
+        }
+      },200);
     }
-    ref.current.scrollTop=newTop;
-    notify(newTop);
-  };
-  const onTouchEnd=e=>{
-    e.stopPropagation();
-    dragging.current=false;
-    if(!ref.current) return;
-    const absV=Math.abs(velocity.current);
-    if(absV<0.06){
-      const mod=notify(ref.current.scrollTop);
-      animSnap(mod);
-      return;
-    }
-    let v=velocity.current*14;
-    const friction=0.93;
-    const step=()=>{
-      if(!ref.current){animRef.current=null;return;}
-      const newTop=wrap(ref.current.scrollTop+v);
-      ref.current.scrollTop=newTop;
-      notify(newTop);
-      v*=friction;
-      if(Math.abs(v)>0.5){
-        animRef.current=requestAnimationFrame(step);
-      }else{
-        const mod=notify(ref.current.scrollTop);
-        animSnap(mod);
-      }
-    };
-    animRef.current=requestAnimationFrame(step);
-  };
-
-  const onWheel=e=>{
-    if(!ref.current) return;
-    e.stopPropagation();
-    e.preventDefault();
-    const newTop=wrap(ref.current.scrollTop+e.deltaY);
-    ref.current.scrollTop=newTop;
-    notify(newTop);
-  };
+  },[N,onChange,selectedIndex,loop,COPIES,MIDDLE]);
 
   return (
     <div style={{position:"relative",width,height:IH*3,overflow:"hidden",flexShrink:0}}>
       <div style={{position:"absolute",inset:0,zIndex:2,pointerEvents:"none",background:"linear-gradient(to bottom,#161616 0%,transparent 30%,transparent 70%,#161616 100%)"}}/>
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
-      <div ref={ref}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onWheel={onWheel}
+      <div ref={ref} onScroll={onScroll} data-scroll="1"
         style={{height:"100%",overflowY:"scroll",scrollbarWidth:"none",msOverflowStyle:"none",
-          overscrollBehavior:"contain",touchAction:"none"}}>
+          scrollSnapType:"y mandatory",overscrollBehavior:"contain",
+          WebkitOverflowScrolling:"touch",touchAction:"pan-y"}}>
         <div style={{height:IH,flexShrink:0}}/>
         {Array.from({length:COPIES}).map((_,copy)=>(
           values.map((v,i)=>(
             <div key={`${copy}-${i}`}
               onClick={()=>{
-                if(ref.current){
-                  const target=(loop?MIDDLE*N+i:i)*IH;
-                  ref.current.style.scrollBehavior="smooth";
-                  ref.current.scrollTop=target;
-                  setTimeout(()=>{if(ref.current)ref.current.style.scrollBehavior="auto";},260);
-                }
+                if(ref.current)ref.current.scrollTop=(loop?MIDDLE*N+i:i)*IH;
                 onChange(i);
               }}
               style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",
-                flexShrink:0,
+                scrollSnapAlign:"center",flexShrink:0,
                 fontFamily:"'Bebas Neue',sans-serif",fontSize:22,
                 color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",
                 cursor:"pointer",userSelect:"none"}}>
@@ -381,7 +302,18 @@ function Modal({onClose,children}) {
   useEffect(()=>{
     const el=overlayRef.current;
     if(!el)return;
-    const prevent=e=>{if(e.cancelable)e.preventDefault();};
+    const prevent=e=>{
+      if(!e.cancelable)return;
+      // Laisse passer si un ancêtre de la cible est scrollable (DrumPicker, contenu du modal, etc.)
+      let t=e.target;
+      while(t&&t!==el){
+        if(t.dataset&&t.dataset.scroll==="1") return;
+        const cs=t.nodeType===1?window.getComputedStyle(t):null;
+        if(cs&&(cs.overflowY==="scroll"||cs.overflowY==="auto")&&t.scrollHeight>t.clientHeight) return;
+        t=t.parentElement;
+      }
+      e.preventDefault();
+    };
     el.addEventListener("touchmove",prevent,{passive:false});
     return()=>el.removeEventListener("touchmove",prevent);
   },[]);
