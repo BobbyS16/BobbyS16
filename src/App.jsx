@@ -431,7 +431,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges(results);
-  const DISC_TABS=[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Course"},{k:"trail",l:"⛰️ Trail"},{k:"triathlon",l:"🏊 Tri"}];
+  const DISC_TABS=[{k:"Tout",l:"Tout"},{k:"running",l:"🏃 Course"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"}];
 
   const [copied,setCopied]=useState(false);
   const handleShare=()=>{
