@@ -52,9 +52,25 @@ function sumBestPts(results) {
   results.forEach(r=>{const p=calcPoints(r.discipline,r.time);if(!best[r.discipline]||p>best[r.discipline])best[r.discipline]=p;});
   return Object.values(best).reduce((s,p)=>s+p,0);
 }
-function calcTrainingPts(distKm, sport) {
-  const base = {"Run":10,"Trail":12,"Vélo":4,"Natation":15};
-  return Math.round((base[sport]||6) * (distKm||0));
+function calcTrainingPts(distKm, sport, durationStr) {
+  const d = distKm||0;
+  if(!d) return 0;
+  const parseDur=s=>{if(!s)return 0;const p=s.split(":").map(Number);return(p[0]||0)*3600+(p[1]||0)*60+(p[2]||0);};
+  const sec = parseDur(durationStr);
+  let intensity = 2;
+  if(sec > 0) {
+    if(sport==="Run"||sport==="Trail"){
+      const pace = (sec/60)/d; // min/km
+      intensity = pace<4?10:pace<5?7:pace<6?4:2;
+    } else if(sport==="Vélo"){
+      const speed = d/(sec/3600); // km/h
+      intensity = speed>=40?10:speed>=35?7:speed>=30?4:2;
+    } else if(sport==="Natation"){
+      const pace100 = (sec/60)/(d*10); // min/100m
+      intensity = pace100<2?10:pace100<2.5?7:pace100<3?4:2;
+    }
+  }
+  return Math.round(d * intensity * 0.15);
 }
 function getLevel(pts) {
   if (pts >= 900) return {label:"Élite",       color:"#FFD700"};
@@ -698,7 +714,7 @@ function TrainingTab({userId}){
   const filtered=trainings.filter(t=>(selSport==="All"||t.sport===selSport)&&new Date(t.training_date).getFullYear()===selYear);
   const monthlyDist=MONTHS_FR.map((label,i)=>({label,value:Math.round(filtered.filter(t=>new Date(t.training_date).getMonth()===i).reduce((s,t)=>s+(t.distance||0),0))}));
   const totalDist=filtered.reduce((s,t)=>s+(t.distance||0),0);
-  const totalPts=filtered.reduce((s,t)=>s+calcTrainingPts(t.distance,t.sport),0);
+  const totalPts=filtered.reduce((s,t)=>s+calcTrainingPts(t.distance,t.sport,t.duration_str),0);
   const totalDeniv=filtered.filter(t=>t.sport==="Trail").reduce((s,t)=>s+(t.denivele||0),0);
 
   return (
@@ -731,7 +747,7 @@ function TrainingTab({userId}){
             <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km{t.denivele?` · +${t.denivele}m`:""}</div>
             <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.training_date}{t.duration_str?` · ${t.duration_str}`:""}{t.note?` · ${t.note}`:""}</div>
           </div>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{calcTrainingPts(t.distance,t.sport)}pts</div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{calcTrainingPts(t.distance,t.sport,t.duration_str)}pts</div>
         </div>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
