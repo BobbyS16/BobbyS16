@@ -47,6 +47,11 @@ function calcPoints(discipline, timeSeconds) {
   if (!d || !timeSeconds) return 0;
   return Math.max(0, Math.min(Math.round(1000 * Math.pow(d.refTime / timeSeconds, 2) * d.prestige), 2000));
 }
+function sumBestPts(results) {
+  const best={};
+  results.forEach(r=>{const p=calcPoints(r.discipline,r.time);if(!best[r.discipline]||p>best[r.discipline])best[r.discipline]=p;});
+  return Object.values(best).reduce((s,p)=>s+p,0);
+}
 function calcTrainingPts(distKm, sport) {
   const base = {"Course à pied":10,"Trail":12,"Vélo":4,"Natation":15,"Autre":6};
   return Math.round((base[sport]||6) * (distKm||0));
@@ -406,7 +411,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
     }
     const ranked=pool.map(p=>{
       const pRes=allResults.filter(r=>r.user_id===p.id&&(discFilter==="Tout"||DISCIPLINES[r.discipline]?.category===discFilter));
-      const pts=pRes.length?Math.max(...pRes.map(r=>calcPoints(r.discipline,r.time))):0;
+      const pts=sumBestPts(pRes);
       const badges=computeBadges(allResults.filter(r=>r.user_id===p.id));
       return{...p,pts,badges};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
@@ -414,7 +419,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   };
 
   const seasonResults=results.filter(r=>rYear(r)===season);
-  const totalPts=seasonResults.length?Math.max(...seasonResults.map(r=>calcPoints(r.discipline,r.time))):0;
+  const totalPts=sumBestPts(seasonResults);
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time)).slice(0,2);
   const myBadges=computeBadges(results);
@@ -548,7 +553,7 @@ function RankingTab({myProfile}){
     if(filter==="group"&&selGroup){const{data:members}=await supabase.from("group_members").select("user_id").eq("group_id",selGroup);const ids=new Set(members?.map(m=>m.user_id)||[]);pool=profiles.filter(p=>ids.has(p.id));}
     let display=pool.map(p=>{
       const pRes=results.filter(r=>r.user_id===p.id);
-      const pts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():(pRes.length?Math.max(...pRes.map(r=>calcPoints(r.discipline,r.time))):0);
+      const pts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
       return{...p,pts};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
     const myAgeCat=getAgeCat(myProfile?.birth_year);
