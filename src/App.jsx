@@ -93,7 +93,7 @@ function computeBadges(results) { return BADGES.filter(b=>b.check(results||[]));
 
 // ── DRUM PICKER ───────────────────────────────────────────────────────────────
 function DrumPicker({values,selectedIndex,onChange,width=80}) {
-  const ref=useRef(null), IH=48;
+  const ref=useRef(null), IH=40;
 
   useEffect(()=>{
     if(ref.current) ref.current.scrollTop=selectedIndex*IH;
@@ -108,24 +108,24 @@ function DrumPicker({values,selectedIndex,onChange,width=80}) {
   },[values.length,onChange]);
 
   return (
-    <div style={{position:"relative",width,height:IH*5,overflow:"hidden",flexShrink:0}}>
+    <div style={{position:"relative",width,height:IH*3,overflow:"hidden",flexShrink:0}}>
       <div style={{position:"absolute",inset:0,zIndex:2,pointerEvents:"none",background:"linear-gradient(to bottom,#161616 0%,transparent 30%,transparent 70%,#161616 100%)"}}/>
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
       <div ref={ref} onScroll={onScroll}
         style={{height:"100%",overflowY:"scroll",scrollbarWidth:"none",msOverflowStyle:"none",
           scrollSnapType:"y mandatory",overscrollBehavior:"contain"}}>
-        <div style={{height:IH*2,flexShrink:0}}/>
+        <div style={{height:IH,flexShrink:0}}/>
         {values.map((v,i)=>(
           <div key={i} onClick={()=>{onChange(i);if(ref.current)ref.current.scrollTop=i*IH;}}
             style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",
               scrollSnapAlign:"center",flexShrink:0,
-              fontFamily:"'Bebas Neue',sans-serif",fontSize:24,
+              fontFamily:"'Bebas Neue',sans-serif",fontSize:22,
               color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",
               cursor:"pointer",userSelect:"none"}}>
             {v}
           </div>
         ))}
-        <div style={{height:IH*3,flexShrink:0}}/>
+        <div style={{height:IH*2,flexShrink:0}}/>
       </div>
     </div>
   );
@@ -152,9 +152,6 @@ function TimePicker({value,onChange}) {
         <DrumPicker values={M_VALS} selectedIndex={hms[1]} onChange={v=>update([hms[0],v,hms[2]])} width={90}/>
         <span style={{fontFamily:"'Bebas Neue'",fontSize:28,color:"rgba(230,57,70,0.5)"}}>:</span>
         <DrumPicker values={M_VALS} selectedIndex={hms[2]} onChange={v=>update([hms[0],hms[1],v])} width={90}/>
-      </div>
-      <div style={{textAlign:"center",marginTop:8,fontFamily:"'Bebas Neue'",fontSize:32,letterSpacing:3,color:"#F0EDE8"}}>
-        {`${String(hms[0]).padStart(2,"0")}:${String(hms[1]).padStart(2,"0")}:${String(hms[2]).padStart(2,"0")}`}
       </div>
     </div>
   );
@@ -279,8 +276,8 @@ function Modal({onClose,children}) {
       <div onClick={e=>e.stopPropagation()}
         style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:"92vh",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease"}}>
         <div onTouchStart={onHandleTouch} onTouchMove={onHandleMove} onTouchEnd={onHandleEnd}
-          style={{padding:"20px 20px 8px",flexShrink:0,cursor:"grab"}}>
-          <div style={{width:40,height:4,background:"rgba(255,255,255,0.15)",borderRadius:2,margin:"0 auto"}}/>
+          style={{padding:"18px 20px 18px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none"}}>
+          <div style={{width:48,height:5,background:"rgba(255,255,255,0.3)",borderRadius:3,margin:"0 auto"}}/>
         </div>
         <div ref={scrollRef} style={{overflowY:"auto",padding:"0 20px 44px",flex:1}}>
           {children}
@@ -329,13 +326,13 @@ function ResultModal({existing,userId,onSave,onClose}){
   };
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginBottom:20}}>{existing?"Modifier":"Ajouter"} un résultat</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>{existing?"Modifier":"Ajouter"} un résultat</div>
       <Lbl c="Discipline"/><Sel value={discipline} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>
       <Lbl c="Temps"/>
-      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"16px 12px",marginBottom:16}}><TimePicker value={timeStr} onChange={setTime}/></div>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><TimePicker value={timeStr} onChange={setTime}/></div>
       <Lbl c="Nom de la course (optionnel)"/><Inp value={raceName} onChange={setRace} placeholder="Ex: Marathon de Paris"/>
       <Lbl c="Date de la course"/>
-      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"16px 12px",marginBottom:20}}><DatePicker value={raceDate} onChange={setDate}/></div>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={raceDate} onChange={setDate}/></div>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Valider"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
@@ -637,7 +634,7 @@ function RankingTab({myProfile}){
 
   return (
     <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:16}}>Classement</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:16}}>Rank</div>
       <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:12,scrollbarWidth:"none"}}>
         {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{flexShrink:0,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap"}}>{f.l}</button>)}
       </div>
@@ -1090,8 +1087,8 @@ function ProfileModal({profile,results,onRefresh,onClose}){
 // ── NAV BAR ───────────────────────────────────────────────────────────────────
 function NavBar({tab,onChange}){
   const items=[
-    {k:"home",    icon:"🏠",label:"Accueil"},
-    {k:"ranking", icon:"🏆",label:"Classement"},
+    {k:"home",    icon:"🏠",label:"Home"},
+    {k:"ranking", icon:"🏆",label:"Rank"},
     {k:"training",icon:"🏋️",label:"Training"},
     {k:"perf",    icon:"📈",label:"Stats"},
     {k:"social",  icon:"👥",label:"Social"},
