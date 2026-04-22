@@ -312,12 +312,12 @@ function Modal({onClose,children}) {
   return (
     <div ref={overlayRef} onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}}>
       <div onClick={e=>e.stopPropagation()}
-        style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:"92vh",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease"}}>
+        style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:"92dvh",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease"}}>
         <div onTouchStart={onHandleTouch} onTouchMove={onHandleMove} onTouchEnd={onHandleEnd}
           style={{padding:"18px 20px 18px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none"}}>
           <div style={{width:48,height:5,background:"rgba(255,255,255,0.3)",borderRadius:3,margin:"0 auto"}}/>
         </div>
-        <div ref={scrollRef} style={{overflowY:"auto",padding:"0 20px 44px",flex:1}}>
+        <div ref={scrollRef} style={{overflowY:"auto",padding:"0 20px",paddingBottom:"calc(44px + env(safe-area-inset-bottom))",flex:1,WebkitOverflowScrolling:"touch"}}>
           {children}
         </div>
       </div>
