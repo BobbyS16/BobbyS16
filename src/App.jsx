@@ -383,25 +383,23 @@ function TrainingModal({userId,onSave,onClose}){
   const [dist,setDist]=useState("");
   const [deniv,setDeniv]=useState("");
   const [duration,setDur]=useState("00:00:00");
-  const [note,setNote]=useState("");
   const [date,setDate]=useState("");
   const [loading,setLoading]=useState(false);
   const handleSave=async()=>{
     if(!dist)return;setLoading(true);
-    await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,denivele:sport==="Trail"?(parseFloat(deniv)||0):null,duration_str:duration,note,training_date:date||new Date().toISOString().split("T")[0]});
+    await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,denivele:sport==="Trail"?(parseFloat(deniv)||0):null,duration_str:duration,training_date:date||new Date().toISOString().split("T")[0]});
     setLoading(false);onSave();
   };
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginBottom:20}}>Ajouter un entraînement</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>Ajouter un entraînement</div>
       <Lbl c="Sport"/><Sel value={sport} onChange={setSport}>{TRAINING_SPORTS.filter(s=>s!=="All").map(s=><option key={s} value={s}>{s}</option>)}</Sel>
       <Lbl c="Distance (km)"/><Inp value={dist} onChange={setDist} placeholder="Ex: 12.5" type="number"/>
       {sport==="Trail"&&<><Lbl c="Dénivelé (m)"/><Inp value={deniv} onChange={setDeniv} placeholder="Ex: 800" type="number"/></>}
       <Lbl c="Durée"/>
-      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"16px 12px",marginBottom:16}}><TimePicker value={duration} onChange={setDur}/></div>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><TimePicker value={duration} onChange={setDur}/></div>
       <Lbl c="Date"/>
-      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"16px 12px",marginBottom:16}}><DatePicker value={date} onChange={setDate}/></div>
-      <Lbl c="Note (optionnel)"/><Inp value={note} onChange={setNote} placeholder="Ex: Sortie longue"/>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={date} onChange={setDate}/></div>
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Valider"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
     </Modal>
