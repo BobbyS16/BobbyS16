@@ -219,6 +219,35 @@ function LineChart({data,color="#E63946",title="",invert=false,formatY=null}) {
   );
 }
 
+// ── SWIPE ROW ─────────────────────────────────────────────────────────────────
+function SwipeRow({children,onEdit,onDelete}){
+  const [offset,setOffset]=useState(0);
+  const startX=useRef(null);
+  const dragging=useRef(false);
+  const W=120;
+  const onTouchStart=e=>{startX.current=e.touches[0].clientX;dragging.current=true;};
+  const onTouchMove=e=>{
+    if(!dragging.current)return;
+    const dx=e.touches[0].clientX-startX.current;
+    if(dx<0)setOffset(Math.max(dx,-W));
+    else if(offset<0)setOffset(Math.min(dx+offset,0));
+  };
+  const onTouchEnd=()=>{dragging.current=false;setOffset(o=>o<-W/2?-W:0);};
+  const close=()=>setOffset(0);
+  return(
+    <div style={{position:"relative",overflow:"hidden",borderRadius:12,marginBottom:6}}>
+      <div style={{position:"absolute",right:0,top:0,bottom:0,width:W,display:"flex"}}>
+        <button onClick={()=>{close();onEdit();}} style={{flex:1,background:"#4A90D9",border:"none",color:"#fff",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>
+        <button onClick={()=>{close();onDelete();}} style={{flex:1,background:"#E63946",border:"none",color:"#fff",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>🗑️</button>
+      </div>
+      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        style={{transform:`translateX(${offset}px)`,transition:dragging.current?"none":"transform 0.25s ease",position:"relative",zIndex:1}}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ── UI PRIMITIVES ─────────────────────────────────────────────────────────────
 function Modal({onClose,children}) {
   return (
@@ -667,12 +696,16 @@ function PerfTab({userId,refreshKey}){
   const [results,setResults]=useState([]);
   const [subTab,setSubTab]=useState("bests");
   const [selDisc,setSelDisc]=useState("marathon");
+  const [editResult,setEditResult]=useState(null);
 
   useEffect(()=>{
     if(!userId)return;
     supabase.from("results").select("*").eq("user_id",userId).order("year",{ascending:false})
       .then(({data})=>setResults(data||[]));
   },[userId,refreshKey]);
+
+  const reload=()=>supabase.from("results").select("*").eq("user_id",userId).order("year",{ascending:false}).then(({data})=>setResults(data||[]));
+  const deleteResult=async id=>{await supabase.from("results").delete().eq("id",id);reload();};
 
   const byDisc={};
   results.forEach(r=>{if(!byDisc[r.discipline]||r.time<byDisc[r.discipline].time)byDisc[r.discipline]=r;});
@@ -727,10 +760,12 @@ function PerfTab({userId,refreshKey}){
               <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",fontWeight:700,letterSpacing:2,marginBottom:7}}>{yr}</div>
               {[...res].sort((a,b)=>{const cats=["running","trail","triathlon"];return cats.indexOf(DISCIPLINES[a.discipline]?.category)-cats.indexOf(DISCIPLINES[b.discipline]?.category);}).map((r,i)=>{
                 const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
-                  <div><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{DISCIPLINES[r.discipline]?.icon} {r.race||DISCIPLINES[r.discipline]?.label}</div></div>
-                  <div style={{textAlign:"right"}}><div style={{fontFamily:"'Bebas Neue'",fontSize:19,color:lv.color}}>{fmtTime(r.time)}</div><div style={{fontSize:10,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{pts} pts</div></div>
-                </div>
+                <SwipeRow key={r.id||i} onEdit={()=>setEditResult(r)} onDelete={()=>deleteResult(r.id)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)"}}>
+                    <div><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{DISCIPLINES[r.discipline]?.icon} {r.race||DISCIPLINES[r.discipline]?.label}</div></div>
+                    <div style={{textAlign:"right"}}><div style={{fontFamily:"'Bebas Neue'",fontSize:19,color:lv.color}}>{fmtTime(r.time)}</div><div style={{fontSize:10,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{pts} pts</div></div>
+                  </div>
+                </SwipeRow>
               );})}
             </div>
           ))}
@@ -753,6 +788,7 @@ function PerfTab({userId,refreshKey}){
           {discResults.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat pour cette discipline</div>}
         </div>
       )}
+      {editResult&&<ResultModal existing={editResult} userId={userId} onSave={()=>{setEditResult(null);reload();}} onClose={()=>setEditResult(null)}/>}
     </div>
   );
 }
