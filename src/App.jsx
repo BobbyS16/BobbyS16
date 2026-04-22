@@ -60,17 +60,17 @@ function getLevel(pts) {
   if (pts >= 900) return {label:"Élite",       color:"#FFD700"};
   if (pts >= 700) return {label:"Expert",      color:"#C0C0C0"};
   if (pts >= 500) return {label:"Avancé",      color:"#CD7F32"};
-  if (pts >= 350) return {label:"Confirmé",    color:"#E63946"};
+  if (pts >= 350) return {label:"Confirmé",    color:"#9B59B6"};
   if (pts >= 200) return {label:"Interméd.",   color:"#4A90D9"};
-  return                 {label:"Débutant",    color:"#666"};
+  return                 {label:"Débutant",    color:"#27AE60"};
 }
 function getSeasonLevel(pts) {
   if (pts >= 3000) return {label:"Élite",      color:"#FFD700"};
   if (pts >= 2000) return {label:"Expert",     color:"#C0C0C0"};
   if (pts >= 1300) return {label:"Avancé",     color:"#CD7F32"};
-  if (pts >= 700)  return {label:"Confirmé",   color:"#E63946"};
+  if (pts >= 700)  return {label:"Confirmé",   color:"#9B59B6"};
   if (pts >= 300)  return {label:"Interméd.",  color:"#4A90D9"};
-  return                  {label:"Débutant",   color:"#666"};
+  return                  {label:"Débutant",   color:"#27AE60"};
 }
 function fmtTime(s) {
   if (!s && s !== 0) return "--:--:--";
