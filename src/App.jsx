@@ -300,22 +300,9 @@ function Modal({onClose,children}) {
   const overlayRef=useRef(null);
 
   useEffect(()=>{
-    const el=overlayRef.current;
-    if(!el)return;
-    const prevent=e=>{
-      if(!e.cancelable)return;
-      // Laisse passer si un ancêtre de la cible est scrollable (DrumPicker, contenu du modal, etc.)
-      let t=e.target;
-      while(t&&t!==el){
-        if(t.dataset&&t.dataset.scroll==="1") return;
-        const cs=t.nodeType===1?window.getComputedStyle(t):null;
-        if(cs&&(cs.overflowY==="scroll"||cs.overflowY==="auto")&&t.scrollHeight>t.clientHeight) return;
-        t=t.parentElement;
-      }
-      e.preventDefault();
-    };
-    el.addEventListener("touchmove",prevent,{passive:false});
-    return()=>el.removeEventListener("touchmove",prevent);
+    const prev=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    return()=>{document.body.style.overflow=prev;};
   },[]);
   const onHandleTouch=e=>{startY.current=e.touches[0].clientY;dragging.current=true;};
   const onHandleMove=e=>{
