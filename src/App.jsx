@@ -777,7 +777,7 @@ function TrainingTab({userId}){
         <div key={i} style={{padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
-            <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.date}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
           </div>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{t.points||calcTrainingPts(t.distance,t.sport,t.duration)}pts</div>
         </div>
