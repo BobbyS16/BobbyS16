@@ -52,11 +52,12 @@ function sumBestPts(results) {
   results.forEach(r=>{const p=calcPoints(r.discipline,r.time);if(!best[r.discipline]||p>best[r.discipline])best[r.discipline]=p;});
   return Object.values(best).reduce((s,p)=>s+p,0);
 }
-function calcTrainingPts(distKm, sport, durationStr) {
+function fmtDuration(sec){if(!sec)return"";const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?`${h}h${String(m).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;}
+function parseDurStr(s){if(!s)return 0;const p=s.split(":").map(Number);return(p[0]||0)*3600+(p[1]||0)*60+(p[2]||0);}
+function calcTrainingPts(distKm, sport, durationSec) {
   const d = distKm||0;
   if(!d) return 0;
-  const parseDur=s=>{if(!s)return 0;const p=s.split(":").map(Number);return(p[0]||0)*3600+(p[1]||0)*60+(p[2]||0);};
-  const sec = parseDur(durationStr);
+  const sec = parseInt(durationSec)||0;
   let intensity = 2;
   if(sec > 0) {
     if(sport==="Run"||sport==="Trail"){
@@ -389,7 +390,9 @@ function TrainingModal({userId,onSave,onClose}){
   const handleSave=async()=>{
     if(!dist)return;
     setLoading(true);setErr("");
-    const{error:err}=await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,training_date:date||new Date().toISOString().split("T")[0]});
+      const durationSec=parseDurStr(duration);
+    const pts=calcTrainingPts(parseFloat(dist)||0,sport,durationSec);
+    const{error:err}=await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts});
     setLoading(false);
     if(err){setErr(err.message||err.details||JSON.stringify(err));return;}
     onSave();
@@ -710,15 +713,14 @@ function TrainingTab({userId}){
   useEffect(()=>{loadTrainings();},[]);
 
   const loadTrainings=async()=>{
-    const{data}=await supabase.from("trainings").select("*").eq("user_id",userId).order("training_date",{ascending:false});
+    const{data}=await supabase.from("trainings").select("*").eq("user_id",userId).order("date",{ascending:false});
     setTrainings(data||[]);
   };
 
-  const filtered=trainings.filter(t=>(selSport==="All"||t.sport===selSport)&&new Date(t.training_date).getFullYear()===selYear);
-  const monthlyDist=MONTHS_FR.map((label,i)=>({label,value:Math.round(filtered.filter(t=>new Date(t.training_date).getMonth()===i).reduce((s,t)=>s+(t.distance||0),0))}));
+  const filtered=trainings.filter(t=>(selSport==="All"||t.sport===selSport)&&new Date(t.date).getFullYear()===selYear);
+  const monthlyDist=MONTHS_FR.map((label,i)=>({label,value:Math.round(filtered.filter(t=>new Date(t.date).getMonth()===i).reduce((s,t)=>s+(t.distance||0),0))}));
   const totalDist=filtered.reduce((s,t)=>s+(t.distance||0),0);
-  const totalPts=filtered.reduce((s,t)=>s+calcTrainingPts(t.distance,t.sport,t.duration_str),0);
-  const totalDeniv=filtered.filter(t=>t.sport==="Trail").reduce((s,t)=>s+(t.denivele||0),0);
+  const totalPts=filtered.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
 
   return (
     <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
@@ -747,10 +749,10 @@ function TrainingTab({userId}){
       {filtered.slice(0,15).map((t,i)=>(
         <div key={i} style={{padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km{t.denivele?` · +${t.denivele}m`:""}</div>
-            <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.training_date}{t.duration_str?` · ${t.duration_str}`:""}{t.note?` · ${t.note}`:""}</div>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.date}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
           </div>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{calcTrainingPts(t.distance,t.sport,t.duration_str)}pts</div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{t.points||calcTrainingPts(t.distance,t.sport,t.duration)}pts</div>
         </div>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
