@@ -1,5 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#0e0e0e"/>
-  <text x="160" y="370" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="340" fill="#F0EDE8" text-anchor="middle">P</text>
-  <text x="352" y="370" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="340" fill="#E63946" text-anchor="middle">R</text>
+
+  <!-- Couronne du chrono -->
+  <rect x="236" y="62" width="40" height="36" fill="#F0EDE8" rx="6"/>
+  <!-- Petite tige reliant la couronne au cadran -->
+  <rect x="246" y="92" width="20" height="18" fill="#F0EDE8"/>
+
+  <!-- Cercle du cadran -->
+  <circle cx="256" cy="300" r="170" fill="none" stroke="#F0EDE8" stroke-width="16"/>
+
+  <!-- Repères aux 4 positions cardinales -->
+  <g stroke="#F0EDE8" stroke-width="10" stroke-linecap="round">
+    <line x1="256" y1="140" x2="256" y2="162"/>
+    <line x1="416" y1="300" x2="394" y2="300"/>
+    <line x1="256" y1="460" x2="256" y2="438"/>
+    <line x1="96" y1="300" x2="118" y2="300"/>
+  </g>
+
+  <!-- Lettres PR centrées dans le cadran -->
+  <text x="208" y="350" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="170" fill="#F0EDE8" text-anchor="middle">P</text>
+  <text x="304" y="350" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="170" fill="#E63946" text-anchor="middle">R</text>
 </svg>
