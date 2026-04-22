@@ -390,14 +390,14 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
   const seasons=useMemo(()=>{
     const base=[CY-2,CY-1,CY];
     const fromData=results.map(rYear);
-    return [...new Set([...base,...fromData])].sort((a,b)=>b-a);
+    return [...new Set([...base,...fromData])].sort((a,b)=>a-b);
   },[results]);
   const [season,setSeason]=useState(CY);
   const seasonsRef=useRef(null);
   useEffect(()=>{
     if(seasons.length>0){
-      setSeason(seasons[0]);
-      setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=0;},50);
+      setSeason(seasons[seasons.length-1]);
+      setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);
     }
   },[seasons]);
   const [rankFilter,setRankFilter]=useState("amis");
@@ -491,8 +491,8 @@ function HomeTab({profile,userId,onAddResult,refreshKey}){
       <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
         {seasons.map(y=>(
           <button key={y} onClick={()=>setSeason(y)} style={{flexShrink:0,padding:"7px 18px",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",gap:6}}>
-            {y===CY&&<span style={{fontSize:8,color:season===y?"#fff":"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1}}>●</span>}
             {y}
+            {y===CY&&<span style={{fontSize:8,color:season===y?"#fff":"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1}}>●</span>}
           </button>
         ))}
       </div>
