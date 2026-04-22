@@ -492,6 +492,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges(results);
+  const myLv=getSeasonLevel(totalPts);
   const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"}];
 
   const [copied,setCopied]=useState(false);
@@ -517,7 +518,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
       </div>
 
       {/* My card */}
-      <div onClick={onOpenProfile} style={{background:"linear-gradient(135deg,rgba(230,57,70,0.15),rgba(230,57,70,0.04))",border:"1px solid rgba(230,57,70,0.25)",borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer"}}>
+      <div onClick={onOpenProfile} style={{background:`${myLv.color}12`,border:`1px solid ${myLv.color}44`,borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer"}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0}}>
           <div style={{position:"relative"}}>
             <Avatar profile={profile} size={52} highlight/>
