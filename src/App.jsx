@@ -488,8 +488,8 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
     if(!userId)return;
     supabase.from("results").select("*").eq("user_id",userId)
       .then(({data})=>setResults(data||[]));
-    supabase.from("trainings").select("id,date,points").eq("user_id",userId)
-      .then(({data})=>setTrainings(data||[]));
+    supabase.from("trainings").select("*").eq("user_id",userId)
+      .then(({data,error})=>{if(!error)setTrainings(data||[]);});
   },[userId,refreshKey]);
 
   const seasons=useMemo(()=>{
@@ -579,6 +579,7 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
           <div style={{textAlign:"right",flexShrink:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:getSeasonLevel(totalPts).color,letterSpacing:1,lineHeight:1}}>{totalPts}</div>
             <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison</div>
+            {trainingPts>0&&<div style={{fontSize:8,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif"}}>dont {trainingPts} training</div>}
           </div>
         </div>
         {bests.length>0&&(
