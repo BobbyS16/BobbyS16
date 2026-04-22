@@ -109,59 +109,60 @@ const BADGES = [
 function computeBadges(results) { return BADGES.filter(b=>b.check(results||[])); }
 
 // ── DRUM PICKER ───────────────────────────────────────────────────────────────
-function DrumPicker({values,selectedIndex,onChange,width=80}) {
+function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
   const ref=useRef(null), IH=40;
-  const touchY=useRef(0), touchIdx=useRef(0), dragging=useRef(false);
+  const N=values.length;
+  const COPIES=loop?5:1;
+  const MIDDLE=Math.floor(COPIES/2);
+  const settleTimer=useRef(null);
 
   useEffect(()=>{
-    if(ref.current) ref.current.scrollTop=selectedIndex*IH;
-    const t=setTimeout(()=>{if(ref.current)ref.current.scrollTop=selectedIndex*IH;},80);
+    if(!ref.current)return;
+    const target=(MIDDLE*N+selectedIndex)*IH;
+    ref.current.scrollTop=target;
+    const t=setTimeout(()=>{if(ref.current)ref.current.scrollTop=target;},80);
     return()=>clearTimeout(t);
   },[]);
 
   const onScroll=useCallback(()=>{
-    if(!ref.current||dragging.current)return;
-    const idx=Math.round(ref.current.scrollTop/IH);
-    onChange(Math.max(0,Math.min(values.length-1,idx)));
-  },[values.length,onChange]);
+    if(!ref.current)return;
+    const absIdx=Math.round(ref.current.scrollTop/IH);
+    const mod=loop?((absIdx%N)+N)%N:Math.max(0,Math.min(N-1,absIdx));
+    if(mod!==selectedIndex)onChange(mod);
+    if(loop){
+      clearTimeout(settleTimer.current);
+      settleTimer.current=setTimeout(()=>{
+        if(!ref.current)return;
+        if(absIdx<N||absIdx>=(COPIES-1)*N){
+          ref.current.scrollTop=(MIDDLE*N+mod)*IH;
+        }
+      },180);
+    }
+  },[N,onChange,selectedIndex,loop,COPIES,MIDDLE]);
 
-  const onTouchStart=e=>{
-    e.stopPropagation();
-    dragging.current=true;
-    touchY.current=e.touches[0].clientY;
-    touchIdx.current=selectedIndex;
-  };
-  const onTouchMove=e=>{
-    e.stopPropagation();
-    if(!dragging.current)return;
-    const delta=touchY.current-e.touches[0].clientY;
-    const idx=Math.max(0,Math.min(values.length-1,touchIdx.current+Math.round(delta/IH)));
-    onChange(idx);
-    if(ref.current)ref.current.scrollTop=idx*IH;
-  };
-  const onTouchEnd=e=>{
-    e.stopPropagation();
-    dragging.current=false;
-  };
+  const stop=e=>e.stopPropagation();
 
   return (
     <div style={{position:"relative",width,height:IH*3,overflow:"hidden",flexShrink:0}}>
       <div style={{position:"absolute",inset:0,zIndex:2,pointerEvents:"none",background:"linear-gradient(to bottom,#161616 0%,transparent 30%,transparent 70%,#161616 100%)"}}/>
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
       <div ref={ref} onScroll={onScroll}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        onTouchStart={stop} onTouchMove={stop} onTouchEnd={stop}
         style={{height:"100%",overflowY:"scroll",scrollbarWidth:"none",msOverflowStyle:"none",
-          scrollSnapType:"y mandatory",overscrollBehavior:"contain",touchAction:"none"}}>
+          scrollSnapType:"y mandatory",overscrollBehavior:"contain",WebkitOverflowScrolling:"touch",touchAction:"pan-y"}}>
         <div style={{height:IH,flexShrink:0}}/>
-        {values.map((v,i)=>(
-          <div key={i} onClick={()=>{onChange(i);if(ref.current)ref.current.scrollTop=i*IH;}}
-            style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",
-              scrollSnapAlign:"center",flexShrink:0,
-              fontFamily:"'Bebas Neue',sans-serif",fontSize:22,
-              color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",
-              cursor:"pointer",userSelect:"none"}}>
-            {v}
-          </div>
+        {Array.from({length:COPIES}).map((_,copy)=>(
+          values.map((v,i)=>(
+            <div key={`${copy}-${i}`}
+              onClick={()=>{if(ref.current)ref.current.scrollTop=(MIDDLE*N+i)*IH;onChange(i);}}
+              style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",
+                scrollSnapAlign:"center",flexShrink:0,
+                fontFamily:"'Bebas Neue',sans-serif",fontSize:22,
+                color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",
+                cursor:"pointer",userSelect:"none"}}>
+              {v}
+            </div>
+          ))
         ))}
         <div style={{height:IH*2,flexShrink:0}}/>
       </div>
@@ -185,11 +186,11 @@ function TimePicker({value,onChange}) {
         {["Heures","Min","Sec"].map(l=><div key={l} style={{fontSize:9,color:"rgba(240,237,232,0.3)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",textAlign:"center"}}>{l}</div>)}
       </div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:2}}>
-        <DrumPicker values={H_VALS} selectedIndex={hms[0]} onChange={v=>update([v,hms[1],hms[2]])} width={90}/>
+        <DrumPicker values={H_VALS} selectedIndex={hms[0]} onChange={v=>update([v,hms[1],hms[2]])} width={90} loop/>
         <span style={{fontFamily:"'Bebas Neue'",fontSize:28,color:"rgba(230,57,70,0.5)"}}>:</span>
-        <DrumPicker values={M_VALS} selectedIndex={hms[1]} onChange={v=>update([hms[0],v,hms[2]])} width={90}/>
+        <DrumPicker values={M_VALS} selectedIndex={hms[1]} onChange={v=>update([hms[0],v,hms[2]])} width={90} loop/>
         <span style={{fontFamily:"'Bebas Neue'",fontSize:28,color:"rgba(230,57,70,0.5)"}}>:</span>
-        <DrumPicker values={M_VALS} selectedIndex={hms[2]} onChange={v=>update([hms[0],hms[1],v])} width={90}/>
+        <DrumPicker values={M_VALS} selectedIndex={hms[2]} onChange={v=>update([hms[0],hms[1],v])} width={90} loop/>
       </div>
     </div>
   );
