@@ -823,6 +823,87 @@ function PerfTab({userId,refreshKey}){
   );
 }
 
+// ── CHAT MODAL ────────────────────────────────────────────────────────────────
+function ChatModal({myId,title,table,filterCol,filterId,friendId,onClose}){
+  const [messages,setMessages]=useState([]);
+  const [profiles,setProfiles]=useState({});
+  const [text,setText]=useState("");
+  const bottomRef=useRef(null);
+
+  const load=async()=>{
+    let q=supabase.from(table).select("*").order("created_at",{ascending:true});
+    if(table==="direct_messages") q=q.or(`and(sender_id.eq.${myId},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${myId})`);
+    else q=q.eq(filterCol,filterId);
+    const{data}=await q;
+    setMessages(data||[]);
+    const ids=[...new Set((data||[]).map(m=>m.sender_id))];
+    if(ids.length){
+      const{data:ps}=await supabase.from("profiles").select("id,name,avatar").in("id",ids);
+      const map={};(ps||[]).forEach(p=>map[p.id]=p);setProfiles(map);
+    }
+  };
+
+  useEffect(()=>{
+    load();
+    const channel=supabase.channel(`chat-${table}-${filterId}`)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table},(payload)=>{
+        setMessages(m=>[...m,payload.new]);
+        if(payload.new.sender_id!==myId){
+          supabase.from("profiles").select("id,name,avatar").eq("id",payload.new.sender_id).single()
+            .then(({data})=>{if(data)setProfiles(p=>({...p,[data.id]:data}));});
+        }
+      }).subscribe();
+    return()=>supabase.removeChannel(channel);
+  },[filterId]);
+
+  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
+
+  const send=async()=>{
+    if(!text.trim())return;
+    const payload=table==="direct_messages"
+      ?{sender_id:myId,receiver_id:friendId,content:text.trim()}
+      :{[filterCol]:filterId,sender_id:myId,content:text.trim()};
+    await supabase.from(table).insert(payload);
+    setText("");
+  };
+
+  const onKey=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
+
+  return(
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>{title}</div>
+      <div style={{height:340,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12,paddingRight:4}}>
+        {messages.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun message</div>}
+        {messages.map((m,i)=>{
+          const mine=m.sender_id===myId;
+          const sender=profiles[m.sender_id];
+          return(
+            <div key={i} style={{display:"flex",flexDirection:mine?"row-reverse":"row",alignItems:"flex-end",gap:6}}>
+              {!mine&&<Avatar profile={sender} size={26}/>}
+              <div style={{maxWidth:"72%"}}>
+                {!mine&&<div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2,marginLeft:4}}>{sender?.name||"?"}</div>}
+                <div style={{background:mine?"#E63946":"rgba(255,255,255,0.08)",borderRadius:mine?"14px 14px 4px 14px":"14px 14px 14px 4px",padding:"8px 12px",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:13,lineHeight:1.4}}>
+                  {m.content}
+                </div>
+                <div style={{fontSize:9,color:"rgba(240,237,232,0.2)",fontFamily:"'Barlow',sans-serif",marginTop:2,textAlign:mine?"right":"left"}}>
+                  {new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef}/>
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+        <textarea value={text} onChange={e=>setText(e.target.value)} onKeyDown={onKey}
+          placeholder="Message…" rows={1}
+          style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",resize:"none",boxSizing:"border-box"}}/>
+        <button onClick={send} style={{background:"#E63946",border:"none",borderRadius:12,width:42,height:42,cursor:"pointer",fontSize:18,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>➤</button>
+      </div>
+    </Modal>
+  );
+}
+
 // ── SOCIAL TAB ────────────────────────────────────────────────────────────────
 function SocialTab({myProfile}){
   const [tab,setTab]=useState("friends");
@@ -835,6 +916,7 @@ function SocialTab({myProfile}){
   const [groupName,setGroupName]=useState("");
   const [joinCode,setJoinCode]=useState("");
   const [loading,setLoading]=useState(false);
+  const [chat,setChat]=useState(null);
 
   useEffect(()=>{loadFriends();loadGroups();},[]);
 
@@ -901,12 +983,16 @@ function SocialTab({myProfile}){
       ))}</div>}
       {tab==="friends"&&<div>
         {friends.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun ami — utilise la recherche !</div>}
-        {friends.map(f=>(
+        {friends.map(f=>{
+          const dmId=[myProfile?.id,f.friend_id].sort().join("_");
+          return(
           <div key={f.id} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
             <Avatar profile={f.friend} size={36}/><div style={{flex:1}}><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{f.friend?.name||"Anonyme"}</div><div style={{fontSize:11,color:"rgba(240,237,232,0.35)"}}>{getAgeCat(f.friend?.birth_year)||""}{f.friend?.city?` · ${f.friend.city}`:""}</div></div>
+            <button onClick={()=>setChat({type:"dm",id:dmId,title:f.friend?.name||"Message",friendId:f.friend_id})} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:15}}>💬</button>
             <button onClick={()=>removeFriend(f.friend_id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(230,57,70,0.1)",color:"#E63946",border:"none",cursor:"pointer",fontSize:13}}>✕</button>
           </div>
-        ))}
+        );})}
+
       </div>}
       {tab==="groups"&&<div>
         <div style={{display:"flex",gap:8,marginBottom:14}}>
@@ -915,14 +1001,22 @@ function SocialTab({myProfile}){
         </div>
         {groups.map(g=>(
           <div key={g.id} style={{padding:"13px 16px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:8,border:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{g.name}</div><div style={{fontSize:11,color:"rgba(240,237,232,0.3)",marginTop:3,letterSpacing:2,fontFamily:"'Barlow',sans-serif"}}>Code : <span style={{color:"#E63946",fontWeight:700}}>{g.code}</span></div></div>
-            <button onClick={()=>deleteGroup(g.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(230,57,70,0.1)",color:"#E63946",border:"none",cursor:"pointer",fontSize:12,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>Quitter</button>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{g.name}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",marginTop:3,letterSpacing:2,fontFamily:"'Barlow',sans-serif"}}>Code : <span style={{color:"#E63946",fontWeight:700}}>{g.code}</span></div>
+            </div>
+            <div style={{display:"flex",gap:6,flexShrink:0}}>
+              <button onClick={()=>setChat({type:"group",id:g.id,title:g.name})} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:15}}>💬</button>
+              <button onClick={()=>deleteGroup(g.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(230,57,70,0.1)",color:"#E63946",border:"none",cursor:"pointer",fontSize:12,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>Quitter</button>
+            </div>
           </div>
         ))}
         {groups.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun groupe</div>}
       </div>}
       {showCreate&&<Modal onClose={()=>setCreate(false)}><div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:"#F0EDE8",marginBottom:20}}>Créer un groupe</div><Lbl c="Nom du groupe"/><Inp value={groupName} onChange={setGroupName} placeholder="Ex: Club de tri Paris"/><Btn onClick={createGroup} mb={0}>{loading?"Création...":"Créer"}</Btn></Modal>}
       {showJoin&&<Modal onClose={()=>setJoin(false)}><div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:"#F0EDE8",marginBottom:20}}>Rejoindre un groupe</div><Lbl c="Code du groupe"/><Inp value={joinCode} onChange={setJoinCode} placeholder="Ex: ABC123"/><Btn onClick={joinGroup} mb={0}>{loading?"Recherche...":"Rejoindre"}</Btn></Modal>}
+      {chat?.type==="dm"&&<ChatModal myId={myProfile?.id} title={`💬 ${chat.title}`} table="direct_messages" filterCol="sender_id" filterId={chat.id} friendId={chat.friendId} onClose={()=>setChat(null)}/>}
+      {chat?.type==="group"&&<ChatModal myId={myProfile?.id} title={`🏠 ${chat.title}`} table="group_messages" filterCol="group_id" filterId={chat.id} onClose={()=>setChat(null)}/>}
     </div>
   );
 }
