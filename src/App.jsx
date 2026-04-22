@@ -267,21 +267,22 @@ function Modal({onClose,children}) {
     el.addEventListener("touchmove",prevent,{passive:false});
     return()=>el.removeEventListener("touchmove",prevent);
   },[]);
-  const onTouchStart=e=>{startY.current=e.touches[0].clientY;dragging.current=false;};
-  const onTouchMove=e=>{
-    const atTop=!scrollRef.current||scrollRef.current.scrollTop===0;
+  const onHandleTouch=e=>{startY.current=e.touches[0].clientY;dragging.current=true;};
+  const onHandleMove=e=>{
+    if(!dragging.current)return;
     const d=e.touches[0].clientY-startY.current;
-    if(atTop&&d>0){dragging.current=true;setDy(d);}
+    if(d>0)setDy(d);
   };
-  const onTouchEnd=()=>{if(dy>80)onClose();else setDy(0);dragging.current=false;};
+  const onHandleEnd=()=>{dragging.current=false;if(dy>80)onClose();else setDy(0);};
   return (
     <div ref={overlayRef} onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}}>
-      <div onClick={e=>e.stopPropagation()} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      <div onClick={e=>e.stopPropagation()}
         style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:"92vh",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease"}}>
-        <div style={{padding:"16px 20px 0",flexShrink:0}}>
+        <div onTouchStart={onHandleTouch} onTouchMove={onHandleMove} onTouchEnd={onHandleEnd}
+          style={{padding:"20px 20px 8px",flexShrink:0,cursor:"grab"}}>
           <div style={{width:40,height:4,background:"rgba(255,255,255,0.15)",borderRadius:2,margin:"0 auto"}}/>
         </div>
-        <div ref={scrollRef} style={{overflowY:"auto",padding:"16px 20px 44px",flex:1}}>
+        <div ref={scrollRef} style={{overflowY:"auto",padding:"0 20px 44px",flex:1}}>
           {children}
         </div>
       </div>
