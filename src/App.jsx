@@ -646,12 +646,17 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
 function RankingTab({myProfile}){
   const [filter,setFilter]=useState("group");
   const [season,setSeason]=useState(CY);
+  const seasonsRef=useRef(null);
   const [discFilter,setDisc]=useState("marathon");
   const [players,setPlayers]=useState([]);
   const [loading,setLoading]=useState(true);
   const [groups,setGroups]=useState([]);
   const [selGroup,setSelGroup]=useState(null);
+  const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
 
+  useEffect(()=>{
+    setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);
+  },[]);
   useEffect(()=>{loadPlayers();},[filter,discFilter,selGroup,season]);
   useEffect(()=>{loadMyGroups();},[]);
 
@@ -686,8 +691,8 @@ function RankingTab({myProfile}){
     <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:12}}>Rank</div>
       {/* Season selector */}
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
-        {[CY-2,CY-1,CY].map(y=>(
+      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
+        {SEASONS.map(y=>(
           <button key={y} onClick={()=>setSeason(y)} style={{flexShrink:0,padding:"7px 18px",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",gap:6}}>
             {y}
             {y===CY&&<span style={{fontSize:9,color:season===y?"rgba(255,255,255,0.85)":"#27AE60",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>en cours</span>}
