@@ -94,6 +94,7 @@ function computeBadges(results) { return BADGES.filter(b=>b.check(results||[]));
 // ── DRUM PICKER ───────────────────────────────────────────────────────────────
 function DrumPicker({values,selectedIndex,onChange,width=80}) {
   const ref=useRef(null), IH=40;
+  const touchY=useRef(0), touchIdx=useRef(0), dragging=useRef(false);
 
   useEffect(()=>{
     if(ref.current) ref.current.scrollTop=selectedIndex*IH;
@@ -102,18 +103,38 @@ function DrumPicker({values,selectedIndex,onChange,width=80}) {
   },[]);
 
   const onScroll=useCallback(()=>{
-    if(!ref.current)return;
+    if(!ref.current||dragging.current)return;
     const idx=Math.round(ref.current.scrollTop/IH);
     onChange(Math.max(0,Math.min(values.length-1,idx)));
   },[values.length,onChange]);
+
+  const onTouchStart=e=>{
+    e.stopPropagation();
+    dragging.current=true;
+    touchY.current=e.touches[0].clientY;
+    touchIdx.current=selectedIndex;
+  };
+  const onTouchMove=e=>{
+    e.stopPropagation();
+    if(!dragging.current)return;
+    const delta=touchY.current-e.touches[0].clientY;
+    const idx=Math.max(0,Math.min(values.length-1,touchIdx.current+Math.round(delta/IH)));
+    onChange(idx);
+    if(ref.current)ref.current.scrollTop=idx*IH;
+  };
+  const onTouchEnd=e=>{
+    e.stopPropagation();
+    dragging.current=false;
+  };
 
   return (
     <div style={{position:"relative",width,height:IH*3,overflow:"hidden",flexShrink:0}}>
       <div style={{position:"absolute",inset:0,zIndex:2,pointerEvents:"none",background:"linear-gradient(to bottom,#161616 0%,transparent 30%,transparent 70%,#161616 100%)"}}/>
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
       <div ref={ref} onScroll={onScroll}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         style={{height:"100%",overflowY:"scroll",scrollbarWidth:"none",msOverflowStyle:"none",
-          scrollSnapType:"y mandatory",overscrollBehavior:"contain"}}>
+          scrollSnapType:"y mandatory",overscrollBehavior:"contain",touchAction:"none"}}>
         <div style={{height:IH,flexShrink:0}}/>
         {values.map((v,i)=>(
           <div key={i} onClick={()=>{onChange(i);if(ref.current)ref.current.scrollTop=i*IH;}}
