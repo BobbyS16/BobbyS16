@@ -483,10 +483,13 @@ const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
 
 function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
   const [results,setResults]=useState([]);
+  const [trainings,setTrainings]=useState([]);
   useEffect(()=>{
     if(!userId)return;
     supabase.from("results").select("*").eq("user_id",userId)
       .then(({data})=>setResults(data||[]));
+    supabase.from("trainings").select("id,date,points").eq("user_id",userId)
+      .then(({data})=>setTrainings(data||[]));
   },[userId,refreshKey]);
 
   const seasons=useMemo(()=>{
@@ -529,7 +532,8 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
   };
 
   const seasonResults=results.filter(r=>rYear(r)===season);
-  const totalPts=sumBestPts(seasonResults);
+  const trainingPts=trainings.filter(t=>new Date(t.date).getFullYear()===season).reduce((s,t)=>s+(t.points||0),0);
+  const totalPts=sumBestPts(seasonResults)+trainingPts;
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges(results);
