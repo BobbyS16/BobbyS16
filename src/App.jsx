@@ -702,9 +702,9 @@ function PerfTab({userId,refreshKey}){
                   :catBests.map(([disc,r])=>{const pts=calcPoints(disc,r.time);const lv=getLevel(pts);return(
                     <div key={disc} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,color:"rgba(240,237,232,0.45)"}}>{DISCIPLINES[disc]?.label}</div>
+                        <div style={{fontFamily:"'Bebas Neue'",fontWeight:700,fontSize:16,color:"#F0EDE8",letterSpacing:1}}>{DISCIPLINES[disc]?.label}</div>
                         <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{fmtTime(r.time)}</div>
-                        <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{r.race||""}{r.race_date?` · ${r.race_date.slice(0,4)}`:r.year?` · ${r.year}`:""}</div>
+                        <div style={{fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif"}}>{r.race||""}{r.race_date?` · ${r.race_date.slice(0,4)}`:r.year?` · ${r.year}`:""}</div>
                       </div>
                       <div style={{flexShrink:0,textAlign:"right"}}>
                         <div style={{fontSize:11,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,background:`${lv.color}22`,padding:"3px 8px",borderRadius:8}}>{lv.label}</div>
