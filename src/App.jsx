@@ -488,27 +488,34 @@ function EditProfileModal({profile,onSave,onClose}){
   const [nat,setNat]=useState(profile.nationality||"");
   const [avFile,setAvFile]=useState(null);
   const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const fileRef=useRef(null);
   const handleSave=async()=>{
-    setLoading(true);
+    setLoading(true);setError("");
     let avatar_url=profile.avatar;
     if(avFile){
-      const ext=avFile.name.split(".").pop();
+      const ext=(avFile.name.split(".").pop()||"jpg").toLowerCase();
       const path=`${profile.id}.${ext}`;
-      const{error:upErr}=await supabase.storage.from("avatars").upload(path,avFile,{upsert:true});
-      if(!upErr){const{data}=supabase.storage.from("avatars").getPublicUrl(path);avatar_url=data.publicUrl+"?t="+Date.now();}
+      const{error:upErr}=await supabase.storage.from("avatars").upload(path,avFile,{upsert:true,contentType:avFile.type||"image/jpeg"});
+      if(upErr){setError("Upload échoué : "+(upErr.message||"")); setLoading(false); return;}
+      const{data}=supabase.storage.from("avatars").getPublicUrl(path);
+      avatar_url=data.publicUrl+"?t="+Date.now();
     }
-    await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url}).eq("id",profile.id);
-    setLoading(false);onSave();
+    const{error:updErr}=await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url}).eq("id",profile.id);
+    setLoading(false);
+    if(updErr){setError("Sauvegarde échouée : "+updErr.message);return;}
+    onSave();
   };
   return (
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginBottom:20}}>Modifier le profil</div>
       <Lbl c="Photo de profil"/>
-      <label style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,cursor:"pointer"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
         <Avatar profile={{...profile,avatar:avFile?URL.createObjectURL(avFile):profile.avatar}} size={56}/>
-        <div style={{fontSize:13,color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>Changer la photo →</div>
-        <input type="file" accept="image/*" onChange={e=>setAvFile(e.target.files[0])} style={{position:"absolute",opacity:0,width:"1px",height:"1px",pointerEvents:"none"}}/>
-      </label>
+        <button type="button" onClick={()=>fileRef.current?.click()} style={{padding:"10px 14px",borderRadius:12,background:"rgba(230,57,70,0.12)",border:"1px solid rgba(230,57,70,0.3)",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>📷 Changer la photo</button>
+        <input ref={fileRef} type="file" accept="image/*" onChange={e=>{const f=e.target.files?.[0];if(f)setAvFile(f);}} style={{display:"none"}}/>
+      </div>
+      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Lbl c="Nom complet"/><Inp value={name} onChange={setName} placeholder="Ton nom"/>
       <Lbl c="Ville"/><Inp value={city} onChange={setCity} placeholder="Ta ville"/>
       <Lbl c="Année de naissance"/><Inp value={birthYear} onChange={setBirth} placeholder="Ex: 1990" type="number"/>
