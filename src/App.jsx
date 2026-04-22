@@ -257,20 +257,25 @@ function Modal({onClose,children}) {
   const [dy,setDy]=useState(0);
   const startY=useRef(null);
   const dragging=useRef(false);
-  const onTouchStart=e=>{startY.current=e.touches[0].clientY;dragging.current=true;};
-  const onTouchMove=e=>{
+  const scrollRef=useRef(null);
+  const onHandleTouchStart=e=>{startY.current=e.touches[0].clientY;dragging.current=true;};
+  const onHandleTouchMove=e=>{
     if(!dragging.current)return;
     const d=e.touches[0].clientY-startY.current;
     if(d>0)setDy(d);
   };
-  const onTouchEnd=()=>{dragging.current=false;if(dy>80)onClose();else setDy(0);};
+  const onHandleTouchEnd=()=>{dragging.current=false;if(dy>80)onClose();else setDy(0);};
   return (
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:`rgba(0,0,0,${Math.max(0,0.85-dy/300)})`,backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}}>
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}}>
       <div onClick={e=>e.stopPropagation()}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-        style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:480,padding:"24px 20px 44px",maxHeight:"92vh",overflowY:"auto",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease"}}>
-        <div style={{width:40,height:4,background:"rgba(255,255,255,0.15)",borderRadius:2,margin:"0 auto 20px"}}/>
-        {children}
+        style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:"92vh",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease"}}>
+        <div onTouchStart={onHandleTouchStart} onTouchMove={onHandleTouchMove} onTouchEnd={onHandleTouchEnd}
+          style={{padding:"16px 20px 0",flexShrink:0,cursor:"grab"}}>
+          <div style={{width:40,height:4,background:"rgba(255,255,255,0.15)",borderRadius:2,margin:"0 auto"}}/>
+        </div>
+        <div ref={scrollRef} style={{overflowY:"auto",padding:"16px 20px 44px",flex:1}}>
+          {children}
+        </div>
       </div>
     </div>
   );
