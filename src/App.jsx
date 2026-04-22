@@ -969,10 +969,11 @@ function ChatModal({myId,title,table,filterCol,filterId,friendId,onClose}){
 }
 
 // ── SOCIAL TAB ────────────────────────────────────────────────────────────────
-function SocialTab({myProfile}){
+function SocialTab({myProfile,onNotifsChange}){
   const [tab,setTab]=useState("friends");
   const [friends,setFriends]=useState([]);
   const [groups,setGroups]=useState([]);
+  const [notifs,setNotifs]=useState([]);
   const [search,setSearch]=useState("");
   const [searchRes,setSearchRes]=useState([]);
   const [showCreate,setCreate]=useState(false);
@@ -982,12 +983,29 @@ function SocialTab({myProfile}){
   const [loading,setLoading]=useState(false);
   const [chat,setChat]=useState(null);
 
-  useEffect(()=>{loadFriends();loadGroups();},[]);
+  useEffect(()=>{loadFriends();loadGroups();loadNotifs();},[]);
 
   const loadFriends=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
     const{data}=await supabase.from("friendships").select("*, friend:profiles!friendships_friend_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).eq("status","accepted");
     setFriends(data||[]);
+  };
+  const loadNotifs=async()=>{
+    const{data:{user}}=await supabase.auth.getUser();
+    const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city)").eq("user_id",user.id).eq("read",false).order("created_at",{ascending:false});
+    setNotifs(data||[]);
+  };
+  const dismissNotif=async id=>{
+    await supabase.from("notifications").update({read:true}).eq("id",id);
+    setNotifs(n=>n.filter(x=>x.id!==id));
+    onNotifsChange&&onNotifsChange();
+  };
+  const markAllNotifsRead=async()=>{
+    if(notifs.length===0)return;
+    const{data:{user}}=await supabase.auth.getUser();
+    await supabase.from("notifications").update({read:true}).eq("user_id",user.id).eq("read",false);
+    setNotifs([]);
+    onNotifsChange&&onNotifsChange();
   };
   const loadGroups=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
@@ -1006,7 +1024,7 @@ function SocialTab({myProfile}){
   };
   const removeFriend=async friendId=>{
     await supabase.rpc("remove_friend",{friend_id:friendId});
-    loadFriends();
+    loadFriends();loadNotifs();onNotifsChange&&onNotifsChange();
   };
   const createGroup=async()=>{
     if(!groupName)return;setLoading(true);
@@ -1034,7 +1052,10 @@ function SocialTab({myProfile}){
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:16}}>Social</div>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["friends","👥 Amis"],["groups","🏠 Groupes"],["search","🔍 Chercher"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:tab===k?"#E63946":"rgba(255,255,255,0.06)",color:tab===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{l}</button>
+          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:tab===k?"#E63946":"rgba(255,255,255,0.06)",color:tab===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,position:"relative"}}>
+            {l}
+            {k==="friends"&&notifs.length>0&&<span style={{position:"absolute",top:4,right:6,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:tab===k?"1.5px solid #fff":"none"}}>{notifs.length>9?"9+":notifs.length}</span>}
+          </button>
         ))}
       </div>
       {tab==="search"&&<div><Inp value={search} onChange={handleSearch} placeholder="Recherche par nom…"/>{searchRes.map(p=>(
@@ -1044,6 +1065,21 @@ function SocialTab({myProfile}){
         </div>
       ))}</div>}
       {tab==="friends"&&<div>
+        {notifs.length>0&&<div style={{marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700}}>🔔 Notifications</div>
+            <button onClick={markAllNotifsRead} style={{background:"none",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:11,cursor:"pointer",fontWeight:600}}>Tout marquer lu</button>
+          </div>
+          {notifs.map(n=>(
+            <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
+              <Avatar profile={n.from_user} size={32}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8"}}><strong>{n.from_user?.name||"Quelqu'un"}</strong> t'a ajouté en ami</div>
+              </div>
+              <button onClick={()=>dismissNotif(n.id)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:12}}>✕</button>
+            </div>
+          ))}
+        </div>}
         {friends.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun ami — utilise la recherche !</div>}
         {friends.map(f=>{
           const dmId=[myProfile?.id,f.friend_id].sort().join("_");
@@ -1149,7 +1185,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
 
 
 // ── NAV BAR ───────────────────────────────────────────────────────────────────
-function NavBar({tab,onChange}){
+function NavBar({tab,onChange,notifCount=0}){
   const items=[
     {k:"home",    icon:"🏠",label:"Home"},
     {k:"ranking", icon:"🏆",label:"Rank"},
@@ -1160,8 +1196,13 @@ function NavBar({tab,onChange}){
   return (
     <div style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(14,14,14,0.97)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",padding:"8px 0 20px",zIndex:100}}>
       {items.map(({k,icon,label})=>(
-        <button key={k} onClick={()=>onChange(k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}>
-          <span style={{fontSize:17,opacity:tab===k?1:0.3,transition:"opacity 0.2s"}}>{icon}</span>
+        <button key={k} onClick={()=>onChange(k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 0",position:"relative"}}>
+          <span style={{fontSize:17,opacity:tab===k?1:0.3,transition:"opacity 0.2s",position:"relative"}}>
+            {icon}
+            {k==="social"&&notifCount>0&&(
+              <span style={{position:"absolute",top:-4,right:-8,background:"#E63946",borderRadius:"50%",minWidth:14,height:14,padding:"0 3px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1}}>{notifCount>9?"9+":notifCount}</span>
+            )}
+          </span>
           <span style={{fontSize:7,letterSpacing:0.3,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,color:tab===k?"#E63946":"rgba(240,237,232,0.3)",transition:"color 0.2s"}}>{label}</span>
         </button>
       ))}
@@ -1194,6 +1235,7 @@ export default function App(){
   const [resultsKey,setResultsKey]=useState(0);
   const [showProfile,setShowProfile]=useState(false);
   const [showAddResult,setAdd]=useState(false);
+  const [notifCount,setNotifCount]=useState(0);
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);if(!session)setLoading(false);});
@@ -1201,7 +1243,13 @@ export default function App(){
     return()=>subscription.unsubscribe();
   },[]);
 
-  useEffect(()=>{if(session){loadProfile();loadResults();}},[session]);
+  useEffect(()=>{if(session){loadProfile();loadResults();loadNotifCount();}},[session]);
+
+  useEffect(()=>{
+    if(!session)return;
+    const ch=supabase.channel("notifs").on("postgres_changes",{event:"*",schema:"public",table:"notifications"},loadNotifCount).subscribe();
+    return()=>supabase.removeChannel(ch);
+  },[session]);
 
   const loadProfile=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
@@ -1215,6 +1263,12 @@ export default function App(){
     setResults(data||[]);
   };
   const refresh=()=>{loadProfile();loadResults();setResultsKey(k=>k+1);};
+  const loadNotifCount=async()=>{
+    const{data:{user}}=await supabase.auth.getUser();
+    if(!user)return;
+    const{count}=await supabase.from("notifications").select("id",{count:"exact",head:true}).eq("user_id",user.id).eq("read",false);
+    setNotifCount(count||0);
+  };
 
   if(loading) return <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",alignItems:"center",justifyContent:"center"}}><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><div style={{fontFamily:"'Bebas Neue'",fontSize:40,letterSpacing:4}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div></div>;
   if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen/></>;
@@ -1226,8 +1280,8 @@ export default function App(){
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey}/>}
-      {tab==="social"  &&<SocialTab  myProfile={profile}/>}
-      <NavBar tab={tab} onChange={setTab}/>
+      {tab==="social"  &&<SocialTab  myProfile={profile} onNotifsChange={loadNotifCount}/>}
+      <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
       {showAddResult&&<ResultModal userId={profile?.id} onSave={()=>{setAdd(false);refresh();}} onClose={()=>setAdd(false)}/>}
       {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
     </div>
