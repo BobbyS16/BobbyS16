@@ -671,6 +671,7 @@ function RankingTab({myProfile}){
 
   const loadPlayers=async()=>{
     setLoading(true);
+    if(filter==="group"&&!selGroup){setPlayers([]);setLoading(false);return;}
     const{data:profiles}=await supabase.from("profiles").select("*");
     const{data:results}=await supabase.from("results").select("*");
     const{data:trainings}=await supabase.from("trainings").select("user_id,date,points");
@@ -709,8 +710,26 @@ function RankingTab({myProfile}){
         {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{flexShrink:0,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap"}}>{f.l}</button>)}
       </div>
       {filter==="discipline"&&<Sel value={discFilter} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>}
-      {filter==="group"&&<Sel value={selGroup||""} onChange={v=>setSelGroup(v)}><option value="">Sélectionne un groupe</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</Sel>}
-      {loading?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+      {filter==="group"&&selGroup&&(
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <button onClick={()=>setSelGroup(null)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>← Groupes</button>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>🏠 {groups.find(g=>g.id===selGroup)?.name||""}</div>
+        </div>
+      )}
+      {filter==="group"&&!selGroup?(
+        groups.length===0?
+          <div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun groupe — rejoins-en un dans Social</div>
+        :groups.map(g=>(
+          <button key={g.id} onClick={()=>setSelGroup(g.id)} style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"13px 14px",background:"rgba(255,255,255,0.04)",borderRadius:14,marginBottom:8,border:"1px solid rgba(255,255,255,0.06)",cursor:"pointer",textAlign:"left"}}>
+            <div style={{width:40,height:40,borderRadius:12,background:"rgba(230,57,70,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>🏠</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.name}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1.5}}>Code : <span style={{color:"#E63946",fontWeight:700}}>{g.code}</span></div>
+            </div>
+            <div style={{color:"rgba(240,237,232,0.4)",fontSize:18,flexShrink:0}}>›</div>
+          </button>
+        ))
+      ):loading?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
       :players.length===0?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
       :players.map((p,i)=>{const lv=getSeasonLevel(p.pts);return(
         <div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===myProfile?.id?"66":"33"}`}}>
