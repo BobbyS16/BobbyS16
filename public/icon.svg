@@ -15,15 +15,19 @@
   <rect x="246" y="96" width="20" height="40" fill="#F0EDE8"/>
   <rect x="228" y="62" width="56" height="40" fill="#F0EDE8" rx="8"/>
 
-  <!-- Bouton gauche -->
-  <rect x="158" y="128" width="14" height="26" fill="#F0EDE8"/>
-  <rect x="140" y="92" width="50" height="40" fill="#F0EDE8" rx="7"/>
+  <!-- Bouton gauche, orienté radialement (-30°) -->
+  <g transform="rotate(-30 171 153)">
+    <rect x="164" y="127" width="14" height="26" fill="#F0EDE8"/>
+    <rect x="146" y="87" width="50" height="40" fill="#F0EDE8" rx="7"/>
+  </g>
 
-  <!-- Bouton droit -->
-  <rect x="340" y="128" width="14" height="26" fill="#F0EDE8"/>
-  <rect x="322" y="92" width="50" height="40" fill="#F0EDE8" rx="7"/>
+  <!-- Bouton droit, orienté radialement (+30°) -->
+  <g transform="rotate(30 341 153)">
+    <rect x="334" y="127" width="14" height="26" fill="#F0EDE8"/>
+    <rect x="316" y="87" width="50" height="40" fill="#F0EDE8" rx="7"/>
+  </g>
 
-  <!-- Lettres PR -->
-  <text x="208" y="360" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="170" fill="#F0EDE8" text-anchor="middle">P</text>
-  <text x="304" y="360" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="170" fill="#E63946" text-anchor="middle">R</text>
+  <!-- Lettres PR (légèrement plus grosses) -->
+  <text x="200" y="370" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="200" fill="#F0EDE8" text-anchor="middle">P</text>
+  <text x="312" y="370" font-family="Helvetica, Arial, sans-serif" font-weight="900" font-size="200" fill="#E63946" text-anchor="middle">R</text>
 </svg>
