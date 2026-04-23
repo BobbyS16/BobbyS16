@@ -1343,7 +1343,9 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       </div>
       <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",lineHeight:1.7,marginBottom:18}}>
         {[[{label:"Débutant",min:0,color:"#27AE60"},{label:"Intermédiaire",min:300,color:"#4A90D9"}],[{label:"Confirmé",min:700,color:"#9B59B6"},{label:"Avancé",min:1300,color:"#CD7F32"}],[{label:"Expert",min:2000,color:"#C0C0C0"},{label:"Élite",min:3000,color:"#FFD700"}]].map((pair,i)=>(
-          <div key={i}>{pair.map((l,j)=>(<span key={l.label}>{j>0&&<span style={{opacity:0.35}}> · </span>}<span style={{color:l.color,fontWeight:700}}>{l.label}</span> dès {l.min} pts</span>))}</div>
+          <div key={i} style={{display:"flex",justifyContent:"space-between",gap:12}}>
+            {pair.map(l=>(<span key={l.label}><span style={{color:l.color,fontWeight:700}}>{l.label}</span> dès {l.min} pts</span>))}
+          </div>
         ))}
       </div>
       <BadgesByCategory badges={badges}/>
