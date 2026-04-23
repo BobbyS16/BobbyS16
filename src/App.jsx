@@ -488,6 +488,28 @@ function TrainingModal({userId,onSave,onClose}){
   );
 }
 
+// ── ADD CHOICE MODAL ──────────────────────────────────────────────────────────
+function AddChoiceModal({onChoose,onClose}){
+  const opt=(icon,title,desc,val)=>(
+    <button onClick={()=>onChoose(val)} style={{width:"100%",display:"flex",alignItems:"center",gap:14,padding:"14px 16px",marginBottom:10,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,cursor:"pointer",textAlign:"left",fontFamily:"'Barlow',sans-serif"}}>
+      <div style={{fontSize:28,flexShrink:0}}>{icon}</div>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700,fontSize:15,color:"#F0EDE8"}}>{title}</div>
+        <div style={{fontSize:12,color:"rgba(240,237,232,0.45)",marginTop:2}}>{desc}</div>
+      </div>
+      <div style={{color:"#E63946",fontSize:18}}>›</div>
+    </button>
+  );
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:16}}>Ajouter</div>
+      {opt("🏃","Entraînement","Session de running, vélo, natation, trail","training")}
+      {opt("🏅","Course officielle","Résultat d'une course chronométrée","result")}
+      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
+    </Modal>
+  );
+}
+
 // ── EDIT PROFILE MODAL ────────────────────────────────────────────────────────
 function EditProfileModal({profile,onSave,onClose}){
   const [name,setName]=useState(profile.name||"");
@@ -1565,7 +1587,7 @@ export default function App(){
   const [loading,setLoading]=useState(true);
   const [resultsKey,setResultsKey]=useState(0);
   const [showProfile,setShowProfile]=useState(false);
-  const [showAddResult,setAdd]=useState(false);
+  const [addMode,setAddMode]=useState(null); // null | "choice" | "result" | "training"
   const [notifCount,setNotifCount]=useState(0);
 
   useEffect(()=>{
@@ -1607,13 +1629,15 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",minHeight:"100vh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflowX:"hidden",paddingTop:"env(safe-area-inset-top)"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddResult={()=>setAdd(true)} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddResult={()=>setAddMode("choice")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey}/>}
       {tab==="social"  &&<SocialTab  myProfile={profile} onNotifsChange={loadNotifCount}/>}
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
-      {showAddResult&&<ResultModal userId={profile?.id} onSave={()=>{setAdd(false);refresh();}} onClose={()=>setAdd(false)}/>}
+      {addMode==="choice"&&<AddChoiceModal onChoose={m=>setAddMode(m)} onClose={()=>setAddMode(null)}/>}
+      {addMode==="result"&&<ResultModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
+      {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
     </div>
   );
