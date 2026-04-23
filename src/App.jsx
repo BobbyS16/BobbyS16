@@ -624,6 +624,10 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
     setSentTo(s=>{const n=new Set(s);n.add(id);return n;});
     await supabase.rpc("add_friend",{friend_id:id});
   };
+  const handleCancelFriend=async id=>{
+    setSentTo(s=>{const n=new Set(s);n.delete(id);return n;});
+    await supabase.rpc("remove_friend",{friend_id:id});
+  };
 
   const loadRanking=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
@@ -744,7 +748,14 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
         :rankData.map((p,i)=>{
           const lv=getSeasonLevel(p.pts);
-          const canAdd=rankFilter==="communaute"&&p.id!==profile?.id&&!friendIds.has(p.id)&&!sentTo.has(p.id);
+          const notSelfOrFriend=rankFilter==="communaute"&&p.id!==profile?.id&&!friendIds.has(p.id);
+          const canAdd=notSelfOrFriend&&!sentTo.has(p.id);
+          const canCancel=notSelfOrFriend&&sentTo.has(p.id);
+          const rowActions=canAdd
+            ?[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}]
+            :canCancel
+              ?[{icon:"✕",bg:"rgba(255,255,255,0.12)",color:"rgba(240,237,232,0.75)",onClick:()=>handleCancelFriend(p.id)}]
+              :null;
           const row=(
             <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===profile?.id?"66":"33"}`,borderRadius:14}}>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
@@ -760,8 +771,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               {sentTo.has(p.id)&&<div style={{color:"#27AE60",fontSize:14,flexShrink:0}}>✓</div>}
             </div>
           );
-          return canAdd
-            ?<SwipeRow key={p.id} radius={14} mb={8} actions={[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}]}>{row}</SwipeRow>
+          return rowActions
+            ?<SwipeRow key={p.id} radius={14} mb={8} actions={rowActions}>{row}</SwipeRow>
             :<div key={p.id} style={{marginBottom:8}}>{row}</div>;
         })}
       <div style={{position:"fixed",bottom:90,right:20,zIndex:99,width:56,height:56}}>
