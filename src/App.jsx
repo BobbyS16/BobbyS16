@@ -1298,7 +1298,6 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [trainings,setTrainings]=useState([]);
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [showPhoto,setShowPhoto]=useState(false);
-  const [showInfo,setShowInfo]=useState(false);
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const lv=getLevel(results.length?Math.max(...results.map(r=>calcPoints(r.discipline,r.time))):0);
 
@@ -1342,21 +1341,11 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Courses</div>
         </div>
       </div>
-      <button onClick={()=>setShowInfo(v=>!v)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:showInfo?8:18}}>
-        <span>ℹ️ Les statuts</span>
-        <span style={{display:"inline-block",transform:showInfo?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}>▾</span>
-      </button>
-      {showInfo&&(
-        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"14px",marginBottom:18,fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.7)",lineHeight:1.5}}>
-          {[{label:"Débutant",min:0,color:"#27AE60"},{label:"Intermédiaire",min:300,color:"#4A90D9"},{label:"Confirmé",min:700,color:"#9B59B6"},{label:"Avancé",min:1300,color:"#CD7F32"},{label:"Expert",min:2000,color:"#C0C0C0"},{label:"Élite",min:3000,color:"#FFD700"}].map(l=>(
-            <div key={l.label} style={{display:"flex",alignItems:"center",gap:10,padding:"4px 0"}}>
-              <div style={{width:10,height:10,borderRadius:"50%",background:l.color,flexShrink:0}}/>
-              <span style={{color:l.color,fontWeight:700,minWidth:100}}>{l.label}</span>
-              <span>dès {l.min} pts</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",lineHeight:1.7,marginBottom:18}}>
+        {[[{label:"Débutant",min:0,color:"#27AE60"},{label:"Intermédiaire",min:300,color:"#4A90D9"}],[{label:"Confirmé",min:700,color:"#9B59B6"},{label:"Avancé",min:1300,color:"#CD7F32"}],[{label:"Expert",min:2000,color:"#C0C0C0"},{label:"Élite",min:3000,color:"#FFD700"}]].map((pair,i)=>(
+          <div key={i}>{pair.map((l,j)=>(<span key={l.label}>{j>0&&<span style={{opacity:0.35}}> · </span>}<span style={{color:l.color,fontWeight:700}}>{l.label}</span> dès {l.min} pts</span>))}</div>
+        ))}
+      </div>
       <BadgesByCategory badges={badges}/>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
