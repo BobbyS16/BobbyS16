@@ -624,7 +624,9 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
     const{data:{user}}=await supabase.auth.getUser();
     const{data:allResults}=await supabase.from("results").select("*").eq("year",season);
     const{data:allProfiles}=await supabase.from("profiles").select("*");
+    const{data:allTrainings}=await supabase.from("trainings").select("user_id,sport,distance,duration,points,date");
     if(!allResults||!allProfiles)return;
+    const seasonTrainings=(allTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
     let pool=allProfiles;
     if(rankFilter==="amis"){
       const{data:fs}=await supabase.from("friendships").select("friend_id").eq("user_id",user.id).eq("status","accepted");
@@ -633,7 +635,9 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
     }
     const ranked=pool.map(p=>{
       const pRes=allResults.filter(r=>r.user_id===p.id&&(discFilter==="All"||DISCIPLINES[r.discipline]?.category===discFilter));
-      const pts=sumBestPts(pRes);
+      const racePts=sumBestPts(pRes);
+      const trainPts=discFilter==="All"?seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0):0;
+      const pts=racePts+trainPts;
       const badges=computeBadges({results:allResults.filter(r=>r.user_id===p.id)});
       return{...p,pts,badges};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
