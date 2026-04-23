@@ -1299,7 +1299,10 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [showPhoto,setShowPhoto]=useState(false);
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
-  const lv=getLevel(results.length?Math.max(...results.map(r=>calcPoints(r.discipline,r.time))):0);
+  const seasonResults=results.filter(r=>rYear(r)===CY);
+  const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===CY);
+  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+  const lv=getSeasonLevel(seasonPts);
 
   useEffect(()=>{
     supabase.from("friendships").select("id",{count:"exact",head:true}).eq("user_id",profile.id).eq("status","accepted")
