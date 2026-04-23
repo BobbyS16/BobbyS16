@@ -28,7 +28,8 @@ CREATE POLICY "notifications_delete_own" ON notifications
   FOR DELETE USING (user_id = auth.uid());
 
 -- ── RPC : AJOUTER UN AMI (bidirectionnel + notification) ─────────────────────
-CREATE OR REPLACE FUNCTION add_friend(friend_id uuid)
+DROP FUNCTION IF EXISTS add_friend(uuid);
+CREATE FUNCTION add_friend(p_friend_id uuid)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -37,17 +38,18 @@ AS $$
 BEGIN
   INSERT INTO friendships (user_id, friend_id, status)
   VALUES
-    (auth.uid(), add_friend.friend_id, 'accepted'),
-    (add_friend.friend_id, auth.uid(), 'accepted')
+    (auth.uid(), p_friend_id, 'accepted'),
+    (p_friend_id, auth.uid(), 'accepted')
   ON CONFLICT (user_id, friend_id) DO UPDATE SET status = 'accepted';
 
   INSERT INTO notifications (user_id, type, from_user_id, read)
-  VALUES (add_friend.friend_id, 'friend_added', auth.uid(), false);
+  VALUES (p_friend_id, 'friend_added', auth.uid(), false);
 END;
 $$;
 
 -- ── RPC : SUPPRIMER UN AMI (bidirectionnel) ──────────────────────────────────
-CREATE OR REPLACE FUNCTION remove_friend(friend_id uuid)
+DROP FUNCTION IF EXISTS remove_friend(uuid);
+CREATE FUNCTION remove_friend(p_friend_id uuid)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -56,9 +58,9 @@ AS $$
 BEGIN
   DELETE FROM friendships
   WHERE
-    (user_id = auth.uid() AND friendships.friend_id = remove_friend.friend_id)
+    (user_id = auth.uid() AND friend_id = p_friend_id)
     OR
-    (user_id = remove_friend.friend_id AND friendships.friend_id = auth.uid());
+    (user_id = p_friend_id AND friend_id = auth.uid());
 END;
 $$;
 

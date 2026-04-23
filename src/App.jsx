@@ -621,12 +621,12 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
 
   const handleAddFriend=async id=>{
     setFriendIds(s=>{const n=new Set(s);n.add(id);return n;});
-    const{error}=await supabase.rpc("add_friend",{friend_id:id});
+    const{error}=await supabase.rpc("add_friend",{p_friend_id:id});
     if(error){console.error("add_friend RPC error:",error);setFriendIds(s=>{const n=new Set(s);n.delete(id);return n;});alert("Erreur ajout ami : "+error.message);}
   };
   const handleCancelFriend=async id=>{
     setFriendIds(s=>{const n=new Set(s);n.delete(id);return n;});
-    const{error}=await supabase.rpc("remove_friend",{friend_id:id});
+    const{error}=await supabase.rpc("remove_friend",{p_friend_id:id});
     if(error){console.error("remove_friend RPC error:",error);setFriendIds(s=>{const n=new Set(s);n.add(id);return n;});alert("Erreur suppression ami : "+error.message);}
   };
 
@@ -1194,14 +1194,14 @@ function SocialTab({myProfile,onNotifsChange}){
   const addFriend=async friendId=>{
     const stub=searchRes.find(p=>p.id===friendId);
     if(stub)setFriends(f=>f.some(x=>x.friend?.id===friendId)?f:[...f,{friend:{id:stub.id,name:stub.name,avatar:stub.avatar,city:stub.city,birth_year:stub.birth_year}}]);
-    const{data,error}=await supabase.rpc("add_friend",{friend_id:friendId});
+    const{data,error}=await supabase.rpc("add_friend",{p_friend_id:friendId});
     console.log("[addFriend] RPC response — data=",data,"error=",error,"friendId=",friendId);
     if(error){console.error("add_friend RPC error:",error);setFriends(f=>f.filter(x=>x.friend?.id!==friendId));alert("Erreur ajout ami : "+error.message);return;}
     loadFriends();
   };
   const removeFriend=async friendId=>{
     setFriends(f=>f.filter(x=>x.friend?.id!==friendId));
-    const{error}=await supabase.rpc("remove_friend",{friend_id:friendId});
+    const{error}=await supabase.rpc("remove_friend",{p_friend_id:friendId});
     if(error){console.error("remove_friend RPC error:",error);alert("Erreur suppression ami : "+error.message);}
     loadFriends();loadNotifs();onNotifsChange&&onNotifsChange();
   };
