@@ -766,7 +766,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
-                <div style={{fontSize:9,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{lv.label}</div>
               </div>
             </div>
           );
@@ -887,7 +886,6 @@ function RankingTab({myProfile}){
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
-            <div style={{fontSize:9,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{lv.label}</div>
           </div>
         </div>
       );})}
