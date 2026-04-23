@@ -988,9 +988,9 @@ function PerfTab({userId,refreshKey}){
                         <div style={{fontFamily:"'Bebas Neue'",fontWeight:700,fontSize:16,color:"#F0EDE8",letterSpacing:1}}>{DISCIPLINES[disc]?.label}</div>
                         <div style={{fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{r.race||""}{r.race_date?` · ${r.race_date.slice(0,4)}`:r.year?` · ${r.year}`:""}</div>
                       </div>
-                      <div style={{flexShrink:0,textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-                        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1,lineHeight:1}}>{fmtTime(r.time)}</div>
-                        <div style={{fontSize:11,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,background:`${lv.color}22`,padding:"3px 8px",borderRadius:8}}>{lv.label}</div>
+                      <div style={{flexShrink:0,textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+                        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,color:lv.color,letterSpacing:1,lineHeight:1}}>{fmtTime(r.time)}</div>
+                        <div style={{fontSize:9,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>{lv.label}</div>
                       </div>
                     </div>
                   );})}
