@@ -587,7 +587,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const [trainings,setTrainings]=useState([]);
   const [fabOpen,setFabOpen]=useState(false);
   const [friendIds,setFriendIds]=useState(new Set());
-  const [sentTo,setSentTo]=useState(new Set());
   useEffect(()=>{
     if(!userId)return;
     supabase.from("results").select("*").eq("user_id",userId)
@@ -621,11 +620,11 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   },[userId]);
 
   const handleAddFriend=async id=>{
-    setSentTo(s=>{const n=new Set(s);n.add(id);return n;});
+    setFriendIds(s=>{const n=new Set(s);n.add(id);return n;});
     await supabase.rpc("add_friend",{friend_id:id});
   };
   const handleCancelFriend=async id=>{
-    setSentTo(s=>{const n=new Set(s);n.delete(id);return n;});
+    setFriendIds(s=>{const n=new Set(s);n.delete(id);return n;});
     await supabase.rpc("remove_friend",{friend_id:id});
   };
 
@@ -748,14 +747,13 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
         :rankData.map((p,i)=>{
           const lv=getSeasonLevel(p.pts);
-          const notSelfOrFriend=rankFilter==="communaute"&&p.id!==profile?.id&&!friendIds.has(p.id);
-          const canAdd=notSelfOrFriend&&!sentTo.has(p.id);
-          const canCancel=notSelfOrFriend&&sentTo.has(p.id);
-          const rowActions=canAdd
-            ?[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}]
-            :canCancel
+          const inCommunity=rankFilter==="communaute"&&p.id!==profile?.id;
+          const isFriend=friendIds.has(p.id);
+          const rowActions=!inCommunity
+            ?null
+            :isFriend
               ?[{icon:"✕",bg:"rgba(255,255,255,0.12)",color:"rgba(240,237,232,0.75)",onClick:()=>handleCancelFriend(p.id)}]
-              :null;
+              :[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}];
           const row=(
             <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===profile?.id?"66":"33"}`,borderRadius:14}}>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
@@ -768,7 +766,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
                 <div style={{fontSize:9,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{lv.label}</div>
               </div>
-              {sentTo.has(p.id)&&<div style={{color:"#27AE60",fontSize:14,flexShrink:0}}>✓</div>}
+              {inCommunity&&isFriend&&<div style={{color:"#27AE60",fontSize:14,flexShrink:0}}>✓</div>}
             </div>
           );
           return rowActions
