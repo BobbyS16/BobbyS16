@@ -27,6 +27,13 @@ DROP POLICY IF EXISTS "notifications_delete_own" ON notifications;
 CREATE POLICY "notifications_delete_own" ON notifications
   FOR DELETE USING (user_id = auth.uid());
 
+-- ── RLS FRIENDSHIPS : permettre la lecture de ses propres amitiés ────────────
+ALTER TABLE friendships ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "friendships_select_own" ON friendships;
+CREATE POLICY "friendships_select_own" ON friendships
+  FOR SELECT USING (user_id = auth.uid() OR friend_id = auth.uid());
+
 -- ── RPC : AJOUTER UN AMI (bidirectionnel + notification) ─────────────────────
 DROP FUNCTION IF EXISTS add_friend(uuid);
 CREATE FUNCTION add_friend(p_friend_id uuid)
