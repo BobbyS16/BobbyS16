@@ -664,7 +664,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0}}>
           <div style={{position:"relative"}}>
             <Avatar profile={profile} size={52} highlight={myLv.color}/>
-            {myBadges.length>0&&<div style={{position:"absolute",bottom:-2,right:-2,background:"#E63946",borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'"}}>{myBadges.length}</div>}
+            {myBadges.length>0&&<div style={{position:"absolute",bottom:-2,right:-2,background:myLv.color,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'"}}>{myBadges.length}</div>}
           </div>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(profile?.name||"MON PROFIL").toUpperCase()}</div>
