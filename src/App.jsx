@@ -746,7 +746,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
           const lv=getSeasonLevel(p.pts);
           const canAdd=rankFilter==="communaute"&&p.id!==profile?.id&&!friendIds.has(p.id)&&!sentTo.has(p.id);
           const row=(
-            <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===profile?.id?"66":"33"}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===profile?.id?"66":"33"}`,borderRadius:14}}>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
               <Avatar profile={p} size={36}/>
               <div style={{flex:1,minWidth:0}}>
@@ -762,7 +762,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
           );
           return canAdd
             ?<SwipeRow key={p.id} radius={14} mb={8} actions={[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}]}>{row}</SwipeRow>
-            :<div key={p.id} style={{borderRadius:14,marginBottom:8,overflow:"hidden"}}>{row}</div>;
+            :<div key={p.id} style={{marginBottom:8}}>{row}</div>;
         })}
       <div style={{position:"fixed",bottom:90,right:20,zIndex:99,width:56,height:56}}>
         {[
