@@ -581,6 +581,7 @@ function DeleteAccountModal({onClose}){
 
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
+const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p.length>1?`${p[0]} ${p[1][0].toUpperCase()}.`:p[0];};
 
 function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile}){
   const [results,setResults]=useState([]);
@@ -761,11 +762,12 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
               <Avatar profile={p} size={36}/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Anonyme"}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
                 <div style={{display:"flex",gap:3,marginTop:1}}>{p.badges.slice(0,3).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}</div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
+                <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{rankData.length}</div>
               </div>
             </div>
           );
@@ -828,7 +830,8 @@ function RankingTab({myProfile}){
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
       const racePts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
       const tPts=seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||0),0);
-      return{...p,pts:racePts+tPts};
+      const badges=computeBadges({results:pRes});
+      return{...p,pts:racePts+tPts,badges};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
     const myAgeCat=getAgeCat(myProfile?.birth_year);
     if(filter==="age_cat") display=display.filter(p=>getAgeCat(p.birth_year)===myAgeCat);
@@ -881,11 +884,12 @@ function RankingTab({myProfile}){
           <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
           <Avatar profile={p} size={36}/>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Anonyme"}</div>
-            <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif"}}>{getAgeCat(p.birth_year)||""}{p.gender?` · ${p.gender}`:""}</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
+            <div style={{display:"flex",gap:3,marginTop:1}}>{(p.badges||[]).slice(0,3).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}</div>
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
+            <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{players.length}</div>
           </div>
         </div>
       );})}
