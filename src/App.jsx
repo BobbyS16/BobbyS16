@@ -326,7 +326,7 @@ function SwipeRow({children,onEdit,onDelete}){
   const [offset,setOffset]=useState(0);
   const startX=useRef(null);
   const dragging=useRef(false);
-  const W=120;
+  const W=onEdit?120:70;
   const onTouchStart=e=>{startX.current=e.touches[0].clientX;dragging.current=true;};
   const onTouchMove=e=>{
     if(!dragging.current)return;
@@ -346,7 +346,7 @@ function SwipeRow({children,onEdit,onDelete}){
         </div>
         <div style={{position:"absolute",top:0,bottom:0,right:0,width:W,display:"flex",
           transform:`translateX(${W+offset}px)`,transition:tr}}>
-          <button onClick={()=>{close();onEdit();}} style={{flex:1,background:"rgba(255,255,255,0.12)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>
+          {onEdit&&<button onClick={()=>{close();onEdit();}} style={{flex:1,background:"rgba(255,255,255,0.12)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>}
           <button onClick={()=>{close();onDelete();}} style={{flex:1,background:"rgba(255,255,255,0.07)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>🗑️</button>
         </div>
       </div>
@@ -864,6 +864,7 @@ function TrainingTab({userId}){
     const{data}=await supabase.from("trainings").select("*").eq("user_id",userId).order("date",{ascending:false});
     setTrainings(data||[]);
   };
+  const deleteTraining=async id=>{await supabase.from("trainings").delete().eq("id",id);loadTrainings();};
 
   const filtered=trainings.filter(t=>(selSport==="All"||t.sport===selSport)&&new Date(t.date).getFullYear()===selYear);
   const monthlyDist=MONTHS_FR.map((label,i)=>({label,value:Math.round(filtered.filter(t=>new Date(t.date).getMonth()===i).reduce((s,t)=>s+(t.distance||0),0))}));
@@ -894,13 +895,15 @@ function TrainingTab({userId}){
       </div>
       <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Sessions récentes</div>
       {filtered.slice(0,15).map((t,i)=>(
-        <div key={i} style={{padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
-            <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
+        <SwipeRow key={t.id||i} onDelete={()=>deleteTraining(t.id)}>
+          <div style={{padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
+            </div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{t.points||calcTrainingPts(t.distance,t.sport,t.duration)}pts</div>
           </div>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{t.points||calcTrainingPts(t.distance,t.sport,t.duration)}pts</div>
-        </div>
+        </SwipeRow>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
     </div>
