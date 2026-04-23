@@ -658,6 +658,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
 
   return (
     <div style={{padding:"0 16px 100px"}}>
+      <div style={{position:"sticky",top:0,background:"#0e0e0e",zIndex:10,margin:"0 -16px",padding:"0 16px 4px"}}>
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:20,marginBottom:16}}>
         <div>
@@ -726,6 +727,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         {DISC_TABS.map(({k,l})=>(
           <button key={k} onClick={()=>setDiscFilter(k)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:discFilter===k?"#E63946":"rgba(255,255,255,0.06)",color:discFilter===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{l}</button>
         ))}
+      </div>
       </div>
 
       {/* Ranking list */}
