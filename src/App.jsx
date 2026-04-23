@@ -1501,8 +1501,10 @@ function FriendProfileModal({friend,myId,onClose}){
   const [tab,setTab]=useState("races");
   const [loading,setLoading]=useState(true);
   const [showPhoto,setShowPhoto]=useState(false);
+  const seasonsRef=useRef(null);
 
   useEffect(()=>{loadAll();},[friend.id]);
+  useEffect(()=>{setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);},[]);
 
   const loadAll=async()=>{
     setLoading(true);
@@ -1536,6 +1538,10 @@ function FriendProfileModal({friend,myId,onClose}){
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,getAgeCat(fullProfile?.birth_year),fullProfile?.gender,fullProfile?.nationality].filter(Boolean).join(" · ")}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
+        <div style={{textAlign:"right",flexShrink:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
+          <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison</div>
+        </div>
       </div>
 
       <div style={{display:"flex",gap:10,marginBottom:18}}>
@@ -1568,9 +1574,12 @@ function FriendProfileModal({friend,myId,onClose}){
         </div>
       )}
 
-      <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",scrollbarWidth:"none",paddingBottom:4}}>
+      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
         {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
-          <button key={y} onClick={()=>setSeason(y)} style={{flexShrink:0,padding:"6px 14px",borderRadius:18,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:1}}>{y}</button>
+          <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            {y}
+            {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
+          </button>
         ))}
       </div>
 
