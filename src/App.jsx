@@ -1189,10 +1189,13 @@ function SocialTab({myProfile,onNotifsChange}){
     setSearchRes(data||[]);
   };
   const addFriend=async friendId=>{
+    const stub=searchRes.find(p=>p.id===friendId);
+    if(stub)setFriends(f=>f.some(x=>x.friend?.id===friendId)?f:[...f,{friend:{id:stub.id,name:stub.name,avatar:stub.avatar,city:stub.city,birth_year:stub.birth_year}}]);
     await supabase.rpc("add_friend",{friend_id:friendId});
     loadFriends();
   };
   const removeFriend=async friendId=>{
+    setFriends(f=>f.filter(x=>x.friend?.id!==friendId));
     await supabase.rpc("remove_friend",{friend_id:friendId});
     loadFriends();loadNotifs();onNotifsChange&&onNotifsChange();
   };
