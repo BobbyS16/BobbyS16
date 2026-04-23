@@ -581,6 +581,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
   const [fabOpen,setFabOpen]=useState(false);
+  const [friendIds,setFriendIds]=useState(new Set());
+  const [sentTo,setSentTo]=useState(new Set());
   useEffect(()=>{
     if(!userId)return;
     supabase.from("results").select("*").eq("user_id",userId)
@@ -607,6 +609,16 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const [rankData,setRankData]=useState([]);
 
   useEffect(()=>{loadRanking();},[season,rankFilter,discFilter]);
+  useEffect(()=>{
+    if(!userId)return;
+    supabase.from("friendships").select("friend_id").eq("user_id",userId).eq("status","accepted")
+      .then(({data})=>setFriendIds(new Set((data||[]).map(f=>f.friend_id))));
+  },[userId]);
+
+  const handleAddFriend=async id=>{
+    setSentTo(s=>{const n=new Set(s);n.add(id);return n;});
+    await supabase.rpc("add_friend",{friend_id:id});
+  };
 
   const loadRanking=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
@@ -731,6 +743,11 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
               <div style={{fontSize:9,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{lv.label}</div>
             </div>
+            {rankFilter==="communaute"&&p.id!==profile?.id&&!friendIds.has(p.id)&&(
+              sentTo.has(p.id)
+                ?<div style={{width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",color:"#27AE60",fontSize:14,flexShrink:0}}>✓</div>
+                :<button onClick={e=>{e.stopPropagation();handleAddFriend(p.id);}} style={{width:28,height:28,borderRadius:"50%",background:"rgba(230,57,70,0.15)",border:"1px solid rgba(230,57,70,0.3)",color:"#E63946",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:0,lineHeight:1}}>+</button>
+            )}
           </div>
         );}
       )}
