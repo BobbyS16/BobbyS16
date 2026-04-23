@@ -454,27 +454,30 @@ function ResultModal({existing,userId,onSave,onClose}){
 }
 
 // ── TRAINING MODAL ────────────────────────────────────────────────────────────
-function TrainingModal({userId,onSave,onClose}){
-  const [sport,setSport]=useState("Run");
-  const [dist,setDist]=useState("");
+function TrainingModal({existing,userId,onSave,onClose}){
+  const [sport,setSport]=useState(existing?.sport||"Run");
+  const [dist,setDist]=useState(existing?String(existing.distance||""):"");
   const [deniv,setDeniv]=useState("");
-  const [duration,setDur]=useState("00:00:00");
-  const [date,setDate]=useState("");
+  const [duration,setDur]=useState(existing?fmtTime(existing.duration||0):"00:00:00");
+  const [date,setDate]=useState(existing?.date||"");
   const [loading,setLoading]=useState(false);
   const [error,setErr]=useState("");
   const handleSave=async()=>{
     if(!dist)return;
     setLoading(true);setErr("");
-      const durationSec=parseDurStr(duration);
+    const durationSec=parseDurStr(duration);
     const pts=calcTrainingPts(parseFloat(dist)||0,sport,durationSec);
-    const{error:err}=await supabase.from("trainings").insert({user_id:userId,sport,distance:parseFloat(dist)||0,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts});
+    const payload={sport,distance:parseFloat(dist)||0,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts};
+    let err;
+    if(existing){({error:err}=await supabase.from("trainings").update(payload).eq("id",existing.id));}
+    else{({error:err}=await supabase.from("trainings").insert({...payload,user_id:userId}));}
     setLoading(false);
     if(err){setErr(err.message||err.details||JSON.stringify(err));return;}
     onSave();
   };
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>Ajouter un entraînement</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>{existing?"Modifier":"Ajouter"} un entraînement</div>
       <Lbl c="Sport"/><Sel value={sport} onChange={setSport}>{TRAINING_SPORTS.filter(s=>s!=="All").map(s=><option key={s} value={s}>{s}</option>)}</Sel>
       <Lbl c="Distance (km)"/><Inp value={dist} onChange={setDist} placeholder="Ex: 12.5" type="number"/>
       {sport==="Trail"&&<><Lbl c="Dénivelé (m)"/><Inp value={deniv} onChange={setDeniv} placeholder="Ex: 800" type="number"/></>}
@@ -857,6 +860,7 @@ function TrainingTab({userId}){
   const [trainings,setTrainings]=useState([]);
   const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
+  const [editTraining,setEditTraining]=useState(null);
 
   useEffect(()=>{loadTrainings();},[]);
 
@@ -895,7 +899,7 @@ function TrainingTab({userId}){
       </div>
       <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Sessions récentes</div>
       {filtered.slice(0,15).map((t,i)=>(
-        <SwipeRow key={t.id||i} onDelete={()=>deleteTraining(t.id)}>
+        <SwipeRow key={t.id||i} onEdit={()=>setEditTraining(t)} onDelete={()=>deleteTraining(t.id)}>
           <div style={{padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
@@ -906,6 +910,7 @@ function TrainingTab({userId}){
         </SwipeRow>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
+      {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();}} onClose={()=>setEditTraining(null)}/>}
     </div>
   );
 }
