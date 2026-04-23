@@ -730,16 +730,16 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
           </div>
         );}
       )}
-      {fabOpen&&<div onClick={()=>setFabOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",backdropFilter:"blur(2px)",zIndex:98}}/>}
+      {fabOpen&&<div onClick={()=>setFabOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",backdropFilter:"blur(3px)",zIndex:98}}/>}
       <div style={{position:"fixed",bottom:90,right:20,zIndex:99,width:56,height:56}}>
         {[
-          {icon:"🏃",label:"Entraînement",color:"#4ade80",cb:onAddTraining,tx:-64,ty:-64,delay:"0s"},
-          {icon:"🏅",label:"Course officielle",color:"#E63946",cb:onAddRace,tx:-89,ty:-16,delay:"0.05s"},
+          {icon:"🏃",label:"Entraînement",color:"#4ade80",cb:onAddTraining,tx:-30,ty:-90,delay:"0s"},
+          {icon:"🏅",label:"Course officielle",color:"#E63946",cb:onAddRace,tx:-85,ty:-55,delay:"0.05s"},
         ].map(({icon,label,color,cb,tx,ty,delay},i)=>(
-          <div key={i} style={{position:"absolute",top:5,left:5,width:46,height:46,display:"flex",alignItems:"center",justifyContent:"center",transform:fabOpen?`translate(${tx}px,${ty}px)`:"translate(0,0)",opacity:fabOpen?1:0,transition:`all 0.25s cubic-bezier(0.2,0.8,0.3,1.1) ${delay}`,pointerEvents:fabOpen?"auto":"none"}}>
-            <div style={{position:"absolute",right:"calc(100% + 10px)",background:"rgba(20,20,20,0.92)",border:"1px solid rgba(255,255,255,0.1)",padding:"7px 12px",borderRadius:10,fontSize:12,fontFamily:"'Barlow',sans-serif",color,fontWeight:700,letterSpacing:0.5,whiteSpace:"nowrap"}}>{label}</div>
-            <button onClick={()=>{setFabOpen(false);cb();}} style={{width:46,height:46,borderRadius:"50%",background:"rgba(22,22,22,0.95)",border:"1px solid rgba(255,255,255,0.14)",color:"#fff",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 14px rgba(0,0,0,0.5)"}}>{icon}</button>
-          </div>
+          <button key={i} onClick={()=>{setFabOpen(false);cb();}} style={{position:"absolute",top:12,left:12,width:32,height:32,background:"transparent",border:"none",padding:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transform:fabOpen?`translate(${tx}px,${ty}px)`:"translate(0,0)",opacity:fabOpen?1:0,transition:`all 0.28s cubic-bezier(0.2,0.8,0.3,1.1) ${delay}`,pointerEvents:fabOpen?"auto":"none"}}>
+            <span style={{position:"absolute",right:"calc(100% + 8px)",color,fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,letterSpacing:0.5,whiteSpace:"nowrap",textShadow:"0 2px 8px rgba(0,0,0,0.9)"}}>{label}</span>
+            <span style={{fontSize:26,lineHeight:1,filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.7))"}}>{icon}</span>
+          </button>
         ))}
         <button onClick={()=>setFabOpen(v=>!v)} style={{position:"absolute",inset:0,width:56,height:56,borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)",transform:fabOpen?"rotate(45deg)":"rotate(0)",transition:"transform 0.22s"}}>+</button>
       </div>
