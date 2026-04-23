@@ -322,11 +322,15 @@ function LineChart({data,color="#E63946",title="",invert=false,formatY=null}) {
 }
 
 // ── SWIPE ROW ─────────────────────────────────────────────────────────────────
-function SwipeRow({children,onEdit,onDelete}){
+function SwipeRow({children,onEdit,onDelete,actions,radius=12,mb=6}){
+  const btns=actions||[
+    ...(onEdit?[{icon:"✏️",bg:"rgba(255,255,255,0.12)",onClick:onEdit}]:[]),
+    ...(onDelete?[{icon:"🗑️",bg:"rgba(255,255,255,0.07)",onClick:onDelete}]:[]),
+  ];
   const [offset,setOffset]=useState(0);
   const startX=useRef(null);
   const dragging=useRef(false);
-  const W=onEdit?120:70;
+  const W=btns.length===1?70:btns.length*60;
   const onTouchStart=e=>{startX.current=e.touches[0].clientX;dragging.current=true;};
   const onTouchMove=e=>{
     if(!dragging.current)return;
@@ -338,7 +342,7 @@ function SwipeRow({children,onEdit,onDelete}){
   const close=()=>setOffset(0);
   const tr=dragging.current?"none":"transform 0.25s ease";
   return(
-    <div style={{overflow:"hidden",borderRadius:12,marginBottom:6}}>
+    <div style={{overflow:"hidden",borderRadius:radius,marginBottom:mb}}>
       <div style={{position:"relative"}}>
         <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
           style={{transform:`translateX(${offset}px)`,transition:tr}}>
@@ -346,8 +350,9 @@ function SwipeRow({children,onEdit,onDelete}){
         </div>
         <div style={{position:"absolute",top:0,bottom:0,right:0,width:W,display:"flex",
           transform:`translateX(${W+offset}px)`,transition:tr}}>
-          {onEdit&&<button onClick={()=>{close();onEdit();}} style={{flex:1,background:"rgba(255,255,255,0.12)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏️</button>}
-          <button onClick={()=>{close();onDelete();}} style={{flex:1,background:"rgba(255,255,255,0.07)",border:"none",color:"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>🗑️</button>
+          {btns.map((b,i)=>(
+            <button key={i} onClick={()=>{close();b.onClick();}} style={{flex:1,background:b.bg,border:"none",color:b.color||"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{b.icon}</button>
+          ))}
         </div>
       </div>
     </div>
@@ -737,26 +742,28 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       {/* Ranking list */}
       {rankData.length===0
         ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
-        :rankData.map((p,i)=>{const lv=getSeasonLevel(p.pts);return(
-          <div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===profile?.id?"66":"33"}`}}>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
-            <Avatar profile={p} size={36}/>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Anonyme"}</div>
-              <div style={{display:"flex",gap:3,marginTop:1}}>{p.badges.slice(0,3).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}</div>
+        :rankData.map((p,i)=>{
+          const lv=getSeasonLevel(p.pts);
+          const canAdd=rankFilter==="communaute"&&p.id!==profile?.id&&!friendIds.has(p.id)&&!sentTo.has(p.id);
+          const row=(
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===profile?.id?"66":"33"}`}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
+              <Avatar profile={p} size={36}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Anonyme"}</div>
+                <div style={{display:"flex",gap:3,marginTop:1}}>{p.badges.slice(0,3).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
+                <div style={{fontSize:9,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{lv.label}</div>
+              </div>
+              {sentTo.has(p.id)&&<div style={{color:"#27AE60",fontSize:14,flexShrink:0}}>✓</div>}
             </div>
-            <div style={{textAlign:"right",flexShrink:0}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
-              <div style={{fontSize:9,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{lv.label}</div>
-            </div>
-            {rankFilter==="communaute"&&p.id!==profile?.id&&!friendIds.has(p.id)&&(
-              sentTo.has(p.id)
-                ?<div style={{width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",color:"#27AE60",fontSize:14,flexShrink:0}}>✓</div>
-                :<button onClick={e=>{e.stopPropagation();handleAddFriend(p.id);}} style={{width:28,height:28,borderRadius:"50%",background:"rgba(230,57,70,0.15)",border:"1px solid rgba(230,57,70,0.3)",color:"#E63946",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:0,lineHeight:1}}>+</button>
-            )}
-          </div>
-        );}
-      )}
+          );
+          return canAdd
+            ?<SwipeRow key={p.id} radius={14} mb={8} actions={[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}]}>{row}</SwipeRow>
+            :<div key={p.id} style={{borderRadius:14,marginBottom:8,overflow:"hidden"}}>{row}</div>;
+        })}
       <div style={{position:"fixed",bottom:90,right:20,zIndex:99,width:56,height:56}}>
         {[
           {icon:"🏃",label:"Entraînement",color:"#4ade80",cb:onAddTraining,tx:-12,ty:-68,delay:"0.06s"},
