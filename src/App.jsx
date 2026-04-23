@@ -612,6 +612,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const [rankFilter,setRankFilter]=useState("amis");
   const [discFilter,setDiscFilter]=useState("All");
   const [rankData,setRankData]=useState([]);
+  const [openFriend,setOpenFriend]=useState(null);
 
   useEffect(()=>{loadRanking();},[season,rankFilter,discFilter]);
   useEffect(()=>{
@@ -757,8 +758,9 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
             :isFriend
               ?[{icon:"✕",bg:"rgba(255,255,255,0.12)",color:"rgba(240,237,232,0.75)",onClick:()=>handleCancelFriend(p.id)}]
               :[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}];
+          const isMe=p.id===profile?.id;
           const row=(
-            <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===profile?.id?"66":"33"}`,borderRadius:14}}>
+            <div onClick={isMe?undefined:()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,borderRadius:14,cursor:isMe?"default":"pointer"}}>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
               <Avatar profile={p} size={36}/>
               <div style={{flex:1,minWidth:0}}>
@@ -787,6 +789,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         ))}
         <button onClick={()=>setFabOpen(v=>!v)} style={{position:"absolute",inset:0,width:56,height:56,borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)",transform:fabOpen?"rotate(45deg)":"rotate(0)",transition:"transform 0.22s"}}>+</button>
       </div>
+      {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
     </div>
   );
 }
@@ -801,6 +804,7 @@ function RankingTab({myProfile}){
   const [loading,setLoading]=useState(true);
   const [groups,setGroups]=useState([]);
   const [selGroup,setSelGroup]=useState(null);
+  const [openFriend,setOpenFriend]=useState(null);
   const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
 
   useEffect(()=>{
@@ -879,8 +883,8 @@ function RankingTab({myProfile}){
         ))
       ):loading?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
       :players.length===0?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
-      :players.map((p,i)=>{const lv=getSeasonLevel(p.pts);return(
-        <div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:`${lv.color}0d`,border:`1px solid ${lv.color}${p.id===myProfile?.id?"66":"33"}`}}>
+      :players.map((p,i)=>{const lv=getSeasonLevel(p.pts);const isMe=p.id===myProfile?.id;return(
+        <div key={p.id} onClick={isMe?undefined:()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,cursor:isMe?"default":"pointer"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</div>
           <Avatar profile={p} size={36}/>
           <div style={{flex:1,minWidth:0}}>
@@ -893,6 +897,7 @@ function RankingTab({myProfile}){
           </div>
         </div>
       );})}
+      {openFriend&&<FriendProfileModal friend={openFriend} myId={myProfile?.id} onClose={()=>setOpenFriend(null)}/>}
     </div>
   );
 }
