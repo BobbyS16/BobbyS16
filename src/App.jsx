@@ -854,7 +854,6 @@ function RankingTab({myProfile}){
 // ── TRAINING TAB ──────────────────────────────────────────────────────────────
 function TrainingTab({userId}){
   const [trainings,setTrainings]=useState([]);
-  const [showAdd,setShowAdd]=useState(false);
   const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
 
@@ -872,9 +871,8 @@ function TrainingTab({userId}){
 
   return (
     <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:20,marginBottom:16}}>
+      <div style={{paddingTop:20,marginBottom:16}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Entraînements</div>
-        <button onClick={()=>setShowAdd(true)} style={{background:"#E63946",border:"none",borderRadius:10,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:20,color:"#fff"}}>+</button>
       </div>
       <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:8,marginBottom:12,scrollbarWidth:"none"}}>
         {TRAINING_SPORTS.map(s=><button key={s} onClick={()=>setSelSport(s)} style={{flexShrink:0,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",background:selSport===s?"#E63946":"rgba(255,255,255,0.06)",color:selSport===s?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{s}</button>)}
@@ -904,7 +902,6 @@ function TrainingTab({userId}){
         </div>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
-      {showAdd&&<TrainingModal userId={userId} onSave={()=>{setShowAdd(false);loadTrainings();}} onClose={()=>setShowAdd(false)}/>}
     </div>
   );
 }
