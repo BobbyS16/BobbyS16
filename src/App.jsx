@@ -488,28 +488,6 @@ function TrainingModal({userId,onSave,onClose}){
   );
 }
 
-// ── ADD CHOICE MODAL ──────────────────────────────────────────────────────────
-function AddChoiceModal({onChoose,onClose}){
-  const opt=(icon,title,desc,val)=>(
-    <button onClick={()=>onChoose(val)} style={{width:"100%",display:"flex",alignItems:"center",gap:14,padding:"14px 16px",marginBottom:10,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,cursor:"pointer",textAlign:"left",fontFamily:"'Barlow',sans-serif"}}>
-      <div style={{fontSize:28,flexShrink:0}}>{icon}</div>
-      <div style={{flex:1}}>
-        <div style={{fontWeight:700,fontSize:15,color:"#F0EDE8"}}>{title}</div>
-        <div style={{fontSize:12,color:"rgba(240,237,232,0.45)",marginTop:2}}>{desc}</div>
-      </div>
-      <div style={{color:"#E63946",fontSize:18}}>›</div>
-    </button>
-  );
-  return (
-    <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:16}}>Ajouter</div>
-      {opt("🏃","Entraînement","Session de running, vélo, natation, trail","training")}
-      {opt("🏅","Course officielle","Résultat d'une course chronométrée","result")}
-      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
-    </Modal>
-  );
-}
-
 // ── EDIT PROFILE MODAL ────────────────────────────────────────────────────────
 function EditProfileModal({profile,onSave,onClose}){
   const [name,setName]=useState(profile.name||"");
@@ -595,9 +573,10 @@ function DeleteAccountModal({onClose}){
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
 
-function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
+function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile}){
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
+  const [fabOpen,setFabOpen]=useState(false);
   useEffect(()=>{
     if(!userId)return;
     supabase.from("results").select("*").eq("user_id",userId)
@@ -751,7 +730,19 @@ function HomeTab({profile,userId,onAddResult,refreshKey,onOpenProfile}){
           </div>
         );}
       )}
-      <button onClick={onAddResult} style={{position:"fixed",bottom:90,right:20,width:56,height:56,borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)",zIndex:99}}>+</button>
+      {fabOpen&&<div onClick={()=>setFabOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",backdropFilter:"blur(2px)",zIndex:98}}/>}
+      <div style={{position:"fixed",bottom:90,right:20,zIndex:99,display:"flex",flexDirection:"column-reverse",alignItems:"flex-end",gap:12}}>
+        <button onClick={()=>setFabOpen(v=>!v)} style={{width:56,height:56,borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)",transform:fabOpen?"rotate(45deg)":"rotate(0)",transition:"transform 0.2s"}}>+</button>
+        {[
+          {icon:"🏃",label:"Entraînement",cb:onAddTraining,delay:"0s"},
+          {icon:"🏅",label:"Course officielle",cb:onAddRace,delay:"0.04s"},
+        ].map(({icon,label,cb,delay},i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:10,transform:fabOpen?"translateY(0)":"translateY(18px)",opacity:fabOpen?1:0,transition:`all 0.2s ${delay}`,pointerEvents:fabOpen?"auto":"none"}}>
+            <div style={{background:"rgba(20,20,20,0.92)",border:"1px solid rgba(255,255,255,0.08)",padding:"7px 12px",borderRadius:10,fontSize:12,fontFamily:"'Barlow',sans-serif",color:"#F0EDE8",fontWeight:600,whiteSpace:"nowrap"}}>{label}</div>
+            <button onClick={()=>{setFabOpen(false);cb();}} style={{width:46,height:46,borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 14px rgba(0,0,0,0.4)"}}>{icon}</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1587,7 +1578,7 @@ export default function App(){
   const [loading,setLoading]=useState(true);
   const [resultsKey,setResultsKey]=useState(0);
   const [showProfile,setShowProfile]=useState(false);
-  const [addMode,setAddMode]=useState(null); // null | "choice" | "result" | "training"
+  const [addMode,setAddMode]=useState(null); // null | "result" | "training"
   const [notifCount,setNotifCount]=useState(0);
 
   useEffect(()=>{
@@ -1629,13 +1620,12 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",minHeight:"100vh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflowX:"hidden",paddingTop:"env(safe-area-inset-top)"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddResult={()=>setAddMode("choice")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey}/>}
       {tab==="social"  &&<SocialTab  myProfile={profile} onNotifsChange={loadNotifCount}/>}
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
-      {addMode==="choice"&&<AddChoiceModal onChoose={m=>setAddMode(m)} onClose={()=>setAddMode(null)}/>}
       {addMode==="result"&&<ResultModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
