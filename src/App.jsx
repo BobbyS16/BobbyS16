@@ -1524,20 +1524,49 @@ function FriendProfileModal({friend,myId,onClose}){
   const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
   const lv=getSeasonLevel(seasonPts);
   const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
+  const bests=Object.values(results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
+    .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
 
   return (
     <Modal onClose={onClose}>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
         <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color}/></div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{friend.name||"Athlète"}</div>
-          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[friend.city,getAgeCat(friend.birth_year)].filter(Boolean).join(" · ")}</div>
-          <div style={{marginTop:4,display:"flex",gap:10,alignItems:"baseline"}}>
-            <span style={{fontFamily:"'Bebas Neue'",fontSize:24,color:lv.color,letterSpacing:1}}>{seasonPts}</span>
-            <span style={{fontSize:9,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison {season}</span>
-          </div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fullProfile?.name||friend.name||"Athlète"}</div>
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,getAgeCat(fullProfile?.birth_year),fullProfile?.gender,fullProfile?.nationality].filter(Boolean).join(" · ")}</div>
+          <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
       </div>
+
+      <div style={{display:"flex",gap:10,marginBottom:18}}>
+        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{friendCount}</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Amis</div>
+        </div>
+        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{badges.length}</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Badges</div>
+        </div>
+        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{results.length}</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Courses</div>
+        </div>
+      </div>
+
+      {bests.length>0&&(
+        <div style={{marginBottom:18}}>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px"}}>
+            {bests.map((r,i)=>{const pts=calcPoints(r.discipline,r.time);const ptsLv=getLevel(pts);return(
+              <div key={i}>
+                <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                <div style={{fontSize:11,color:ptsLv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
+              </div>
+            );})}
+          </div>
+        </div>
+      )}
 
       <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",scrollbarWidth:"none",paddingBottom:4}}>
         {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
