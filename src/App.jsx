@@ -1159,9 +1159,16 @@ function SocialTab({myProfile,onNotifsChange}){
 
   const loadFriends=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
-    const{data,error}=await supabase.from("friendships").select("*, friend:profiles!friend_id(id,name,avatar,city,birth_year)").eq("user_id",user.id).eq("status","accepted");
-    console.log("[loadFriends] user.id=",user.id,"rows=",data,"error=",error);
-    setFriends(data||[]);
+    const{data:fs,error:e1}=await supabase.from("friendships").select("*").eq("user_id",user.id).eq("status","accepted");
+    console.log("[loadFriends] friendships rows=",fs,"error=",e1);
+    if(e1||!fs||fs.length===0){setFriends([]);return;}
+    const ids=fs.map(f=>f.friend_id);
+    const{data:profiles,error:e2}=await supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids);
+    console.log("[loadFriends] profiles=",profiles,"error=",e2);
+    const byId=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));
+    const joined=fs.map(f=>({...f,friend:byId[f.friend_id]||null}));
+    console.log("[loadFriends] joined=",joined);
+    setFriends(joined);
   };
   const loadNotifs=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
