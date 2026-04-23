@@ -899,8 +899,8 @@ function TrainingTab({userId}){
       </div>
       <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Sessions récentes</div>
       {filtered.slice(0,15).map((t,i)=>(
-        <SwipeRow key={t.id||i} onEdit={()=>setEditTraining(t)} onDelete={()=>deleteTraining(t.id)}>
-          <div style={{padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <SwipeRow key={t.id||i} onDelete={()=>deleteTraining(t.id)}>
+          <div onClick={()=>setEditTraining(t)} style={{padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
             <div>
               <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
               <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
@@ -984,8 +984,8 @@ function PerfTab({userId,refreshKey}){
               <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",fontWeight:700,letterSpacing:2,marginBottom:7}}>{yr}</div>
               {[...res].sort((a,b)=>{const cats=["running","trail","triathlon"];return cats.indexOf(DISCIPLINES[a.discipline]?.category)-cats.indexOf(DISCIPLINES[b.discipline]?.category);}).map((r,i)=>{
                 const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
-                <SwipeRow key={r.id||i} onEdit={()=>setEditResult(r)} onDelete={()=>deleteResult(r.id)}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)"}}>
+                <SwipeRow key={r.id||i} onDelete={()=>deleteResult(r.id)}>
+                  <div onClick={()=>setEditResult(r)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",cursor:"pointer"}}>
                     <div><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{DISCIPLINES[r.discipline]?.icon} {r.race||DISCIPLINES[r.discipline]?.label}</div></div>
                     <div style={{textAlign:"right"}}><div style={{fontFamily:"'Bebas Neue'",fontSize:19,color:lv.color}}>{fmtTime(r.time)}</div><div style={{fontSize:10,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{pts} pts</div></div>
                   </div>
