@@ -1159,7 +1159,7 @@ function SocialTab({myProfile,onNotifsChange}){
 
   const loadFriends=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
-    const{data,error}=await supabase.from("friendships").select("*, friend:profiles!friendships_friend_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).eq("status","accepted");
+    const{data,error}=await supabase.from("friendships").select("*, friend:profiles!friend_id(id,name,avatar,city,birth_year)").eq("user_id",user.id).eq("status","accepted");
     console.log("[loadFriends] user.id=",user.id,"rows=",data,"error=",error);
     setFriends(data||[]);
   };
