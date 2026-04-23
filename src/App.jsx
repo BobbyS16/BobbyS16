@@ -622,12 +622,12 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const handleAddFriend=async id=>{
     setFriendIds(s=>{const n=new Set(s);n.add(id);return n;});
     const{error}=await supabase.rpc("add_friend",{p_friend_id:id});
-    if(error){console.error("add_friend RPC error:",error);setFriendIds(s=>{const n=new Set(s);n.delete(id);return n;});alert("Erreur ajout ami : "+error.message);}
+    if(error)setFriendIds(s=>{const n=new Set(s);n.delete(id);return n;});
   };
   const handleCancelFriend=async id=>{
     setFriendIds(s=>{const n=new Set(s);n.delete(id);return n;});
     const{error}=await supabase.rpc("remove_friend",{p_friend_id:id});
-    if(error){console.error("remove_friend RPC error:",error);setFriendIds(s=>{const n=new Set(s);n.add(id);return n;});alert("Erreur suppression ami : "+error.message);}
+    if(error)setFriendIds(s=>{const n=new Set(s);n.add(id);return n;});
   };
 
   const loadRanking=async()=>{
@@ -1159,16 +1159,12 @@ function SocialTab({myProfile,onNotifsChange}){
 
   const loadFriends=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
-    const{data:fs,error:e1}=await supabase.from("friendships").select("*").eq("user_id",user.id).eq("status","accepted");
-    console.log("[loadFriends] friendships rows=",fs,"error=",e1);
-    if(e1||!fs||fs.length===0){setFriends([]);return;}
+    const{data:fs}=await supabase.from("friendships").select("*").eq("user_id",user.id).eq("status","accepted");
+    if(!fs||fs.length===0){setFriends([]);return;}
     const ids=fs.map(f=>f.friend_id);
-    const{data:profiles,error:e2}=await supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids);
-    console.log("[loadFriends] profiles=",profiles,"error=",e2);
+    const{data:profiles}=await supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids);
     const byId=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));
-    const joined=fs.map(f=>({...f,friend:byId[f.friend_id]||null}));
-    console.log("[loadFriends] joined=",joined);
-    setFriends(joined);
+    setFriends(fs.map(f=>({...f,friend:byId[f.friend_id]||null})));
   };
   const loadNotifs=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
@@ -1201,15 +1197,13 @@ function SocialTab({myProfile,onNotifsChange}){
   const addFriend=async friendId=>{
     const stub=searchRes.find(p=>p.id===friendId);
     if(stub)setFriends(f=>f.some(x=>x.friend?.id===friendId)?f:[...f,{friend:{id:stub.id,name:stub.name,avatar:stub.avatar,city:stub.city,birth_year:stub.birth_year}}]);
-    const{data,error}=await supabase.rpc("add_friend",{p_friend_id:friendId});
-    console.log("[addFriend] RPC response — data=",data,"error=",error,"friendId=",friendId);
-    if(error){console.error("add_friend RPC error:",error);setFriends(f=>f.filter(x=>x.friend?.id!==friendId));alert("Erreur ajout ami : "+error.message);return;}
+    const{error}=await supabase.rpc("add_friend",{p_friend_id:friendId});
+    if(error){setFriends(f=>f.filter(x=>x.friend?.id!==friendId));return;}
     loadFriends();
   };
   const removeFriend=async friendId=>{
     setFriends(f=>f.filter(x=>x.friend?.id!==friendId));
-    const{error}=await supabase.rpc("remove_friend",{p_friend_id:friendId});
-    if(error){console.error("remove_friend RPC error:",error);alert("Erreur suppression ami : "+error.message);}
+    await supabase.rpc("remove_friend",{p_friend_id:friendId});
     loadFriends();loadNotifs();onNotifsChange&&onNotifsChange();
   };
   const createGroup=async()=>{
