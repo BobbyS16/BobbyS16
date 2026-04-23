@@ -766,8 +766,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
                 <div style={{display:"flex",gap:3,marginTop:1}}>{p.badges.slice(0,3).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}</div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
                 <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{rankData.length}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
               </div>
             </div>
           );
@@ -888,8 +888,8 @@ function RankingTab({myProfile}){
             <div style={{display:"flex",gap:3,marginTop:1}}>{(p.badges||[]).slice(0,3).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}</div>
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
             <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{players.length}</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
           </div>
         </div>
       );})}
