@@ -1999,6 +1999,44 @@ function NavBar({tab,onChange,notifCount=0}){
 }
 
 // ── AUTH SCREEN ───────────────────────────────────────────────────────────────
+function OnboardingScreen({profile,onDone}){
+  const [name,setName]=useState(profile?.name||"");
+  const [city,setCity]=useState(profile?.city||"");
+  const [birthYear,setBirth]=useState(profile?.birth_year||"");
+  const [gender,setGender]=useState(profile?.gender||"");
+  const [nat,setNat]=useState(profile?.nationality||"");
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const yearNum=parseInt(birthYear);
+  const valid=name.trim()&&city.trim()&&birthYear&&!isNaN(yearNum)&&yearNum>=1920&&yearNum<=CY-10&&gender&&nat.trim();
+  const handleSave=async()=>{
+    if(!valid){setError("Tous les champs sont requis.");return;}
+    setLoading(true);setError("");
+    const{error:updErr}=await supabase.from("profiles").update({name:name.trim(),city:city.trim(),birth_year:yearNum,gender,nationality:nat.trim()}).eq("id",profile.id);
+    setLoading(false);
+    if(updErr){setError("Sauvegarde échouée : "+updErr.message);return;}
+    onDone();
+  };
+  return (
+    <div style={{minHeight:"100vh",background:"#0e0e0e",color:"#F0EDE8",display:"flex",flexDirection:"column",alignItems:"center",padding:"40px 20px",boxSizing:"border-box",overflowY:"auto"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:48,lineHeight:1,letterSpacing:4,marginBottom:6}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div>
+      <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",letterSpacing:3,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:28}}>Bienvenue — complète ton profil</div>
+      <div style={{width:"100%",maxWidth:420}}>
+        <div style={{fontSize:13,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginBottom:20,lineHeight:1.5}}>Ces informations sont nécessaires pour activer les classements (âge, ville, sexe, nationalité).</div>
+        <Lbl c="Nom complet *"/><Inp value={name} onChange={setName} placeholder="Ton nom"/>
+        <Lbl c="Ville *"/><Inp value={city} onChange={setCity} placeholder="Ta ville"/>
+        <Lbl c="Année de naissance *"/><Inp value={birthYear} onChange={setBirth} placeholder="Ex: 1990" type="number"/>
+        <Lbl c="Sexe *"/><Sel value={gender} onChange={setGender}><option value="">— Choisir —</option><option value="H">Homme</option><option value="F">Femme</option></Sel>
+        <Lbl c="Nationalité *"/><Inp value={nat} onChange={setNat} placeholder="Ex: Française"/>
+        {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
+        <Btn onClick={handleSave} disabled={!valid||loading} mb={8}>{loading?"Enregistrement...":"Commencer"}</Btn>
+        <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"10px 0",background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer"}}>Se déconnecter</button>
+      </div>
+    </div>
+  );
+}
+
 function AuthScreen(){
   const signIn=async()=>{await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}});};
   return (
@@ -2060,6 +2098,7 @@ export default function App(){
 
   if(loading) return <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",alignItems:"center",justifyContent:"center"}}><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><div style={{fontFamily:"'Bebas Neue'",fontSize:40,letterSpacing:4}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div></div>;
   if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen/></>;
+  if(profile&&!(profile.name&&profile.city&&profile.birth_year&&profile.gender&&profile.nationality)) return <OnboardingScreen profile={profile} onDone={loadProfile}/>;
 
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
