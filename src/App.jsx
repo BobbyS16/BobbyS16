@@ -838,7 +838,7 @@ function RankingTab({myProfile}){
       const tPts=filter==="discipline"?0:seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||0),0);
       const badges=computeBadges({results:pRes,trainings:seasonTrainings.filter(t=>t.user_id===p.id),profile:p});
       return{...p,pts:racePts+tPts,badges};
-    }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
+    }).sort((a,b)=>b.pts-a.pts);
     const myAgeCat=getAgeCat(myProfile?.birth_year);
     if(filter==="age_cat") display=display.filter(p=>getAgeCat(p.birth_year)===myAgeCat);
     if(filter==="gender")  display=display.filter(p=>p.gender===myProfile?.gender);
