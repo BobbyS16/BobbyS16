@@ -1838,6 +1838,62 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [showPhoto,setShowPhoto]=useState(false);
   const [season,setSeason]=useState(CY);
   const [panel,setPanel]=useState("races");
+  const [stravaTokens,setStravaTokens]=useState(null);
+  const [stravaBusy,setStravaBusy]=useState(false);
+  const [stravaMsg,setStravaMsg]=useState("");
+  useEffect(()=>{
+    try{const raw=localStorage.getItem(`strava_${profile.id}`);if(raw)setStravaTokens(JSON.parse(raw));}catch{}
+  },[profile.id]);
+  const connectStrava=()=>{
+    const url=`https://www.strava.com/oauth/authorize?client_id=230065&response_type=code&redirect_uri=${encodeURIComponent(window.location.origin)}&approval_prompt=auto&scope=read,activity:read&state=strava`;
+    window.location.href=url;
+  };
+  const disconnectStrava=()=>{
+    try{localStorage.removeItem(`strava_${profile.id}`);}catch{}
+    setStravaTokens(null);setStravaMsg("");
+  };
+  const ensureFreshToken=async()=>{
+    let t=stravaTokens;
+    if(!t)return null;
+    if(t.expires_at&&t.expires_at>Date.now()/1000+30) return t;
+    const r=await fetch("/api/strava/refresh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({refresh_token:t.refresh_token})});
+    const data=await r.json();
+    if(!data?.access_token)throw new Error("Refresh échoué");
+    const merged={...t,access_token:data.access_token,refresh_token:data.refresh_token||t.refresh_token,expires_at:data.expires_at};
+    try{localStorage.setItem(`strava_${profile.id}`,JSON.stringify(merged));}catch{}
+    setStravaTokens(merged);return merged;
+  };
+  const importStrava=async()=>{
+    setStravaBusy(true);setStravaMsg("");
+    try{
+      const t=await ensureFreshToken();
+      if(!t){setStravaMsg("Connexion Strava expirée");return;}
+      const r=await fetch("https://www.strava.com/api/v3/athlete/activities?per_page=50",{headers:{Authorization:`Bearer ${t.access_token}`}});
+      const acts=await r.json();
+      if(!Array.isArray(acts)){setStravaMsg("Impossible de récupérer les activités");return;}
+      const sportMap={Run:"Run",TrailRun:"Trail",Hike:"Trail",Ride:"Vélo",VirtualRide:"Vélo",MountainBikeRide:"Vélo",GravelRide:"Vélo",EBikeRide:"Vélo",Swim:"Natation"};
+      const{data:existing}=await supabase.from("trainings").select("date,distance,sport").eq("user_id",profile.id);
+      const seen=new Set((existing||[]).map(t=>`${t.date}|${t.sport}|${Math.round((t.distance||0)*10)}`));
+      const inserts=[];
+      acts.forEach(a=>{
+        const sport=sportMap[a.type];if(!sport)return;
+        const distance=+(a.distance/1000).toFixed(2);
+        const duration=a.moving_time||0;
+        const date=(a.start_date_local||a.start_date||"").slice(0,10);
+        if(!date||!distance)return;
+        const key=`${date}|${sport}|${Math.round(distance*10)}`;
+        if(seen.has(key))return;
+        seen.add(key);
+        inserts.push({user_id:profile.id,sport,distance,duration,date,points:calcTrainingPts(distance,sport,duration)});
+      });
+      if(inserts.length===0){setStravaMsg("Aucune nouvelle activité à importer");return;}
+      const{error}=await supabase.from("trainings").insert(inserts);
+      if(error){setStravaMsg("Erreur d'import : "+error.message);return;}
+      setStravaMsg(`${inserts.length} activité${inserts.length>1?"s":""} importée${inserts.length>1?"s":""}`);
+      onRefresh();
+    }catch(e){setStravaMsg(e.message||"Import échoué");}
+    finally{setStravaBusy(false);}
+  };
   const seasonsRef=useRef(null);
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const seasonResults=results.filter(r=>rYear(r)===season);
@@ -1934,6 +1990,22 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       }
       </div>
       <div style={{flexShrink:0,paddingTop:10}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(252,76,2,0.08)",border:"1px solid rgba(252,76,2,0.3)",borderRadius:14,marginBottom:10}}>
+        <div style={{fontSize:22,flexShrink:0}}>🏃‍♂️</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FC4C02",letterSpacing:1}}>STRAVA</div>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {stravaMsg||(stravaTokens?(stravaTokens.athlete?`${stravaTokens.athlete.firstname||""} ${stravaTokens.athlete.lastname||""}`.trim()||"Connecté":"Connecté"):"Importe tes activités")}
+          </div>
+        </div>
+        {stravaTokens
+          ?<div style={{display:"flex",gap:6,flexShrink:0}}>
+            <button onClick={importStrava} disabled={stravaBusy} style={{padding:"7px 11px",borderRadius:10,background:"#FC4C02",border:"none",color:"#fff",cursor:stravaBusy?"default":"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,opacity:stravaBusy?0.5:1}}>{stravaBusy?"…":"Import"}</button>
+            <button onClick={disconnectStrava} style={{padding:"7px 10px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>✕</button>
+          </div>
+          :<button onClick={connectStrava} style={{padding:"7px 12px",borderRadius:10,background:"#FC4C02",border:"none",color:"#fff",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,flexShrink:0}}>Connecter</button>
+        }
+      </div>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       </div>
@@ -2271,6 +2343,25 @@ export default function App(){
     const ch=supabase.channel("notifs").on("postgres_changes",{event:"*",schema:"public",table:"notifications"},loadNotifCount).subscribe();
     return()=>supabase.removeChannel(ch);
   },[session]);
+
+  useEffect(()=>{
+    if(!profile?.id)return;
+    const params=new URLSearchParams(window.location.search);
+    const code=params.get("code");
+    const state=params.get("state");
+    if(code&&state==="strava"){
+      fetch("/api/strava/exchange",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code})})
+        .then(r=>r.json())
+        .then(data=>{
+          if(data?.access_token){
+            try{localStorage.setItem(`strava_${profile.id}`,JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at,athlete:data.athlete}));}catch{}
+          }
+          window.history.replaceState({},"",window.location.pathname);
+          setShowProfile(true);
+        })
+        .catch(()=>{window.history.replaceState({},"",window.location.pathname);});
+    }
+  },[profile?.id]);
 
   const loadProfile=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
