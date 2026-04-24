@@ -1710,6 +1710,25 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           </div>
         ))}
       </div>
+      {(()=>{
+        const bestsByDisc=results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{});
+        const bestsSorted=Object.keys(DISCIPLINES).filter(d=>bestsByDisc[d]).map(d=>bestsByDisc[d]);
+        if(bestsSorted.length===0)return null;
+        return (
+          <div style={{marginBottom:18}}>
+            <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"12px 10px"}}>
+              {bestsSorted.map((r,i)=>{const pts=calcPoints(r.discipline,r.time);const ptsLv=getLevel(pts);return(
+                <div key={i} style={{minWidth:0}}>
+                  <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:17,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                  <div style={{fontSize:11,color:ptsLv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
+                </div>
+              );})}
+            </div>
+          </div>
+        );
+      })()}
       <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:18,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
         {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
           <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
