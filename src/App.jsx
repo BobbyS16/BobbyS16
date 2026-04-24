@@ -1316,16 +1316,16 @@ function PerfTab({userId,refreshKey}){
 
       {subTab==="bests"&&(
         <div>
-          {[{cat:"running",label:"🏃 Run"},{cat:"triathlon",label:"🏊 Triathlon"},{cat:"trail",label:"⛰️ Trail"}].map(({cat,label})=>{
+          {[{cat:"running",label:"🏃 Run",color:"#4A90D9"},{cat:"triathlon",label:"🏊 Triathlon",color:"#9B59B6"},{cat:"trail",label:"⛰️ Trail",color:"#27AE60"}].map(({cat,label,color})=>{
             const catDiscs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat);
             const catBests=catDiscs.map(([disc])=>byDisc[disc]?[disc,byDisc[disc]]:null).filter(Boolean);
             return(
               <div key={cat} style={{marginBottom:22}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:2,color:"rgba(240,237,232,0.4)",marginBottom:10}}>{label}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:2,color,marginBottom:10}}>{label}</div>
                 {catBests.length===0
                   ?<div style={{textAlign:"center",color:"#444",fontSize:12,padding:"12px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
                   :catBests.map(([disc,r])=>{const pts=calcPoints(disc,r.time);const lv=getLevel(pts);return(
-                    <div key={disc} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
+                    <div key={disc} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:`${color}12`,borderRadius:14,marginBottom:7,border:`1px solid ${color}40`,borderLeft:`3px solid ${color}`}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontFamily:"'Bebas Neue'",fontWeight:700,fontSize:16,color:"#F0EDE8",letterSpacing:1}}>{DISCIPLINES[disc]?.label}</div>
                         <div style={{fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{r.race||""}{r.race_date?` · ${r.race_date.slice(0,4)}`:r.year?` · ${r.year}`:""}</div>
