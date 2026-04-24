@@ -1741,12 +1741,12 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         return (
           <div style={{marginBottom:18}}>
             <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"12px 10px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"12px 8px"}}>
               {bestsSorted.map((r,i)=>{const pts=calcPoints(r.discipline,r.time);const ptsLv=getLevel(pts);return(
                 <div key={i} style={{minWidth:0}}>
-                  <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
-                  <div style={{fontFamily:"'Bebas Neue'",fontSize:17,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
-                  <div style={{fontSize:11,color:ptsLv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
+                  <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",letterSpacing:0.5}}>{fmtTime(r.time)}</div>
+                  <div style={{fontSize:10,color:ptsLv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
                 </div>
               );})}
             </div>
