@@ -821,7 +821,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges({results});
   const myLv=getSeasonLevel(totalPts);
-  const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"}];
+  const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"},{k:"hyrox",l:"🏋️ Hyrox"}];
 
   const [copied,setCopied]=useState(false);
   const handleShare=()=>{
@@ -839,7 +839,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
           <div style={{fontFamily:"'Bebas Neue'",fontSize:36,letterSpacing:3,lineHeight:1}}>
             <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
           </div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>RUN · TRIATHLON · TRAIL</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
         <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:14,padding:"10px 14px",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>
           {copied?"✓ Copié !":"🔗 Inviter"}
@@ -1477,7 +1477,7 @@ function PerfTab({userId,refreshKey}){
 
       {subTab==="bests"&&(
         <div>
-          {[{cat:"running",label:"🏃 Run",color:"#4A90D9"},{cat:"triathlon",label:"🏊 Triathlon",color:"#9B59B6"},{cat:"trail",label:"⛰️ Trail",color:"#27AE60"}].map(({cat,label,color})=>{
+          {[{cat:"running",label:"🏃 Run",color:"#4A90D9"},{cat:"triathlon",label:"🏊 Triathlon",color:"#9B59B6"},{cat:"trail",label:"⛰️ Trail",color:"#27AE60"},{cat:"hyrox",label:"🏋️ Hyrox",color:"#FF6B35"}].map(({cat,label,color})=>{
             const catDiscs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat);
             const catBests=catDiscs.map(([disc])=>byDisc[disc]?[disc,byDisc[disc]]:null).filter(Boolean);
             return(
@@ -2206,7 +2206,7 @@ function AuthScreen(){
   return (
     <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:72,lineHeight:1,letterSpacing:6}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div>
-      <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",letterSpacing:4,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:60}}>Run · Trail · Triathlon</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",letterSpacing:4,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:60}}>Run · Trail · Triathlon · Hyrox</div>
       <button onClick={signIn} style={{background:"#fff",color:"#111",border:"none",borderRadius:16,padding:"16px 40px",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",gap:12}}>
         <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.6 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.1-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.6 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.3 0-9.6-3-11.3-7.5l-6.6 5.1C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.5-2.5 4.6-4.6 6l6.2 5.2C41 35.6 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
         Continuer avec Google
