@@ -650,7 +650,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       const racePts=sumBestPts(pRes);
       const trainPts=discFilter==="All"?seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0):0;
       const pts=racePts+trainPts;
-      const badges=computeBadges({results:allResults.filter(r=>r.user_id===p.id)});
+      const badges=computeBadges({results:allResults.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
       return{...p,pts,badges};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
     setRankData(ranked);
@@ -765,7 +765,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               <Avatar profile={p} size={36}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
-                <div style={{display:"flex",gap:3,marginTop:1}}>{p.badges.slice(0,3).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:2,alignItems:"center"}}>{p.badges.slice(0,6).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}{p.badges.length>6&&<span style={{fontSize:9,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginLeft:1}}>+{p.badges.length-6}</span>}</div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
                 <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{rankData.length}</div>
@@ -834,7 +834,7 @@ function RankingTab({myProfile}){
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
       const racePts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
       const tPts=seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||0),0);
-      const badges=computeBadges({results:pRes});
+      const badges=computeBadges({results:pRes,trainings:seasonTrainings.filter(t=>t.user_id===p.id),profile:p});
       return{...p,pts:racePts+tPts,badges};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
     const myAgeCat=getAgeCat(myProfile?.birth_year);
@@ -889,7 +889,7 @@ function RankingTab({myProfile}){
           <Avatar profile={p} size={36}/>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
-            <div style={{display:"flex",gap:3,marginTop:1}}>{(p.badges||[]).slice(0,3).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:2,alignItems:"center"}}>{(p.badges||[]).slice(0,6).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}{(p.badges||[]).length>6&&<span style={{fontSize:9,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginLeft:1}}>+{(p.badges||[]).length-6}</span>}</div>
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
             <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{players.length}</div>
