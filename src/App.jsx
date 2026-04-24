@@ -1837,7 +1837,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [showPhoto,setShowPhoto]=useState(false);
   const [season,setSeason]=useState(CY);
-  const [panel,setPanel]=useState("badges");
+  const [panel,setPanel]=useState("races");
   const seasonsRef=useRef(null);
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const seasonResults=results.filter(r=>rYear(r)===season);
