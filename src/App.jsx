@@ -954,7 +954,7 @@ function TrainingTab({userId}){
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",padding:"0 16px",boxSizing:"border-box"}}>
       <div style={{flexShrink:0}}>
       <div style={{paddingTop:20,marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Entraînements</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Training</div>
         <button onClick={()=>setPlanView(plan?"detail":"setup")} style={{background:plan?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"9px 13px",color:plan?"#E63946":"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.5}}>📋 Plan</button>
       </div>
       {plan&&(()=>{
