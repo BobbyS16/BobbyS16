@@ -1857,6 +1857,8 @@ function ProfileModal({profile,results,onRefresh,onClose}){
 
   return (
     <Modal onClose={onClose}>
+      <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={{flexShrink:0}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:2,color:"#F0EDE8"}}>Mon Profil</div>
         <div style={{display:"flex",gap:6}}>
@@ -1905,6 +1907,8 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           </button>
         ))}
       </div>
+      </div>
+      <div style={{flex:1,minHeight:0,overflowY:"auto",margin:"0 -20px",padding:"0 20px",WebkitOverflowScrolling:"touch"}}>
       {panel==="badges"
         ?<BadgesByCategory badges={badges}/>
         :(results.length===0
@@ -1928,8 +1932,12 @@ function ProfileModal({profile,results,onRefresh,onClose}){
             })}
           </div>)
       }
+      </div>
+      <div style={{flexShrink:0,paddingTop:10}}>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
+      </div>
+      </div>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
       {showPhoto&&profile?.avatar&&<PhotoViewer src={profile.avatar} onClose={()=>setShowPhoto(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
