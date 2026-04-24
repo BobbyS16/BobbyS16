@@ -779,7 +779,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         })}
       <div style={{position:"fixed",bottom:90,right:20,zIndex:99,width:56,height:56}}>
         {[
-          {icon:"🏃",label:"Entraînement",color:"#4ade80",cb:onAddTraining,tx:-12,ty:-68,delay:"0.06s"},
+          {icon:"🏋️",label:"Entraînement",color:"#4ade80",cb:onAddTraining,tx:-12,ty:-68,delay:"0.06s"},
           {icon:"🏅",label:"Course officielle",color:"#E63946",cb:onAddRace,tx:-66,ty:-16,delay:"0s"},
         ].map(({icon,label,color,cb,tx,ty,delay},i)=>(
           <button key={i} onClick={()=>{setFabOpen(false);cb();}} style={{position:"absolute",top:12,left:12,width:32,height:32,background:"transparent",border:"none",padding:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transform:fabOpen?`translate(${tx}px,${ty}px)`:"translate(0,0)",opacity:fabOpen?1:0,transition:`all 0.28s cubic-bezier(0.2,0.8,0.3,1.1) ${delay}`,pointerEvents:fabOpen?"auto":"none"}}>
