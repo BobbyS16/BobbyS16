@@ -289,9 +289,9 @@ function BarChart({data,color="#E63946",unit="km",title=""}) {
       <div style={{display:"flex",alignItems:"flex-end",gap:3,height:110}}>
         {data.map((d,i)=>(
           <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-            <div style={{fontSize:7,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif"}}>{d.value>0?`${d.value}${unit}`:""}</div>
+            <div style={{fontSize:10,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>{d.value>0?`${d.value}${unit}`:""}</div>
             <div style={{width:"100%",background:color,borderRadius:"3px 3px 0 0",height:`${(d.value/max)*75}px`,minHeight:d.value>0?3:0,transition:"height 0.5s"}}/>
-            <div style={{fontSize:7,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",textAlign:"center"}}>{d.label}</div>
+            <div style={{fontSize:10,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",textAlign:"center",fontWeight:600}}>{d.label}</div>
           </div>
         ))}
       </div>
