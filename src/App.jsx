@@ -908,8 +908,14 @@ function TrainingTab({userId}){
   const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
   const [editTraining,setEditTraining]=useState(null);
+  const [showPlan,setShowPlan]=useState(false);
+  const [plan,setPlan]=useState(null);
 
   useEffect(()=>{loadTrainings();},[]);
+  useEffect(()=>{
+    if(!userId)return;
+    try{const raw=localStorage.getItem(`trainingPlan_${userId}`);if(raw)setPlan(JSON.parse(raw));}catch{}
+  },[userId]);
 
   const loadTrainings=async()=>{
     const{data}=await supabase.from("trainings").select("*").eq("user_id",userId).order("date",{ascending:false});
@@ -924,9 +930,26 @@ function TrainingTab({userId}){
 
   return (
     <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
-      <div style={{paddingTop:20,marginBottom:16}}>
+      <div style={{paddingTop:20,marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Entraînements</div>
+        <button onClick={()=>setShowPlan(true)} style={{background:plan?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"9px 13px",color:plan?"#E63946":"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.5}}>📋 Plan</button>
       </div>
+      {plan&&(()=>{
+        const today=new Date();today.setHours(0,0,0,0);
+        const target=plan.date?new Date(plan.date):null;
+        const daysLeft=target?Math.ceil((target-today)/86400000):null;
+        const discLabel=DISCIPLINES[plan.discipline]?.label||plan.discipline;
+        return(
+          <div onClick={()=>setShowPlan(true)} style={{marginBottom:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:12,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{fontSize:18}}>🎯</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",letterSpacing:1}}>{discLabel}{plan.targetTime?` · ${plan.targetTime}`:""}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{daysLeft!==null?(daysLeft>0?`Dans ${daysLeft} j`:daysLeft===0?"Aujourd'hui":`Il y a ${-daysLeft} j`):""}{plan.sessionsPerWeek?` · ${plan.sessionsPerWeek} séances/sem`:""}{plan.level?` · ${plan.level}`:""}</div>
+            </div>
+            <div style={{color:"rgba(240,237,232,0.4)",fontSize:18}}>›</div>
+          </div>
+        );
+      })()}
       <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:8,marginBottom:12,scrollbarWidth:"none"}}>
         {TRAINING_SPORTS.map(s=><button key={s} onClick={()=>setSelSport(s)} style={{flexShrink:0,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",background:selSport===s?"#E63946":"rgba(255,255,255,0.06)",color:selSport===s?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{s}</button>)}
       </div>
@@ -960,7 +983,59 @@ function TrainingTab({userId}){
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
       {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();}} onClose={()=>setEditTraining(null)}/>}
+      {showPlan&&<TrainingPlanModal userId={userId} existing={plan} onSave={p=>{setPlan(p);setShowPlan(false);}} onDelete={()=>{setPlan(null);setShowPlan(false);}} onClose={()=>setShowPlan(false)}/>}
     </div>
+  );
+}
+
+// ── TRAINING PLAN MODAL ───────────────────────────────────────────────────────
+function TrainingPlanModal({userId,existing,onSave,onDelete,onClose}){
+  const [discipline,setDisc]=useState(existing?.discipline||"marathon");
+  const [date,setDate]=useState(existing?.date||"");
+  const [level,setLevel]=useState(existing?.level||"Intermédiaire");
+  const [sessionsPerWeek,setSessions]=useState(existing?.sessionsPerWeek||4);
+  const [targetTime,setTargetTime]=useState(existing?.targetTime||"");
+  const [notes,setNotes]=useState(existing?.notes||"");
+  const handleSave=()=>{
+    const payload={discipline,date,level,sessionsPerWeek,targetTime:targetTime.trim(),notes:notes.trim(),updatedAt:new Date().toISOString()};
+    try{localStorage.setItem(`trainingPlan_${userId}`,JSON.stringify(payload));}catch{}
+    onSave(payload);
+  };
+  const handleDelete=()=>{
+    try{localStorage.removeItem(`trainingPlan_${userId}`);}catch{}
+    onDelete();
+  };
+  const today=new Date();today.setHours(0,0,0,0);
+  const tgt=date?new Date(date):null;
+  const daysLeft=tgt?Math.ceil((tgt-today)/86400000):null;
+  const weeksLeft=daysLeft!=null?Math.max(0,Math.ceil(daysLeft/7)):null;
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:4}}>Plan d'entraînement</div>
+      <div style={{fontSize:12,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginBottom:16}}>Définis ton objectif et la cadence de préparation.</div>
+      <Lbl c="Objectif"/>
+      <Sel value={discipline} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>
+      <Lbl c="Date de l'objectif"/>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={date} onChange={setDate}/></div>
+      {weeksLeft!=null&&(
+        <div style={{fontSize:11,color:weeksLeft<4?"#E63946":"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginBottom:12,marginTop:-4}}>
+          {weeksLeft>0?`≈ ${weeksLeft} semaines de préparation`:daysLeft===0?"C'est aujourd'hui !":"Date passée"}
+        </div>
+      )}
+      <Lbl c="Niveau"/>
+      <Sel value={level} onChange={setLevel}>{["Débutant","Intermédiaire","Avancé","Expert"].map(l=><option key={l} value={l}>{l}</option>)}</Sel>
+      <Lbl c="Séances par semaine"/>
+      <Sel value={sessionsPerWeek} onChange={v=>setSessions(Number(v))}>{[2,3,4,5,6,7].map(n=><option key={n} value={n}>{n} séances</option>)}</Sel>
+      <Lbl c="Temps visé (optionnel)"/>
+      <Inp value={targetTime} onChange={setTargetTime} placeholder="Ex: Sub-3h30, 1h45, …"/>
+      <Lbl c="Notes (optionnel)"/>
+      <div style={{marginBottom:16}}>
+        <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Objectifs intermédiaires, contraintes, etc." rows={3} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",resize:"vertical"}}/>
+      </div>
+      <Btn onClick={handleSave} mb={8}>{existing?"Mettre à jour":"Créer le plan"}</Btn>
+      {existing&&<Btn onClick={handleDelete} variant="secondary" mb={8}>Supprimer le plan</Btn>}
+      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
+    </Modal>
   );
 }
 
