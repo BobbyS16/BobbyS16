@@ -849,7 +849,8 @@ function RankingTab({myProfile}){
   const FILTERS=[{k:"group",l:"👥 Groupe"},{k:"global",l:"🌍 Global"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
   return (
-    <div style={{padding:"0 16px 100px",overflowX:"hidden"}}>
+    <div style={{height:"calc(100dvh - env(safe-area-inset-top))",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{padding:"0 16px 4px",flexShrink:0,overflowX:"hidden"}}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:12}}>Rank</div>
       {/* Season selector */}
       <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
@@ -870,6 +871,8 @@ function RankingTab({myProfile}){
           <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>🏠 {groups.find(g=>g.id===selGroup)?.name||""}</div>
         </div>
       )}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch"}}>
       {filter==="group"&&!selGroup?(
         groups.length===0?
           <div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun groupe — rejoins-en un dans Social</div>
@@ -899,6 +902,7 @@ function RankingTab({myProfile}){
           </div>
         </div>
       );})}
+      </div>
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myProfile?.id} onClose={()=>setOpenFriend(null)}/>}
     </div>
   );
