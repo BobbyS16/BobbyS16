@@ -673,7 +673,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   };
 
   return (
-    <div style={{height:"calc(100dvh - env(safe-area-inset-top))",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,maxWidth:480,margin:"0 auto",display:"flex",flexDirection:"column",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",overflow:"hidden"}}>
       <div style={{padding:"0 16px 4px",flexShrink:0}}>
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:20,marginBottom:16}}>
@@ -849,7 +849,7 @@ function RankingTab({myProfile}){
   const FILTERS=[{k:"group",l:"👥 Groupe"},{k:"global",l:"🌍 Global"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
   return (
-    <div style={{height:"calc(100dvh - env(safe-area-inset-top))",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,maxWidth:480,margin:"0 auto",display:"flex",flexDirection:"column",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",overflow:"hidden"}}>
       <div style={{padding:"0 16px 4px",flexShrink:0,overflowX:"hidden"}}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:12}}>Rank</div>
       {/* Season selector */}
