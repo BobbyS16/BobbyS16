@@ -6,6 +6,32 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+// Capture Strava OAuth callback synchronously at module load, before Supabase
+// can consume the URL params. Persist via sessionStorage so a re-render or
+// rewrite doesn't lose the code.
+const STRAVA_PENDING_KEY = "strava_pending_code";
+(function captureStravaCallback(){
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+    const scope = params.get("scope");
+    console.log("[Strava] capture URL", { hasCode: !!code, state, scope, search: window.location.search });
+    if (code && (state === "strava" || (scope && scope.includes("activity:read")))) {
+      sessionStorage.setItem(STRAVA_PENDING_KEY, code);
+      console.log("[Strava] code mis en attente dans sessionStorage", code.slice(0,8)+"...");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("code");
+      url.searchParams.delete("state");
+      url.searchParams.delete("scope");
+      window.history.replaceState({}, "", url.pathname + (url.search ? "?"+url.search.replace(/^\?/, "") : "") + url.hash);
+      console.log("[Strava] URL nettoyée:", window.location.href);
+    }
+  } catch (e) {
+    console.error("[Strava] capture failed", e);
+  }
+})();
+
 const DISCIPLINES = {
   "5km":      { label:"5 km",                icon:"🏃", category:"running",   refTime:13*60,        prestige:1.0 },
   "10km":     { label:"10 km",               icon:"🏃", category:"running",   refTime:27*60,        prestige:1.0 },
@@ -2345,22 +2371,50 @@ export default function App(){
   },[session]);
 
   useEffect(()=>{
-    if(!profile?.id)return;
-    const params=new URLSearchParams(window.location.search);
-    const code=params.get("code");
-    const state=params.get("state");
-    if(code&&state==="strava"){
-      fetch("/api/strava/exchange",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code})})
-        .then(r=>r.json())
-        .then(data=>{
-          if(data?.access_token){
-            try{localStorage.setItem(`strava_${profile.id}`,JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at,athlete:data.athlete}));}catch{}
-          }
-          window.history.replaceState({},"",window.location.pathname);
-          setShowProfile(true);
-        })
-        .catch(()=>{window.history.replaceState({},"",window.location.pathname);});
+    if(!profile?.id){console.log("[Strava] effect attendant profile.id");return;}
+    let pendingCode=null;
+    try{pendingCode=sessionStorage.getItem(STRAVA_PENDING_KEY);}catch(e){console.error("[Strava] sessionStorage read failed",e);}
+    if(!pendingCode){
+      const params=new URLSearchParams(window.location.search);
+      const code=params.get("code");
+      const state=params.get("state");
+      if(code&&state==="strava"){
+        console.log("[Strava] code trouvé dans l'URL (fallback)",code.slice(0,8)+"...");
+        pendingCode=code;
+      }
     }
+    if(!pendingCode){console.log("[Strava] aucun code en attente, effect ignoré");return;}
+    console.log("[Strava] échange du code pour profil",profile.id);
+    try{sessionStorage.removeItem(STRAVA_PENDING_KEY);}catch{}
+    fetch("/api/strava/exchange",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:pendingCode})})
+      .then(async r=>{
+        const data=await r.json().catch(()=>({}));
+        console.log("[Strava] réponse /api/strava/exchange",r.status,data);
+        if(!r.ok){throw new Error(data?.error||data?.message||`HTTP ${r.status}`);}
+        return data;
+      })
+      .then(data=>{
+        if(data?.access_token){
+          const payload={access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at,athlete:data.athlete};
+          try{
+            localStorage.setItem(`strava_${profile.id}`,JSON.stringify(payload));
+            console.log("[Strava] tokens stockés dans localStorage sous strava_"+profile.id);
+          }catch(e){console.error("[Strava] localStorage write failed",e);}
+          const url=new URL(window.location.href);
+          url.searchParams.delete("code");url.searchParams.delete("state");url.searchParams.delete("scope");
+          window.history.replaceState({},"",url.pathname+(url.search?url.search:"")+url.hash);
+          setShowProfile(true);
+          console.log("[Strava] connexion réussie, modale Profil ouverte");
+        } else {
+          console.error("[Strava] réponse sans access_token",data);
+        }
+      })
+      .catch(err=>{
+        console.error("[Strava] exchange a échoué",err);
+        const url=new URL(window.location.href);
+        url.searchParams.delete("code");url.searchParams.delete("state");url.searchParams.delete("scope");
+        window.history.replaceState({},"",url.pathname+(url.search?url.search:"")+url.hash);
+      });
   },[profile?.id]);
 
   const loadProfile=async()=>{
