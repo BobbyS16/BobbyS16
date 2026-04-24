@@ -833,7 +833,7 @@ function RankingTab({myProfile}){
     let display=pool.map(p=>{
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
       const racePts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
-      const tPts=seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||0),0);
+      const tPts=filter==="discipline"?0:seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||0),0);
       const badges=computeBadges({results:pRes,trainings:seasonTrainings.filter(t=>t.user_id===p.id),profile:p});
       return{...p,pts:racePts+tPts,badges};
     }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
