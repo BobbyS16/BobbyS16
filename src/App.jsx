@@ -1144,7 +1144,13 @@ function TrainingPlanDetailModal({plan,onEdit,onClose}){
         const isTri=disc?.category==="triathlon";
         const baseTpl=(isTri?TRI_TEMPLATE:RUN_TEMPLATE)[plan.sessionsPerWeek]||(isTri?TRI_TEMPLATE[4]:RUN_TEMPLATE[4]);
         const phase=phaseForWeek(clampedWeek,totalWeeks);
-        const tpl=(isTri?triPhase:runPhase)(baseTpl,phase);
+        const rawTpl=(isTri?triPhase:runPhase)(baseTpl,phase);
+        const tpl=Array.isArray(plan.trainingDays)&&plan.trainingDays.length>0?(()=>{
+          const nonRest=rawTpl.filter(t=>t!=="rest");
+          const out=Array(7).fill("rest");
+          plan.trainingDays.slice(0,nonRest.length).forEach((di,i)=>{out[di]=nonRest[i];});
+          return out;
+        })():rawTpl;
         const pInfo=PHASE_INFO[phase];
         const fmt=d=>`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
         return (
@@ -1211,14 +1217,23 @@ function TrainingPlanDetailModal({plan,onEdit,onClose}){
 
 // ── TRAINING PLAN MODAL ───────────────────────────────────────────────────────
 function TrainingPlanModal({userId,existing,onSave,onDelete,onClose}){
+  const DAYS_SHORT=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+  const DEFAULT_DAYS_BY_COUNT={2:[1,6],3:[1,3,6],4:[1,3,5,6],5:[0,1,3,5,6],6:[0,1,2,3,5,6],7:[0,1,2,3,4,5,6]};
   const [discipline,setDisc]=useState(existing?.discipline||"marathon");
   const [date,setDate]=useState(existing?.date||"");
   const [level,setLevel]=useState(existing?.level||"Intermédiaire");
-  const [sessionsPerWeek,setSessions]=useState(existing?.sessionsPerWeek||4);
+  const [trainingDays,setTrainingDays]=useState(()=>{
+    if(Array.isArray(existing?.trainingDays)&&existing.trainingDays.length>0)return [...existing.trainingDays].sort((a,b)=>a-b);
+    const spw=existing?.sessionsPerWeek||4;
+    return DEFAULT_DAYS_BY_COUNT[spw]||DEFAULT_DAYS_BY_COUNT[4];
+  });
   const [targetTime,setTargetTime]=useState(existing?.targetTime||"");
   const [notes,setNotes]=useState(existing?.notes||"");
+  const toggleDay=i=>setTrainingDays(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i].sort((a,b)=>a-b));
+  const sessionsPerWeek=trainingDays.length;
   const handleSave=()=>{
-    const payload={discipline,date,level,sessionsPerWeek,targetTime:targetTime.trim(),notes:notes.trim(),updatedAt:new Date().toISOString()};
+    if(sessionsPerWeek<2)return;
+    const payload={discipline,date,level,sessionsPerWeek,trainingDays,targetTime:targetTime.trim(),notes:notes.trim(),updatedAt:new Date().toISOString()};
     try{localStorage.setItem(`trainingPlan_${userId}`,JSON.stringify(payload));}catch{}
     onSave(payload);
   };
@@ -1245,8 +1260,13 @@ function TrainingPlanModal({userId,existing,onSave,onDelete,onClose}){
       )}
       <Lbl c="Niveau"/>
       <Sel value={level} onChange={setLevel}>{["Débutant","Intermédiaire","Avancé","Expert"].map(l=><option key={l} value={l}>{l}</option>)}</Sel>
-      <Lbl c="Séances par semaine"/>
-      <Sel value={sessionsPerWeek} onChange={v=>setSessions(Number(v))}>{[2,3,4,5,6,7].map(n=><option key={n} value={n}>{n} séances</option>)}</Sel>
+      <Lbl c={`Jours d'entraînement (${sessionsPerWeek} séance${sessionsPerWeek>1?"s":""}/sem)`}/>
+      <div style={{display:"flex",gap:5,marginBottom:sessionsPerWeek<2?4:16}}>
+        {DAYS_SHORT.map((d,i)=>{const on=trainingDays.includes(i);return(
+          <button key={i} type="button" onClick={()=>toggleDay(i)} style={{flex:1,padding:"10px 0",borderRadius:10,border:"1px solid "+(on?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.08)"),background:on?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:on?"#E63946":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,letterSpacing:0.3,cursor:"pointer"}}>{d}</button>
+        );})}
+      </div>
+      {sessionsPerWeek<2&&<div style={{fontSize:11,color:"#E63946",fontFamily:"'Barlow',sans-serif",marginBottom:16}}>Sélectionne au moins 2 jours.</div>}
       <Lbl c="Temps visé (optionnel)"/>
       <Inp value={targetTime} onChange={setTargetTime} placeholder="Ex: Sub-3h30, 1h45, …"/>
       <Lbl c="Notes (optionnel)"/>
