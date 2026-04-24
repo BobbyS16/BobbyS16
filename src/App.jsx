@@ -1356,9 +1356,11 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [trainings,setTrainings]=useState([]);
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [showPhoto,setShowPhoto]=useState(false);
+  const [season,setSeason]=useState(CY);
+  const seasonsRef=useRef(null);
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
-  const seasonResults=results.filter(r=>rYear(r)===CY);
-  const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===CY);
+  const seasonResults=results.filter(r=>rYear(r)===season);
+  const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
   const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
   const lv=getSeasonLevel(seasonPts);
 
@@ -1370,6 +1372,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
     supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",profile.id)
       .then(({count})=>setGroupsCreated(count||0));
   },[profile.id]);
+  useEffect(()=>{setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);},[]);
 
   return (
     <Modal onClose={onClose}>
@@ -1387,6 +1390,10 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[profile.city,getAgeCat(profile.birth_year),profile.gender,profile.nationality].filter(Boolean).join(" · ")}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
+        <div style={{textAlign:"right",flexShrink:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
+          <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison</div>
+        </div>
       </div>
       <div style={{display:"flex",gap:10,marginBottom:18}}>
         <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
@@ -1402,11 +1409,19 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Courses</div>
         </div>
       </div>
-      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",lineHeight:1.7,marginBottom:18}}>
+      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",lineHeight:1.7,marginBottom:14}}>
         {[[{label:"Débutant",min:0,color:"#27AE60"},{label:"Intermédiaire",min:300,color:"#4A90D9"},{label:"Confirmé",min:700,color:"#9B59B6"}],[{label:"Avancé",min:1300,color:"#CD7F32"},{label:"Expert",min:2000,color:"#C0C0C0"},{label:"Élite",min:3000,color:"#FFD700"}]].map((row,i)=>(
           <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8}}>
             {row.map(l=>(<span key={l.label}><span style={{color:l.color,fontWeight:700}}>{l.label}</span> dès {l.min} pts</span>))}
           </div>
+        ))}
+      </div>
+      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:18,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
+        {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
+          <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            {y}
+            {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
+          </button>
         ))}
       </div>
       <BadgesByCategory badges={badges}/>
