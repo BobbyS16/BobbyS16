@@ -1837,6 +1837,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [showPhoto,setShowPhoto]=useState(false);
   const [season,setSeason]=useState(CY);
+  const [panel,setPanel]=useState("badges");
   const seasonsRef=useRef(null);
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const seasonResults=results.filter(r=>rYear(r)===season);
@@ -1880,13 +1881,13 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{friendCount}</div>
           <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Amis</div>
         </div>
-        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{badges.length}</div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Badges</div>
+        <div onClick={()=>setPanel("badges")} style={{flex:1,background:panel==="badges"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="badges"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="badges"?"#E63946":"#F0EDE8"}}>{badges.length}</div>
+          <div style={{fontSize:10,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400}}>Badges</div>
         </div>
-        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{results.length}</div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Courses</div>
+        <div onClick={()=>setPanel("races")} style={{flex:1,background:panel==="races"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="races"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="races"?"#E63946":"#F0EDE8"}}>{results.length}</div>
+          <div style={{fontSize:10,color:panel==="races"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="races"?700:400}}>Courses</div>
         </div>
       </div>
       <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",lineHeight:1.7,marginBottom:14}}>
@@ -1904,7 +1905,29 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           </button>
         ))}
       </div>
-      <BadgesByCategory badges={badges}/>
+      {panel==="badges"
+        ?<BadgesByCategory badges={badges}/>
+        :(results.length===0
+          ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13,marginBottom:14}}>Aucune course enregistrée</div>
+          :<div style={{marginBottom:14}}>
+            {[...results].sort((a,b)=>(b.race_date||`${b.year}-12-31`).localeCompare(a.race_date||`${a.year}-12-31`)).map(r=>{
+              const pts=calcPoints(r.discipline,r.time);const ptsLv=getLevel(pts);
+              return(
+                <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label} · {rYear(r)}</div>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                    {r.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race}</div>}
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:ptsLv.color,letterSpacing:1}}>{pts}</div>
+                    <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>)
+      }
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
