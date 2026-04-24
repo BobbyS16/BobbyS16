@@ -673,8 +673,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   };
 
   return (
-    <div style={{padding:"0 16px 100px"}}>
-      <div style={{position:"sticky",top:0,background:"#0e0e0e",zIndex:10,margin:"0 -16px",padding:"0 16px 4px"}}>
+    <div style={{height:"calc(100dvh - env(safe-area-inset-top))",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{padding:"0 16px 4px",flexShrink:0}}>
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:20,marginBottom:16}}>
         <div>
@@ -746,6 +746,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       </div>
       </div>
 
+      <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(110px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch"}}>
       {/* Ranking list */}
       {rankData.length===0
         ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
@@ -777,6 +778,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
             ?<SwipeRow key={p.id} radius={14} mb={8} actions={rowActions}>{row}</SwipeRow>
             :<div key={p.id} style={{marginBottom:8}}>{row}</div>;
         })}
+      </div>
       <div style={{position:"fixed",bottom:90,right:20,zIndex:99,width:56,height:56}}>
         {[
           {icon:"🏋️",label:"Entraînement",color:"#4ade80",cb:onAddTraining,tx:-12,ty:-68,delay:"0.06s"},
