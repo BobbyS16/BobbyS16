@@ -19,6 +19,8 @@ const DISCIPLINES = {
   "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2 },
   "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3 },
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5 },
+  "hyrox-solo":   { label:"Hyrox Solo",      icon:"🏋️", category:"hyrox",     refTime:55*60,        prestige:1.2 },
+  "hyrox-double": { label:"Hyrox Double",    icon:"🤝", category:"hyrox",     refTime:50*60,        prestige:1.1 },
 };
 
 const TRAINING_SPORTS = ["All","Run","Vélo","Natation","Trail"];
@@ -51,6 +53,49 @@ function sumBestPts(results) {
   const best={};
   results.forEach(r=>{const p=calcPoints(r.discipline,r.time);if(!best[r.discipline]||p>best[r.discipline])best[r.discipline]=p;});
   return Object.values(best).reduce((s,p)=>s+p,0);
+}
+const resultDate=r=>r.race_date||(r.year?`${r.year}-12-31`:null);
+function raceBonusPts(seasonResults, allUserResults) {
+  if(!seasonResults||seasonResults.length===0) return 0;
+  let bonus=0;
+  seasonResults.forEach(r=>{
+    const rd=resultDate(r);
+    const earlier=(allUserResults||[]).filter(x=>x.id!==r.id&&x.discipline===r.discipline&&resultDate(x)&&rd&&resultDate(x)<rd);
+    if(earlier.every(p=>p.time>r.time)) bonus+=100;
+    if(r.category_position&&r.category_size){
+      if(r.category_position<=3) bonus+=300;
+      else if(r.category_position/r.category_size<=0.1) bonus+=150;
+    }
+  });
+  const dated=seasonResults.filter(r=>resultDate(r));
+  if(dated.length>0){
+    const earliest=[...dated].sort((a,b)=>resultDate(a).localeCompare(resultDate(b)))[0];
+    if(earliest) bonus+=30;
+  }
+  return bonus;
+}
+function trainingBonusPts(seasonTrainings) {
+  if(!seasonTrainings||seasonTrainings.length===0) return 0;
+  let bonus=0;
+  const days=[...new Set(seasonTrainings.map(t=>t.date).filter(Boolean))].sort();
+  if(days.length>0){
+    const streaks=[];
+    let cur=1;
+    for(let i=1;i<days.length;i++){
+      const diff=(new Date(days[i])-new Date(days[i-1]))/86400000;
+      if(Math.round(diff)===1) cur++;
+      else { streaks.push(cur); cur=1; }
+    }
+    streaks.push(cur);
+    streaks.forEach(len=>{
+      if(len>=30) bonus+=500;
+      else if(len>=7) bonus+=100;
+    });
+  }
+  const byMonth={};
+  seasonTrainings.forEach(t=>{if(!t.date)return;const m=t.date.slice(0,7);byMonth[m]=(byMonth[m]||0)+(t.distance||0);});
+  Object.values(byMonth).forEach(km=>{ if(km>=100) bonus+=200; });
+  return bonus;
 }
 function fmtDuration(sec){if(!sec)return"";const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?`${h}h${String(m).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;}
 function parseDurStr(s){if(!s)return 0;const p=s.split(":").map(Number);return(p[0]||0)*3600+(p[1]||0)*60+(p[2]||0);}
@@ -634,10 +679,11 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
 
   const loadRanking=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
-    const{data:allResults}=await supabase.from("results").select("*").eq("year",season);
+    const{data:allResultsFull}=await supabase.from("results").select("*");
     const{data:allProfiles}=await supabase.from("profiles").select("*");
     const{data:allTrainings}=await supabase.from("trainings").select("user_id,sport,distance,duration,points,date");
-    if(!allResults||!allProfiles)return;
+    if(!allResultsFull||!allProfiles)return;
+    const allResults=allResultsFull.filter(r=>rYear(r)===season);
     const seasonTrainings=(allTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
     let pool=allProfiles;
     if(rankFilter==="amis"){
@@ -647,18 +693,22 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
     }
     const ranked=pool.map(p=>{
       const pRes=allResults.filter(r=>r.user_id===p.id&&(discFilter==="All"||DISCIPLINES[r.discipline]?.category===discFilter));
+      const pAllRes=allResultsFull.filter(r=>r.user_id===p.id);
+      const pSeasonTrainings=seasonTrainings.filter(t=>t.user_id===p.id);
       const racePts=sumBestPts(pRes);
-      const trainPts=discFilter==="All"?seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0):0;
-      const pts=racePts+trainPts;
-      const badges=computeBadges({results:allResults.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
+      const trainPts=discFilter==="All"?pSeasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0):0;
+      const bonusPts=discFilter==="All"?raceBonusPts(pRes,pAllRes)+trainingBonusPts(pSeasonTrainings):0;
+      const pts=racePts+trainPts+bonusPts;
+      const badges=computeBadges({results:allResultsFull.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
       return{...p,pts,badges};
     }).sort((a,b)=>b.pts-a.pts);
     setRankData(ranked);
   };
 
   const seasonResults=results.filter(r=>rYear(r)===season);
-  const trainingPts=trainings.filter(t=>new Date(t.date).getFullYear()===season).reduce((s,t)=>s+(t.points||0),0);
-  const totalPts=sumBestPts(seasonResults)+trainingPts;
+  const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
+  const trainingPts=seasonTrainings.reduce((s,t)=>s+(t.points||0),0);
+  const totalPts=sumBestPts(seasonResults)+trainingPts+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges({results});
@@ -834,10 +884,13 @@ function RankingTab({myProfile}){
     if(filter==="group"&&selGroup){const{data:members}=await supabase.from("group_members").select("user_id").eq("group_id",selGroup);const ids=new Set(members?.map(m=>m.user_id)||[]);pool=profiles.filter(p=>ids.has(p.id));}
     let display=pool.map(p=>{
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
+      const pAllRes=results.filter(r=>r.user_id===p.id);
+      const pTrainings=seasonTrainings.filter(t=>t.user_id===p.id);
       const racePts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
-      const tPts=filter==="discipline"?0:seasonTrainings.filter(t=>t.user_id===p.id).reduce((s,t)=>s+(t.points||0),0);
-      const badges=computeBadges({results:pRes,trainings:seasonTrainings.filter(t=>t.user_id===p.id),profile:p});
-      return{...p,pts:racePts+tPts,badges};
+      const tPts=filter==="discipline"?0:pTrainings.reduce((s,t)=>s+(t.points||0),0);
+      const bonusPts=filter==="discipline"?0:raceBonusPts(pRes,pAllRes)+trainingBonusPts(pTrainings);
+      const badges=computeBadges({results:pRes,trainings:pTrainings,profile:p});
+      return{...p,pts:racePts+tPts+bonusPts,badges};
     }).sort((a,b)=>b.pts-a.pts);
     const myAgeCat=getAgeCat(myProfile?.birth_year);
     if(filter==="age_cat") display=display.filter(p=>getAgeCat(p.birth_year)===myAgeCat);
@@ -1679,7 +1732,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const seasonResults=results.filter(r=>rYear(r)===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
-  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
   const lv=getSeasonLevel(seasonPts);
 
   useEffect(()=>{
@@ -1856,7 +1909,7 @@ function FriendProfileModal({friend,myId,onClose}){
 
   const seasonResults=results.filter(r=>r.year===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
-  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
   const lv=getSeasonLevel(seasonPts);
   const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
   const bests=Object.values(results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
