@@ -652,7 +652,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       const pts=racePts+trainPts;
       const badges=computeBadges({results:allResults.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
       return{...p,pts,badges};
-    }).filter(p=>p.pts>0).sort((a,b)=>b.pts-a.pts);
+    }).sort((a,b)=>b.pts-a.pts);
     setRankData(ranked);
   };
 
