@@ -19,8 +19,8 @@ const DISCIPLINES = {
   "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2 },
   "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3 },
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5 },
-  "hyrox-solo":   { label:"Hyrox Solo",      icon:"🏋️", category:"hyrox",     refTime:55*60,        prestige:1.2 },
-  "hyrox-double": { label:"Hyrox Double",    icon:"🤝", category:"hyrox",     refTime:50*60,        prestige:1.1 },
+  "hyrox-solo":   { label:"Hyrox Solo",      icon:"🔥", category:"hyrox",     refTime:55*60,        prestige:1.2 },
+  "hyrox-double": { label:"Hyrox Double",    icon:"🔥", category:"hyrox",     refTime:50*60,        prestige:1.1 },
 };
 
 const TRAINING_SPORTS = ["All","Run","Vélo","Natation","Trail"];
@@ -677,8 +677,8 @@ function HowItWorksModal({onClose}){
         <RefRow label="🏊 Triathlon Olympique"  time="1h50"  prestige="1.2" color="#9B59B6"/>
         <RefRow label="🏊 Half Ironman"         time="2h56"  prestige="1.3" color="#9B59B6"/>
         <RefRow label="🏊 Ironman"              time="5h50"  prestige="1.5" color="#9B59B6"/>
-        <RefRow label="🏋️ Hyrox Solo"           time="55:00" prestige="1.2" color="#FF6B35"/>
-        <RefRow label="🤝 Hyrox Double"         time="50:00" prestige="1.1" color="#FF6B35"/>
+        <RefRow label="🔥 Hyrox Solo"           time="55:00" prestige="1.2" color="#E63946"/>
+        <RefRow label="🔥 Hyrox Double"         time="50:00" prestige="1.1" color="#E63946"/>
       </Section>
 
       <Section title="2 · Niveaux par course">
@@ -716,7 +716,7 @@ function HowItWorksModal({onClose}){
             {icon:"🏃",label:"Course à pied",color:"#4A90D9",desc:"5 km · 10 km · semi · marathon"},
             {icon:"⛰️",label:"Trail",color:"#27AE60",desc:"Court · Moyen · Long · Ultra"},
             {icon:"🏊",label:"Triathlon",color:"#9B59B6",desc:"S · Olympique · Half · Ironman"},
-            {icon:"🏋️",label:"Hyrox",color:"#FF6B35",desc:"Solo · Double"},
+            {icon:"🔥",label:"Hyrox",color:"#E63946",desc:"Solo · Double"},
           ].map(d=>(
             <div key={d.label} style={{padding:"12px",background:`${d.color}10`,border:`1px solid ${d.color}40`,borderRadius:12}}>
               <div style={{fontSize:22,marginBottom:4}}>{d.icon}</div>
@@ -821,7 +821,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
     .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
   const myBadges=computeBadges({results});
   const myLv=getSeasonLevel(totalPts);
-  const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"},{k:"hyrox",l:"🏋️ Hyrox"}];
+  const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"},{k:"hyrox",l:"🔥 Hyrox"}];
 
   const [copied,setCopied]=useState(false);
   const handleShare=()=>{
@@ -1477,7 +1477,7 @@ function PerfTab({userId,refreshKey}){
 
       {subTab==="bests"&&(
         <div>
-          {[{cat:"running",label:"🏃 Run",color:"#4A90D9"},{cat:"triathlon",label:"🏊 Triathlon",color:"#9B59B6"},{cat:"trail",label:"⛰️ Trail",color:"#27AE60"},{cat:"hyrox",label:"🏋️ Hyrox",color:"#FF6B35"}].map(({cat,label,color})=>{
+          {[{cat:"running",label:"🏃 Run",color:"#4A90D9"},{cat:"triathlon",label:"🏊 Triathlon",color:"#9B59B6"},{cat:"trail",label:"⛰️ Trail",color:"#27AE60"},{cat:"hyrox",label:"🔥 Hyrox",color:"#E63946"}].map(({cat,label,color})=>{
             const catDiscs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat);
             const catBests=catDiscs.map(([disc])=>byDisc[disc]?[disc,byDisc[disc]]:null).filter(Boolean);
             return(
