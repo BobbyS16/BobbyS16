@@ -914,7 +914,7 @@ function TrainingTab({userId}){
   const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
   const [editTraining,setEditTraining]=useState(null);
-  const [showPlan,setShowPlan]=useState(false);
+  const [planView,setPlanView]=useState(null);
   const [plan,setPlan]=useState(null);
 
   useEffect(()=>{loadTrainings();},[]);
@@ -954,7 +954,7 @@ function TrainingTab({userId}){
     <div style={{flex:1,minHeight:0,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
       <div style={{paddingTop:20,marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Entraînements</div>
-        <button onClick={()=>setShowPlan(true)} style={{background:plan?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"9px 13px",color:plan?"#E63946":"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.5}}>📋 Plan</button>
+        <button onClick={()=>setPlanView(plan?"detail":"setup")} style={{background:plan?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"9px 13px",color:plan?"#E63946":"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.5}}>📋 Plan</button>
       </div>
       {plan&&(()=>{
         const today=new Date();today.setHours(0,0,0,0);
@@ -962,7 +962,7 @@ function TrainingTab({userId}){
         const daysLeft=target?Math.ceil((target-today)/86400000):null;
         const discLabel=DISCIPLINES[plan.discipline]?.label||plan.discipline;
         return(
-          <div onClick={()=>setShowPlan(true)} style={{marginBottom:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:12,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+          <div onClick={()=>setPlanView("detail")} style={{marginBottom:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:12,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
             <div style={{fontSize:18}}>🎯</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",letterSpacing:1}}>{discLabel}{plan.targetTime?` · ${plan.targetTime}`:""}</div>
@@ -1005,8 +1005,62 @@ function TrainingTab({userId}){
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
       {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();}} onClose={()=>setEditTraining(null)}/>}
-      {showPlan&&<TrainingPlanModal userId={userId} existing={plan} onSave={p=>{setPlan(p);setShowPlan(false);}} onDelete={()=>{setPlan(null);setShowPlan(false);}} onClose={()=>setShowPlan(false)}/>}
+      {planView==="detail"&&plan&&<TrainingPlanDetailModal plan={plan} onEdit={()=>setPlanView("setup")} onClose={()=>setPlanView(null)}/>}
+      {planView==="setup"&&<TrainingPlanModal userId={userId} existing={plan} onSave={p=>{setPlan(p);setPlanView("detail");}} onDelete={()=>{setPlan(null);setPlanView(null);}} onClose={()=>setPlanView(plan?"detail":null)}/>}
     </div>
+  );
+}
+
+// ── TRAINING PLAN DETAIL MODAL ────────────────────────────────────────────────
+function TrainingPlanDetailModal({plan,onEdit,onClose}){
+  const today=new Date();today.setHours(0,0,0,0);
+  const tgt=plan.date?new Date(plan.date):null;
+  const daysLeft=tgt?Math.ceil((tgt-today)/86400000):null;
+  const weeksLeft=daysLeft!=null?Math.max(0,Math.ceil(daysLeft/7)):null;
+  const disc=DISCIPLINES[plan.discipline];
+  const discLabel=disc?.label||plan.discipline;
+  const tgtStr=tgt&&!isNaN(tgt)?tgt.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):"";
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>Plan d'entraînement</div>
+      <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:14,padding:"20px 16px",marginBottom:16,textAlign:"center"}}>
+        <div style={{fontSize:44,lineHeight:1}}>{disc?.icon||"🎯"}</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginTop:6}}>{discLabel}</div>
+        {plan.targetTime&&<div style={{fontSize:14,color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:4,letterSpacing:0.5}}>Objectif : {plan.targetTime}</div>}
+        {tgtStr&&<div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:8}}>📅 {tgtStr}</div>}
+        {daysLeft!=null&&(
+          <div style={{marginTop:10,fontFamily:"'Bebas Neue'",fontSize:20,color:daysLeft<14?"#E63946":"#F0EDE8",letterSpacing:1}}>
+            {daysLeft>0?`${daysLeft} j · ≈ ${weeksLeft} semaines`:daysLeft===0?"C'est aujourd'hui !":`Il y a ${-daysLeft} j`}
+          </div>
+        )}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+        <div style={{background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:"#F0EDE8"}}>{plan.sessionsPerWeek||"-"}</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",marginTop:2}}>Séances/sem</div>
+        </div>
+        <div style={{background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:0.5}}>{plan.level||"-"}</div>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",marginTop:4}}>Niveau</div>
+        </div>
+      </div>
+      {weeksLeft!=null&&weeksLeft>0&&plan.sessionsPerWeek&&(
+        <div style={{marginBottom:16,padding:"12px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12}}>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:6}}>Charge prévisionnelle</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.8)",lineHeight:1.5}}>
+            Environ <span style={{color:"#F0EDE8",fontWeight:700}}>{plan.sessionsPerWeek*weeksLeft} séances</span> d'ici l'objectif.
+          </div>
+        </div>
+      )}
+      {plan.notes&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:6}}>Notes</div>
+          <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"12px 14px",fontSize:13,color:"rgba(240,237,232,0.85)",fontFamily:"'Barlow',sans-serif",whiteSpace:"pre-wrap",lineHeight:1.5}}>{plan.notes}</div>
+        </div>
+      )}
+      <Btn onClick={onEdit} mb={8}>✏️ Modifier le plan</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={0}>Fermer</Btn>
+    </Modal>
   );
 }
 
