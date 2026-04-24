@@ -620,6 +620,118 @@ function DeleteAccountModal({onClose}){
   );
 }
 
+// ── HOW IT WORKS MODAL ────────────────────────────────────────────────────────
+function HowItWorksModal({onClose}){
+  const Section=({title,children})=>(
+    <div style={{marginBottom:22}}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#E63946",letterSpacing:1.5,marginBottom:10}}>{title}</div>
+      {children}
+    </div>
+  );
+  const P=({children})=>(<div style={{fontSize:13,color:"rgba(240,237,232,0.75)",fontFamily:"'Barlow',sans-serif",lineHeight:1.6,marginBottom:8}}>{children}</div>);
+  const Bullet=({emoji,bold,children})=>(
+    <div style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:6,fontSize:13,color:"rgba(240,237,232,0.75)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
+      {emoji&&<div style={{flexShrink:0,fontSize:14}}>{emoji}</div>}
+      <div><span style={{color:"#F0EDE8",fontWeight:700}}>{bold}</span>{children}</div>
+    </div>
+  );
+  const RefRow=({label,time,prestige,color})=>(
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"rgba(255,255,255,0.03)",borderRadius:10,marginBottom:5,border:"1px solid rgba(255,255,255,0.05)",borderLeft:`3px solid ${color}`}}>
+      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"#F0EDE8",fontWeight:600}}>{label}</div>
+      <div style={{display:"flex",gap:10,alignItems:"center"}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:"#F0EDE8",letterSpacing:0.5}}>{time}</div>
+        <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>×{prestige}</div>
+      </div>
+    </div>
+  );
+  const LEVELS=[
+    {label:"Débutant",min:0,color:"#27AE60"},
+    {label:"Intermédiaire",min:200,color:"#4A90D9"},
+    {label:"Confirmé",min:350,color:"#9B59B6"},
+    {label:"Avancé",min:500,color:"#CD7F32"},
+    {label:"Expert",min:700,color:"#C0C0C0"},
+    {label:"Élite",min:900,color:"#FFD700"},
+  ];
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:28,color:"#F0EDE8",letterSpacing:2,marginBottom:4}}>Comment ça marche</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:22}}>Le système PaceRank en 5 points</div>
+
+      <Section title="1 · Calcul des points">
+        <P>Ton temps est comparé au temps de référence d'un athlète <span style={{color:"#FFD700",fontWeight:700}}>élite mondial</span> sur la même distance. Plus tu t'en approches, plus tu marques de points.</P>
+        <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:12,padding:"12px 14px",marginBottom:10}}>
+          <div style={{fontSize:11,color:"#E63946",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:6}}>Formule</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",lineHeight:1.6}}>points = 1000 × (T<sub>réf</sub> / T<sub>toi</sub>)² × prestige</div>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:6,lineHeight:1.5}}>Plafond à 2000 pts. Le coefficient <span style={{color:"#F0EDE8",fontWeight:700}}>prestige</span> valorise les distances longues et exigeantes.</div>
+        </div>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Temps de référence élite</div>
+        <RefRow label="🏃 5 km"              time="13:00"   prestige="1.0" color="#4A90D9"/>
+        <RefRow label="🏃 10 km"             time="27:00"   prestige="1.0" color="#4A90D9"/>
+        <RefRow label="🏃 Semi-marathon"     time="58:00"   prestige="1.1" color="#4A90D9"/>
+        <RefRow label="🏃 Marathon"          time="2h02"    prestige="1.2" color="#4A90D9"/>
+        <RefRow label="⛰️ Trail Court (<30km)" time="2h30"  prestige="1.1" color="#27AE60"/>
+        <RefRow label="⛰️ Trail Moyen (30-60)" time="5h30"  prestige="1.2" color="#27AE60"/>
+        <RefRow label="⛰️ Trail Long (60-100)" time="10h00" prestige="1.3" color="#27AE60"/>
+        <RefRow label="⛰️ Ultra Trail (100+)"  time="20h00" prestige="1.5" color="#27AE60"/>
+        <RefRow label="🏊 Triathlon S"          time="55:00" prestige="1.1" color="#9B59B6"/>
+        <RefRow label="🏊 Triathlon Olympique"  time="1h50"  prestige="1.2" color="#9B59B6"/>
+        <RefRow label="🏊 Half Ironman"         time="2h56"  prestige="1.3" color="#9B59B6"/>
+        <RefRow label="🏊 Ironman"              time="5h50"  prestige="1.5" color="#9B59B6"/>
+        <RefRow label="🏋️ Hyrox Solo"           time="55:00" prestige="1.2" color="#FF6B35"/>
+        <RefRow label="🤝 Hyrox Double"         time="50:00" prestige="1.1" color="#FF6B35"/>
+      </Section>
+
+      <Section title="2 · Niveaux par course">
+        <P>Chaque course te donne un niveau selon les points obtenus sur cette course-là. Plus tu approches du temps élite, plus le niveau monte.</P>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
+          {LEVELS.map(l=>(
+            <div key={l.label} style={{padding:"10px 12px",background:`${l.color}12`,border:`1px solid ${l.color}55`,borderRadius:10,borderLeft:`3px solid ${l.color}`}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:l.color,letterSpacing:0.5}}>{l.label}</div>
+              <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",marginTop:1}}>dès {l.min} pts</div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="3 · Points bonus">
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:8}}>Courses</div>
+        <Bullet emoji="🏆" bold="Record personnel battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
+        <Bullet emoji="🥇" bold="Top 3 de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+300 pts</span></Bullet>
+        <Bullet emoji="🎖️" bold="Top 10% de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+150 pts</span></Bullet>
+        <Bullet emoji="🚀" bold="Première course de la saison ">→ <span style={{color:"#E63946",fontWeight:700}}>+30 pts</span></Bullet>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Entraînement</div>
+        <Bullet emoji="🔥" bold="7 jours consécutifs d'activité ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
+        <Bullet emoji="⚡" bold="30 jours consécutifs ">→ <span style={{color:"#E63946",fontWeight:700}}>+500 pts</span></Bullet>
+        <Bullet emoji="📏" bold="100 km parcourus dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
+      </Section>
+
+      <Section title="4 · Le Streak">
+        <P>Le streak compte le nombre de <span style={{color:"#F0EDE8",fontWeight:700}}>semaines consécutives</span> avec au moins une activité enregistrée (course ou entraînement).</P>
+        <P>Tant que tu fais bouger la machine au moins une fois par semaine, ton streak grimpe. Si tu rates une semaine entière, il repart à zéro.</P>
+      </Section>
+
+      <Section title="5 · Les disciplines">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {[
+            {icon:"🏃",label:"Course à pied",color:"#4A90D9",desc:"5 km · 10 km · semi · marathon"},
+            {icon:"⛰️",label:"Trail",color:"#27AE60",desc:"Court · Moyen · Long · Ultra"},
+            {icon:"🏊",label:"Triathlon",color:"#9B59B6",desc:"S · Olympique · Half · Ironman"},
+            {icon:"🏋️",label:"Hyrox",color:"#FF6B35",desc:"Solo · Double"},
+          ].map(d=>(
+            <div key={d.label} style={{padding:"12px",background:`${d.color}10`,border:`1px solid ${d.color}40`,borderRadius:12}}>
+              <div style={{fontSize:22,marginBottom:4}}>{d.icon}</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:d.color,letterSpacing:1}}>{d.label}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>{d.desc}</div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Btn onClick={onClose} mb={0}>Compris</Btn>
+    </Modal>
+  );
+}
+
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
 const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p.length>1?`${p[0]} ${p[1][0].toUpperCase()}.`:p[0];};
@@ -1719,6 +1831,7 @@ function BadgesByCategory({badges}){
 function ProfileModal({profile,results,onRefresh,onClose}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
+  const [showHelp,setShowHelp]=useState(false);
   const [friendCount,setFriendCount]=useState(0);
   const [trainings,setTrainings]=useState([]);
   const [groupsCreated,setGroupsCreated]=useState(0);
@@ -1792,10 +1905,12 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         ))}
       </div>
       <BadgesByCategory badges={badges}/>
+      <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
       {showPhoto&&profile?.avatar&&<PhotoViewer src={profile.avatar} onClose={()=>setShowPhoto(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
+      {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
     </Modal>
   );
 }
