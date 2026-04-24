@@ -1023,6 +1023,7 @@ const SESSION_STYLES = {
   bike:     {label:"Vélo",              icon:"🚴",  color:"#27AE60", bg:"rgba(39,174,96,0.08)"},
   run:      {label:"Course à pied",     icon:"🏃",  color:"#E63946", bg:"rgba(230,57,70,0.08)"},
   brick:    {label:"Brick (vélo+run)",  icon:"🔗",  color:"#9B59B6", bg:"rgba(155,89,182,0.08)"},
+  race:     {label:"Jour J — course",   icon:"🏁",  color:"#FFD700", bg:"rgba(255,215,0,0.12)"},
 };
 const SESSION_DETAIL = {
   rest:"Récupération complète — pas d'activité",
@@ -1035,7 +1036,36 @@ const SESSION_DETAIL = {
   bike:"1 h–2 h · endurance ou côtes",
   run:"40–60 min · footing ou allure",
   brick:"Vélo 1 h puis course 15–25 min",
+  race:"Objectif ! Profite et donne tout.",
 };
+const PHASE_INFO = {
+  base:  {label:"Base · Endurance",  color:"#27AE60"},
+  build: {label:"Construction",      color:"#4A90D9"},
+  peak:  {label:"Pic spécifique",    color:"#FF6B35"},
+  taper: {label:"Affûtage",          color:"#9B59B6"},
+  race:  {label:"Semaine course",    color:"#FFD700"},
+};
+function phaseForWeek(weekIdx,totalWeeks){
+  if(!totalWeeks||totalWeeks<=1)return "race";
+  const wn=weekIdx+1;
+  if(wn===totalWeeks)return "race";
+  const p=wn/totalWeeks;
+  if(p>=0.9)return "taper";
+  if(p>=0.7)return "peak";
+  if(p>=0.4)return "build";
+  return "base";
+}
+function runPhase(tpl,phase){
+  if(phase==="race")return ["rest","easy","rest","rest","easy","rest","race"];
+  if(phase==="base")return tpl.map(t=>t==="interval"?"easy":t);
+  if(phase==="taper")return tpl.map(t=>(t==="interval"||t==="long")?"easy":t);
+  return tpl;
+}
+function triPhase(tpl,phase){
+  if(phase==="race")return ["rest","swim","rest","easy","easy","rest","race"];
+  if(phase==="taper")return tpl.map(t=>t==="brick"?"easy":t);
+  return tpl;
+}
 const RUN_TEMPLATE = {
   2:['rest','easy','rest','rest','rest','rest','long'],
   3:['rest','interval','rest','tempo','rest','rest','long'],
@@ -1057,11 +1087,22 @@ const TRI_TEMPLATE = {
 function TrainingPlanDetailModal({plan,onEdit,onClose}){
   const today=new Date();today.setHours(0,0,0,0);
   const tgt=plan.date?new Date(plan.date):null;
+  if(tgt)tgt.setHours(0,0,0,0);
   const daysLeft=tgt?Math.ceil((tgt-today)/86400000):null;
   const weeksLeft=daysLeft!=null?Math.max(0,Math.ceil(daysLeft/7)):null;
   const disc=DISCIPLINES[plan.discipline];
   const discLabel=disc?.label||plan.discipline;
   const tgtStr=tgt&&!isNaN(tgt)?tgt.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}):"";
+  const weekStart=d=>{const x=new Date(d);x.setHours(0,0,0,0);const dow=x.getDay()||7;x.setDate(x.getDate()-(dow-1));return x;};
+  const currentMonday=weekStart(today);
+  const raceMonday=tgt?weekStart(tgt):null;
+  const totalWeeks=raceMonday?Math.max(1,Math.round((raceMonday-currentMonday)/(7*86400000))+1):0;
+  const [selWeek,setSelWeek]=useState(0);
+  const clampedWeek=Math.max(0,Math.min(selWeek,totalWeeks>0?totalWeeks-1:0));
+  const selMonday=new Date(currentMonday);selMonday.setDate(currentMonday.getDate()+clampedWeek*7);
+  const selSunday=new Date(selMonday);selSunday.setDate(selMonday.getDate()+6);
+  const weekScrollRef=useRef(null);
+  useEffect(()=>{if(weekScrollRef.current)weekScrollRef.current.scrollLeft=clampedWeek*52;},[clampedWeek]);
   return (
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>Plan d'entraînement</div>
@@ -1094,31 +1135,50 @@ function TrainingPlanDetailModal({plan,onEdit,onClose}){
           </div>
         </div>
       )}
-      {plan.sessionsPerWeek&&(()=>{
-        const now=new Date();now.setHours(0,0,0,0);
-        const dow=now.getDay()||7;
-        const monday=new Date(now);monday.setDate(now.getDate()-(dow-1));
+      {plan.sessionsPerWeek&&totalWeeks>0&&(()=>{
         const DAYS=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
         const isTri=disc?.category==="triathlon";
-        const tpl=(isTri?TRI_TEMPLATE:RUN_TEMPLATE)[plan.sessionsPerWeek]||(isTri?TRI_TEMPLATE[4]:RUN_TEMPLATE[4]);
-        const sundayEnd=new Date(monday);sundayEnd.setDate(monday.getDate()+6);
+        const baseTpl=(isTri?TRI_TEMPLATE:RUN_TEMPLATE)[plan.sessionsPerWeek]||(isTri?TRI_TEMPLATE[4]:RUN_TEMPLATE[4]);
+        const phase=phaseForWeek(clampedWeek,totalWeeks);
+        const tpl=(isTri?triPhase:runPhase)(baseTpl,phase);
+        const pInfo=PHASE_INFO[phase];
         const fmt=d=>`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
         return (
           <div style={{marginBottom:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>Semaine type</div>
-              <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{fmt(monday)} — {fmt(sundayEnd)}</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>Programme semaine par semaine</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>S{clampedWeek+1}/{totalWeeks}</div>
+            </div>
+            {totalWeeks>1&&(
+              <div ref={weekScrollRef} style={{display:"flex",gap:5,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginBottom:10,paddingBottom:2}}>
+                {Array.from({length:totalWeeks}).map((_,i)=>{
+                  const wPhase=phaseForWeek(i,totalWeeks);
+                  const wc=PHASE_INFO[wPhase].color;
+                  const isSel=i===clampedWeek;
+                  const isRace=i===totalWeeks-1;
+                  return(
+                    <button key={i} onClick={()=>setSelWeek(i)} style={{flexShrink:0,minWidth:46,padding:"6px 10px",borderRadius:10,border:`1px solid ${isSel?wc:"rgba(255,255,255,0.06)"}`,cursor:"pointer",background:isSel?`${wc}22`:"rgba(255,255,255,0.04)",color:isSel?wc:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,letterSpacing:0.3,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+                      <span>{isRace?"🏁":`S${i+1}`}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{display:"inline-block",padding:"3px 10px",borderRadius:10,background:`${pInfo.color}22`,border:`1px solid ${pInfo.color}55`,color:pInfo.color,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase"}}>{pInfo.label}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{fmt(selMonday)} — {fmt(selSunday)}</div>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:5}}>
               {DAYS.map((dn,i)=>{
-                const d=new Date(monday);d.setDate(monday.getDate()+i);
+                const d=new Date(selMonday);d.setDate(selMonday.getDate()+i);
                 const type=tpl[i];const s=SESSION_STYLES[type];
-                const isToday=d.getTime()===now.getTime();
+                const isToday=d.getTime()===today.getTime();
+                const isRaceDay=type==="race"&&tgt&&d.getTime()===tgt.getTime();
                 return (
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",background:s.bg,border:`1px solid ${isToday?s.color:"rgba(255,255,255,0.06)"}`,borderRadius:10}}>
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",background:s.bg,border:`1px solid ${isToday||isRaceDay?s.color:"rgba(255,255,255,0.06)"}`,borderRadius:10}}>
                     <div style={{width:32,textAlign:"center",flexShrink:0}}>
                       <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>{dn}</div>
-                      <div style={{fontFamily:"'Bebas Neue'",fontSize:17,color:isToday?s.color:"#F0EDE8",letterSpacing:0.5,lineHeight:1.1}}>{d.getDate()}</div>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:17,color:isToday||isRaceDay?s.color:"#F0EDE8",letterSpacing:0.5,lineHeight:1.1}}>{d.getDate()}</div>
                     </div>
                     <div style={{fontSize:18,flexShrink:0}}>{s.icon}</div>
                     <div style={{flex:1,minWidth:0}}>
@@ -1129,7 +1189,7 @@ function TrainingPlanDetailModal({plan,onEdit,onClose}){
                 );
               })}
             </div>
-            <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginTop:8,fontStyle:"italic",lineHeight:1.4}}>Modèle indicatif — adapte selon tes sensations et la phase de ta préparation.</div>
+            <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginTop:8,fontStyle:"italic",lineHeight:1.4}}>Modèle indicatif — volume et intensité ajustés selon la phase ; adapte selon tes sensations.</div>
           </div>
         );
       })()}
