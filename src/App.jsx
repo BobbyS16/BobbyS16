@@ -951,7 +951,8 @@ function TrainingTab({userId}){
   const totalPts=filtered.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
 
   return (
-    <div style={{flex:1,minHeight:0,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
+    <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",padding:"0 16px",boxSizing:"border-box"}}>
+      <div style={{flexShrink:0}}>
       <div style={{paddingTop:20,marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Entraînements</div>
         <button onClick={()=>setPlanView(plan?"detail":"setup")} style={{background:plan?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"9px 13px",color:plan?"#E63946":"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.5}}>📋 Plan</button>
@@ -990,6 +991,8 @@ function TrainingTab({userId}){
         <BarChart data={monthlyDist} color="#E63946" unit="km" title={`Distance par mois (${selYear})`}/>
       </div>
       <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Sessions récentes</div>
+      </div>
+      <div style={{flex:1,minHeight:0,overflowY:"auto",WebkitOverflowScrolling:"touch",paddingBottom:"calc(100px + env(safe-area-inset-bottom))"}}>
       {filtered.slice(0,15).map((t,i)=>(
         <SwipeRow key={t.id||i} onDelete={()=>deleteTraining(t.id)} mb={0}>
           <ActivityCard myId={userId} activityType="training" activityId={t.id}>
@@ -1004,6 +1007,7 @@ function TrainingTab({userId}){
         </SwipeRow>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
+      </div>
       {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();}} onClose={()=>setEditTraining(null)}/>}
       {planView==="detail"&&plan&&<TrainingPlanDetailModal plan={plan} onEdit={()=>setPlanView("setup")} onClose={()=>setPlanView(null)}/>}
       {planView==="setup"&&<TrainingPlanModal userId={userId} existing={plan} onSave={p=>{setPlan(p);setPlanView("detail");}} onDelete={()=>{setPlan(null);setPlanView(null);}} onClose={()=>setPlanView(plan?"detail":null)}/>}
