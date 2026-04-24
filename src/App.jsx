@@ -62,10 +62,6 @@ function raceBonusPts(seasonResults, allUserResults) {
     const rd=resultDate(r);
     const earlier=(allUserResults||[]).filter(x=>x.id!==r.id&&x.discipline===r.discipline&&resultDate(x)&&rd&&resultDate(x)<rd);
     if(earlier.every(p=>p.time>r.time)) bonus+=100;
-    if(r.category_position&&r.category_size){
-      if(r.category_position<=3) bonus+=300;
-      else if(r.category_position/r.category_size<=0.1) bonus+=150;
-    }
   });
   const dated=seasonResults.filter(r=>resultDate(r));
   if(dated.length>0){
