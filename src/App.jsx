@@ -936,7 +936,7 @@ function TrainingTab({userId}){
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
         {[{l:"Distance",v:`${totalDist.toFixed(1)} km`},{l:"Points training",v:totalPts}].map(({l,v})=>(
           <div key={l} style={{flex:1,minWidth:80,padding:"10px",background:"rgba(255,255,255,0.03)",borderRadius:12,border:"1px solid rgba(255,255,255,0.06)",textAlign:"center"}}>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#E63946",letterSpacing:1}}>{v}</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{v}</div>
             <div style={{fontSize:9,color:"rgba(240,237,232,0.3)",letterSpacing:1,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{l}</div>
           </div>
         ))}
