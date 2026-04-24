@@ -1734,42 +1734,6 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           </div>
         ))}
       </div>
-      {(()=>{
-        const bestsByDisc=results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{});
-        const CATS=[["running","🏃 Running"],["trail","⛰️ Trail"],["triathlon","🏊 Triathlon"]];
-        const rows=CATS.map(([cat,lbl])=>{
-          const discs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat).map(([k])=>k);
-          const hasAny=discs.some(d=>bestsByDisc[d]);
-          return {cat,lbl,discs,hasAny};
-        }).filter(r=>r.hasAny);
-        if(rows.length===0)return null;
-        return (
-          <div style={{marginBottom:18}}>
-            <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
-            <div style={{display:"flex",flexDirection:"column",gap:14}}>
-              {rows.map(({cat,lbl,discs})=>(
-                <div key={cat}>
-                  <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>{lbl}</div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"4px 8px"}}>
-                    {discs.map(d=>{
-                      const r=bestsByDisc[d];
-                      const pts=r?calcPoints(d,r.time):0;
-                      const ptsLv=getLevel(pts);
-                      return (
-                        <div key={d} style={{minWidth:0,opacity:r?1:0.3}}>
-                          <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{DISCIPLINES[d]?.label}</div>
-                          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",letterSpacing:0.5}}>{r?fmtTime(r.time):"—"}</div>
-                          <div style={{fontSize:10,color:r?ptsLv.color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{r?`${pts} pts`:""}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
       <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:18,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
         {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
           <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
