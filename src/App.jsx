@@ -1011,6 +1011,48 @@ function TrainingTab({userId}){
   );
 }
 
+// ── TRAINING PLAN CALENDAR HELPERS ────────────────────────────────────────────
+const SESSION_STYLES = {
+  rest:     {label:"Repos",             icon:"😴",  color:"rgba(240,237,232,0.45)",bg:"rgba(255,255,255,0.02)"},
+  easy:     {label:"Endurance facile",  icon:"🌿",  color:"#27AE60", bg:"rgba(39,174,96,0.08)"},
+  tempo:    {label:"Tempo / Seuil",     icon:"🎯",  color:"#FF6B35", bg:"rgba(255,107,53,0.08)"},
+  interval: {label:"Fractionné / VMA",  icon:"⚡",  color:"#E63946", bg:"rgba(230,57,70,0.08)"},
+  long:     {label:"Sortie longue",     icon:"🏔️", color:"#9B59B6", bg:"rgba(155,89,182,0.08)"},
+  recovery: {label:"Récupération",      icon:"💧",  color:"#3498DB", bg:"rgba(52,152,219,0.08)"},
+  swim:     {label:"Natation",          icon:"🏊",  color:"#3498DB", bg:"rgba(52,152,219,0.08)"},
+  bike:     {label:"Vélo",              icon:"🚴",  color:"#27AE60", bg:"rgba(39,174,96,0.08)"},
+  run:      {label:"Course à pied",     icon:"🏃",  color:"#E63946", bg:"rgba(230,57,70,0.08)"},
+  brick:    {label:"Brick (vélo+run)",  icon:"🔗",  color:"#9B59B6", bg:"rgba(155,89,182,0.08)"},
+};
+const SESSION_DETAIL = {
+  rest:"Récupération complète — pas d'activité",
+  easy:"30–60 min · allure confortable",
+  tempo:"20–30 min · allure seuil soutenue",
+  interval:"VMA — ex. 8×400 m ou 5×1000 m",
+  long:"1 h–2 h 30 · endurance selon l'objectif",
+  recovery:"20–40 min · très relâché",
+  swim:"30–60 min · technique + séries",
+  bike:"1 h–2 h · endurance ou côtes",
+  run:"40–60 min · footing ou allure",
+  brick:"Vélo 1 h puis course 15–25 min",
+};
+const RUN_TEMPLATE = {
+  2:['rest','easy','rest','rest','rest','rest','long'],
+  3:['rest','interval','rest','tempo','rest','rest','long'],
+  4:['rest','interval','rest','tempo','rest','easy','long'],
+  5:['easy','interval','rest','tempo','rest','easy','long'],
+  6:['easy','interval','easy','tempo','rest','easy','long'],
+  7:['easy','interval','recovery','tempo','easy','easy','long'],
+};
+const TRI_TEMPLATE = {
+  2:['rest','bike','rest','run','rest','rest','swim'],
+  3:['rest','bike','rest','run','rest','swim','rest'],
+  4:['rest','bike','swim','run','rest','rest','brick'],
+  5:['swim','bike','rest','run','rest','swim','brick'],
+  6:['swim','bike','run','swim','rest','bike','brick'],
+  7:['swim','bike','run','swim','recovery','bike','brick'],
+};
+
 // ── TRAINING PLAN DETAIL MODAL ────────────────────────────────────────────────
 function TrainingPlanDetailModal({plan,onEdit,onClose}){
   const today=new Date();today.setHours(0,0,0,0);
@@ -1052,6 +1094,45 @@ function TrainingPlanDetailModal({plan,onEdit,onClose}){
           </div>
         </div>
       )}
+      {plan.sessionsPerWeek&&(()=>{
+        const now=new Date();now.setHours(0,0,0,0);
+        const dow=now.getDay()||7;
+        const monday=new Date(now);monday.setDate(now.getDate()-(dow-1));
+        const DAYS=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+        const isTri=disc?.category==="triathlon";
+        const tpl=(isTri?TRI_TEMPLATE:RUN_TEMPLATE)[plan.sessionsPerWeek]||(isTri?TRI_TEMPLATE[4]:RUN_TEMPLATE[4]);
+        const sundayEnd=new Date(monday);sundayEnd.setDate(monday.getDate()+6);
+        const fmt=d=>`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+        return (
+          <div style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>Semaine type</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{fmt(monday)} — {fmt(sundayEnd)}</div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              {DAYS.map((dn,i)=>{
+                const d=new Date(monday);d.setDate(monday.getDate()+i);
+                const type=tpl[i];const s=SESSION_STYLES[type];
+                const isToday=d.getTime()===now.getTime();
+                return (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",background:s.bg,border:`1px solid ${isToday?s.color:"rgba(255,255,255,0.06)"}`,borderRadius:10}}>
+                    <div style={{width:32,textAlign:"center",flexShrink:0}}>
+                      <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>{dn}</div>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:17,color:isToday?s.color:"#F0EDE8",letterSpacing:0.5,lineHeight:1.1}}>{d.getDate()}</div>
+                    </div>
+                    <div style={{fontSize:18,flexShrink:0}}>{s.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,color:s.color,letterSpacing:0.3}}>{s.label}{isToday&&<span style={{marginLeft:6,fontSize:9,color:"rgba(240,237,232,0.5)",fontWeight:600}}>AUJOURD'HUI</span>}</div>
+                      <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{SESSION_DETAIL[type]}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginTop:8,fontStyle:"italic",lineHeight:1.4}}>Modèle indicatif — adapte selon tes sensations et la phase de ta préparation.</div>
+          </div>
+        );
+      })()}
       {plan.notes&&(
         <div style={{marginBottom:16}}>
           <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:6}}>Notes</div>
