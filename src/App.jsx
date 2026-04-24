@@ -309,13 +309,13 @@ function LineChart({data,color="#E63946",title="",invert=false,formatY=null}) {
   const yTicks=formatY?[min,min+range/2,max]:[];
   return (
     <div>
-      {title&&<div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:12}}>{title}</div>}
+      {title&&<div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",marginBottom:12}}>{title}</div>}
       <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",overflow:"visible"}}>
         <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.3"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
-        {formatY&&yTicks.map((v,i)=><text key={i} x={PL-4} y={getY(v)+3} textAnchor="end" fill="rgba(240,237,232,0.3)" fontSize="7" fontFamily="Barlow,sans-serif">{formatY(v)}</text>)}
+        {formatY&&yTicks.map((v,i)=><text key={i} x={PL-4} y={getY(v)+3} textAnchor="end" fill="#F0EDE8" fontSize="10" fontWeight="600" fontFamily="Barlow,sans-serif">{formatY(v)}</text>)}
         <path d={`${path} L${pts[pts.length-1].x},${H} L${pts[0].x},${H} Z`} fill="url(#lg)"/>
         <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        {pts.map((p,i)=>(<g key={i}><circle cx={p.x} cy={p.y} r="4" fill={color}/><text x={p.x} y={H+8} textAnchor="middle" fill="rgba(240,237,232,0.3)" fontSize="8" fontFamily="Barlow,sans-serif">{p.label}</text></g>))}
+        {pts.map((p,i)=>(<g key={i}><circle cx={p.x} cy={p.y} r="4" fill={color}/><text x={p.x} y={H+10} textAnchor="middle" fill="#F0EDE8" fontSize="10" fontWeight="600" fontFamily="Barlow,sans-serif">{p.label}</text></g>))}
       </svg>
     </div>
   );
