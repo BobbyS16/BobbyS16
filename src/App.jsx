@@ -58,20 +58,20 @@ function calcTrainingPts(distKm, sport, durationSec) {
   const d = distKm||0;
   if(!d) return 0;
   const sec = parseInt(durationSec)||0;
-  let intensity = 2;
+  let intensity = 3;
   if(sec > 0) {
     if(sport==="Run"||sport==="Trail"){
       const pace = (sec/60)/d; // min/km
-      intensity = pace<4?10:pace<5?7:pace<6?4:2;
+      intensity = pace<4?10:pace<5?7:pace<6?5:3;
     } else if(sport==="Vélo"){
       const speed = d/(sec/3600); // km/h
-      intensity = speed>=40?10:speed>=35?7:speed>=30?4:2;
+      intensity = speed>=40?10:speed>=32?7:speed>=25?5:3;
     } else if(sport==="Natation"){
       const pace100 = (sec/60)/(d*10); // min/100m
-      intensity = pace100<2?10:pace100<2.5?7:pace100<3?4:2;
+      intensity = pace100<2?10:pace100<2.5?7:pace100<3?5:3;
     }
   }
-  return Math.round(d * intensity * 0.15);
+  return Math.round(d * intensity * 0.2);
 }
 function getLevel(pts) {
   if (pts >= 900) return {label:"Élite",       color:"#FFD700"};
