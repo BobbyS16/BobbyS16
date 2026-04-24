@@ -53,6 +53,18 @@
 body {
   margin: 0;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+button:active {
+  opacity: 0.7;
+  transition: opacity 0.03s;
 }
 
 #root {
