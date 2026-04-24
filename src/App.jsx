@@ -916,6 +916,22 @@ function TrainingTab({userId}){
     if(!userId)return;
     try{const raw=localStorage.getItem(`trainingPlan_${userId}`);if(raw)setPlan(JSON.parse(raw));}catch{}
   },[userId]);
+  useEffect(()=>{
+    if(!userId)return;
+    const flag=`trainingPtsFormula_${userId}`;
+    const CURRENT="v2-0.2";
+    if(localStorage.getItem(flag)===CURRENT)return;
+    (async()=>{
+      const{data}=await supabase.from("trainings").select("id,distance,duration,sport,points").eq("user_id",userId);
+      if(!data)return;
+      const updates=data.map(t=>{const fresh=calcTrainingPts(t.distance,t.sport,t.duration);return fresh!==t.points?{id:t.id,points:fresh}:null;}).filter(Boolean);
+      if(updates.length){
+        await Promise.all(updates.map(u=>supabase.from("trainings").update({points:u.points}).eq("id",u.id)));
+        loadTrainings();
+      }
+      try{localStorage.setItem(flag,CURRENT);}catch{}
+    })();
+  },[userId]);
 
   const loadTrainings=async()=>{
     const{data}=await supabase.from("trainings").select("*").eq("user_id",userId).order("date",{ascending:false});
