@@ -808,8 +808,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       const bonusPts=discFilter==="All"?raceBonusPts(pRes,pAllRes)+trainingBonusPts(pSeasonTrainings):0;
       const pts=racePts+trainPts+bonusPts;
       const badges=computeBadges({results:allResultsFull.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
-      return{...p,pts,badges};
-    }).sort((a,b)=>b.pts-a.pts);
+      return{...p,pts,badges,_hasDiscRes:pRes.length>0};
+    }).filter(p=>discFilter==="All"||p._hasDiscRes).sort((a,b)=>b.pts-a.pts);
     setRankData(ranked);
   };
 
