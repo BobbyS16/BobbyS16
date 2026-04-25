@@ -1368,11 +1368,11 @@ function RankingTab({myProfile}){
   const [groups,setGroups]=useState([]);
   const [selGroup,setSelGroup]=useState(null);
   const [openFriend,setOpenFriend]=useState(null);
-  const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
+  const SEASONS=Array.from({length:6},(_,i)=>CY-i);
 
   useEffect(()=>{
     if(filter==="discipline")return;
-    setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);
+    setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=0;},50);
   },[filter]);
   useEffect(()=>{loadPlayers();},[filter,discFilter,selGroup,season]);
   useEffect(()=>{loadMyGroups();},[]);
