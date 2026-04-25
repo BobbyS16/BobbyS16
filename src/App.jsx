@@ -783,6 +783,59 @@ function HowItWorksModal({onClose}){
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
 
+function NotificationsModal({onClose,onNotifsChange}){
+  const [notifs,setNotifs]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [openFriend,setOpenFriend]=useState(null);
+  const [myId,setMyId]=useState(null);
+  const load=async()=>{
+    setLoading(true);
+    const{data:{user}}=await supabase.auth.getUser();
+    if(!user){setLoading(false);return;}
+    setMyId(user.id);
+    const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).eq("read",false).order("created_at",{ascending:false});
+    setNotifs(data||[]);setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+  const dismissNotif=async id=>{
+    await supabase.from("notifications").update({read:true}).eq("id",id);
+    setNotifs(n=>n.filter(x=>x.id!==id));
+    onNotifsChange&&onNotifsChange();
+  };
+  const markAll=async()=>{
+    if(notifs.length===0)return;
+    const{data:{user}}=await supabase.auth.getUser();
+    await supabase.from("notifications").update({read:true}).eq("user_id",user.id).eq("read",false);
+    setNotifs([]);
+    onNotifsChange&&onNotifsChange();
+  };
+  return (
+    <Modal onClose={onClose}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:26,letterSpacing:1,color:"#F0EDE8"}}>🔔 Notifications</div>
+        {notifs.length>0&&<button onClick={markAll} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:10,padding:"7px 11px",color:"rgba(240,237,232,0.65)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,cursor:"pointer"}}>Tout marquer lu</button>}
+      </div>
+      {loading?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Chargement…</div>
+       :notifs.length===0?
+         <div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune notification 🎉</div>
+        :notifs.map(n=>{
+          const txt={friend_added:"t'a ajouté en ami",like_result:"a aimé ta course",like_training:"a aimé ton entraînement",comment_result:"a commenté ta course",comment_training:"a commenté ton entraînement"}[n.type]||"";
+          return (
+            <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
+              <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{cursor:"pointer"}}><Avatar profile={n.from_user} size={36}/></div>
+              <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",lineHeight:1.4}}><strong>{n.from_user?.name||"Quelqu'un"}</strong> {txt}</div>
+                <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{new Date(n.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+              </div>
+              <button onClick={()=>dismissNotif(n.id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:14,flexShrink:0}}>✕</button>
+            </div>
+          );
+        })}
+      {openFriend&&<FriendProfileModal friend={openFriend} myId={myId} onClose={()=>setOpenFriend(null)}/>}
+    </Modal>
+  );
+}
+
 const LEAGUES=[
   {id:"bronze", label:"Bronze", icon:"🥉",color:"#CD7F32",bg:"rgba(205,127,50,0.1)", border:"rgba(205,127,50,0.3)"},
   {id:"silver", label:"Argent", icon:"🥈",color:"#C0C0C0",bg:"rgba(192,192,192,0.1)",border:"rgba(192,192,192,0.3)"},
@@ -994,7 +1047,8 @@ function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
 }
 const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p.length>1?`${p[0]} ${p[1][0].toUpperCase()}.`:p[0];};
 
-function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile}){
+function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange}){
+  const [showNotifs,setShowNotifs]=useState(false);
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
   const [fabOpen,setFabOpen]=useState(false);
@@ -1167,9 +1221,15 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
           </div>
           <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
-        <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:14,padding:"10px 14px",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-          {copied?"✓ Copié !":"🔗 Inviter"}
-        </button>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:14,padding:"10px 12px",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:18,lineHeight:1}}>
+            🔔
+            {notifCount>0&&<span style={{position:"absolute",top:-2,right:-2,background:"#E63946",borderRadius:"50%",minWidth:18,height:18,padding:"0 5px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:"2px solid #0e0e0e",boxSizing:"content-box"}}>{notifCount>9?"9+":notifCount}</span>}
+          </button>
+          <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:14,padding:"10px 14px",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+            {copied?"✓ Copié !":"🔗 Inviter"}
+          </button>
+        </div>
       </div>
 
       {/* My card */}
@@ -1278,6 +1338,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         <button onClick={()=>setFabOpen(v=>!v)} style={{position:"absolute",inset:0,width:56,height:56,borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)",transform:fabOpen?"rotate(45deg)":"rotate(0)",transition:"transform 0.22s"}}>+</button>
       </div>
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
+      {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange}/>}
     </div>
   );
 }
@@ -2847,7 +2908,7 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey}/>}
