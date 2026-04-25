@@ -1300,6 +1300,7 @@ function TrainingPlanDetailModal({plan,onEdit,onClose}){
         <div style={{fontSize:44,lineHeight:1}}>{disc?.icon||"🎯"}</div>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginTop:6}}>{discLabel}</div>
         {plan.targetTime&&<div style={{fontSize:14,color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:4,letterSpacing:0.5}}>Objectif : {plan.targetTime}</div>}
+        {plan.elevation&&disc?.category==="trail"&&<div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",marginTop:4}}>⛰️ {plan.elevation} m D+</div>}
         {tgtStr&&<div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:8}}>📅 {tgtStr}</div>}
         {daysLeft!=null&&(
           <div style={{marginTop:10,fontFamily:"'Bebas Neue'",fontSize:20,color:daysLeft<14?"#E63946":"#F0EDE8",letterSpacing:1}}>
@@ -1405,7 +1406,9 @@ function TrainingPlanDetailModal({plan,onEdit,onClose}){
 function TrainingPlanModal({userId,existing,onSave,onDelete,onClose}){
   const DAYS_SHORT=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
   const DEFAULT_DAYS_BY_COUNT={2:[1,6],3:[1,3,6],4:[1,3,5,6],5:[0,1,3,5,6],6:[0,1,2,3,5,6],7:[0,1,2,3,4,5,6]};
-  const [discipline,setDisc]=useState(existing?.discipline||"marathon");
+  const planDisciplines=Object.entries(DISCIPLINES).filter(([,v])=>v.category!=="hyrox");
+  const initialDisc=existing?.discipline&&DISCIPLINES[existing.discipline]?.category!=="hyrox"?existing.discipline:"marathon";
+  const [discipline,setDisc]=useState(initialDisc);
   const [date,setDate]=useState(existing?.date||"");
   const [level,setLevel]=useState(existing?.level||"Intermédiaire");
   const [trainingDays,setTrainingDays]=useState(()=>{
@@ -1414,12 +1417,14 @@ function TrainingPlanModal({userId,existing,onSave,onDelete,onClose}){
     return DEFAULT_DAYS_BY_COUNT[spw]||DEFAULT_DAYS_BY_COUNT[4];
   });
   const [targetTime,setTargetTime]=useState(existing?.targetTime||"");
+  const [elevation,setElevation]=useState(existing?.elevation||"");
   const [notes,setNotes]=useState(existing?.notes||"");
   const toggleDay=i=>setTrainingDays(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i].sort((a,b)=>a-b));
   const sessionsPerWeek=trainingDays.length;
+  const isTrail=DISCIPLINES[discipline]?.category==="trail";
   const handleSave=()=>{
     if(sessionsPerWeek<2)return;
-    const payload={discipline,date,level,sessionsPerWeek,trainingDays,targetTime:targetTime.trim(),notes:notes.trim(),updatedAt:new Date().toISOString()};
+    const payload={discipline,date,level,sessionsPerWeek,trainingDays,targetTime:targetTime.trim(),elevation:isTrail&&elevation?parseInt(elevation)||null:null,notes:notes.trim(),updatedAt:new Date().toISOString()};
     try{localStorage.setItem(`trainingPlan_${userId}`,JSON.stringify(payload));}catch{}
     onSave(payload);
   };
@@ -1436,7 +1441,11 @@ function TrainingPlanModal({userId,existing,onSave,onDelete,onClose}){
       <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:4}}>Plan d'entraînement</div>
       <div style={{fontSize:12,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginBottom:16}}>Définis ton objectif et la cadence de préparation.</div>
       <Lbl c="Objectif"/>
-      <Sel value={discipline} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>
+      <Sel value={discipline} onChange={setDisc}>{planDisciplines.map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>
+      {isTrail&&(<>
+        <Lbl c="Dénivelé positif (m)"/>
+        <Inp value={elevation} onChange={setElevation} placeholder="Ex: 1500" type="number"/>
+      </>)}
       <Lbl c="Date de l'objectif"/>
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={date} onChange={setDate}/></div>
       {weeksLeft!=null&&(
