@@ -760,7 +760,32 @@ function HowItWorksModal({onClose}){
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
 
-function LeagueHeader({leagueIdx}){
+const LEAGUES=[
+  {id:"bronze", label:"Bronze", icon:"🥉",color:"#CD7F32",bg:"rgba(205,127,50,0.1)", border:"rgba(205,127,50,0.3)"},
+  {id:"silver", label:"Argent", icon:"🥈",color:"#C0C0C0",bg:"rgba(192,192,192,0.1)",border:"rgba(192,192,192,0.3)"},
+  {id:"gold",   label:"Or",     icon:"🥇",color:"#FFD700",bg:"rgba(255,215,0,0.1)",  border:"rgba(255,215,0,0.3)"},
+  {id:"diamond",label:"Platine",icon:"💎",color:"#4A90D9",bg:"rgba(74,144,217,0.1)", border:"rgba(74,144,217,0.3)"},
+  {id:"elite",  label:"Élite",  icon:"🔥",color:"#E63946",bg:"rgba(230,57,70,0.1)",  border:"rgba(230,57,70,0.3)"},
+];
+const SPORT_EMOJI={Run:"🏃","Vélo":"🚴",Natation:"🏊",Trail:"⛰️"};
+const DAY_FR=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+
+function LeagueBadge({league,size=40,active=false}){
+  return (
+    <div style={{width:size,height:size,borderRadius:"50%",
+      background:active?league.bg:"rgba(255,255,255,0.04)",
+      border:`2px solid ${active?league.border:"rgba(255,255,255,0.08)"}`,
+      display:"flex",alignItems:"center",justifyContent:"center",
+      fontSize:size*0.45,flexShrink:0,
+      boxShadow:active?`0 0 16px ${league.color}55`:undefined,
+      transition:"all 0.3s"}}>
+      {league.icon}
+    </div>
+  );
+}
+
+function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
+  const [subTab,setSubTab]=useState("classement");
   const [now,setNow]=useState(Date.now());
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
   const d=new Date(now);
@@ -771,17 +796,228 @@ function LeagueHeader({leagueIdx}){
   const remaining=Math.max(0,nextMonday.getTime()-now);
   const days=Math.floor(remaining/86400000);
   const hours=Math.floor((remaining%86400000)/3600000);
-  const mins=Math.floor((remaining%3600000)/60000);
-  const secs=Math.floor((remaining%60000)/1000);
+
+  const myIdx=players.findIndex(p=>p.isMe);
+  const myRow=myIdx>=0?players[myIdx]:null;
+  const myPos=myIdx>=0?myIdx+1:players.length+1;
+  const myPts=myRow?.trainPts||0;
+  const mySessionCount=mySessions.length;
+  const totalSessionPts=mySessions.reduce((s,m)=>s+m.pts,0);
+  const myLeagueIdx=LEAGUES.findIndex(l=>l.id===myLeague.id);
+  const nextLeague=LEAGUES[Math.min(myLeagueIdx+1,LEAGUES.length-1)];
+  const ptsToPromote=players.length>=5&&myPos>5?Math.max(1,players[4].trainPts-myPts+1):0;
+
   return (
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 13px",background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.3)",borderRadius:12,marginBottom:14}}>
-      <div>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:1.5,color:"#FFD700"}}>Ligue {leagueIdx+1}</div>
-        <div style={{fontSize:10,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:1,letterSpacing:0.5}}>Points training de la semaine</div>
+    <div>
+      {/* Info banner */}
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:18}}>📅</span>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",lineHeight:1.5,fontFamily:"'Barlow',sans-serif"}}>
+          La ligue est basée sur tes <strong style={{color:"#F0EDE8"}}>points d'entraînement</strong> de la semaine. Repart à 0 chaque lundi.
+        </div>
       </div>
-      <div style={{textAlign:"right"}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:0.5,lineHeight:1}}>{days>0?`${days}j `:""}{String(hours).padStart(2,"0")}:{String(mins).padStart(2,"0")}:{String(secs).padStart(2,"0")}</div>
-        <div style={{fontSize:9,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",marginTop:2}}>Reset lundi 00h</div>
+
+      {/* League header */}
+      <div style={{background:myLeague.bg,border:`1px solid ${myLeague.border}`,borderRadius:18,padding:16,marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <LeagueBadge league={myLeague} size={48} active/>
+            <div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:myLeague.color,letterSpacing:1,lineHeight:1}}>Ligue {myLeague.label}</div>
+              <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:3}}>{players.length} athlète{players.length>1?"s":""} · semaine en cours</div>
+            </div>
+          </div>
+          <div style={{background:"rgba(0,0,0,0.3)",borderRadius:10,padding:"6px 10px",textAlign:"center"}}>
+            <div style={{fontSize:8,color:"rgba(240,237,232,0.4)",letterSpacing:1,fontFamily:"'Barlow',sans-serif"}}>FIN DANS</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:0.5,lineHeight:1.1,marginTop:2}}>{days}j {String(hours).padStart(2,"0")}h</div>
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          {[
+            {l:"Position",v:myIdx>=0?`#${myPos}`:"—",c:myLeague.color},
+            {l:"Pts semaine",v:myPts,c:"#F0EDE8"},
+            {l:"Sessions",v:mySessionCount,c:"#F0EDE8"},
+          ].map(({l,v,c})=>(
+            <div key={l} style={{flex:1,background:"rgba(0,0,0,0.2)",borderRadius:10,padding:"8px 6px",textAlign:"center"}}>
+              <div style={{fontSize:8,color:"rgba(240,237,232,0.4)",marginBottom:3,letterSpacing:1,fontFamily:"'Barlow',sans-serif"}}>{l}</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:c,letterSpacing:1,lineHeight:1}}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Zones */}
+        <div style={{display:"flex",gap:5}}>
+          {[
+            {c:"#FFD700",bg:"rgba(255,215,0,0.1)",border:"rgba(255,215,0,0.2)",t:"🏆 TOP 5",s:"Promotion"},
+            {c:"rgba(240,237,232,0.4)",bg:"rgba(255,255,255,0.04)",border:"rgba(255,255,255,0.08)",t:"Maintien",s:"Reste en ligue"},
+            {c:"#E63946",bg:"rgba(230,57,70,0.08)",border:"rgba(230,57,70,0.15)",t:"⚠️ BOTTOM 5",s:"Relégation"},
+          ].map(({c,bg,border,t,s})=>(
+            <div key={t} style={{flex:1,background:bg,border:`1px solid ${border}`,borderRadius:8,padding:"6px 6px",textAlign:"center"}}>
+              <div style={{fontSize:8,color:c,fontWeight:700,letterSpacing:0.3,fontFamily:"'Barlow',sans-serif"}}>{t}</div>
+              <div style={{fontSize:7,color:"rgba(240,237,232,0.35)",marginTop:1,fontFamily:"'Barlow',sans-serif"}}>{s}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Sub tabs */}
+      <div style={{display:"flex",gap:6,marginBottom:12}}>
+        {[["classement","🏅 Classement"],["mes-sessions","💪 Mes sessions"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setSubTab(k)} style={{flex:1,padding:"7px 0",borderRadius:10,border:"none",
+            cursor:"pointer",background:subTab===k?"rgba(255,215,0,0.12)":"rgba(255,255,255,0.04)",
+            color:subTab===k?"#FFD700":"rgba(240,237,232,0.4)",
+            fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
+        ))}
+      </div>
+
+      {/* Leaderboard */}
+      {subTab==="classement"&&(
+        <div>
+          {players.map((p,i)=>{
+            const isTop5=i<5;
+            const isBottom5=i>=players.length-5&&players.length>=10;
+            const isMe=p.isMe;
+            let rowBg="rgba(255,255,255,0.02)";
+            let rowBorder="rgba(255,255,255,0.04)";
+            if(isMe){rowBg="rgba(255,215,0,0.08)";rowBorder="rgba(255,215,0,0.3)";}
+            else if(isTop5){rowBg="rgba(255,215,0,0.03)";rowBorder="rgba(255,215,0,0.08)";}
+            else if(isBottom5&&p.trainPts===0){rowBg="rgba(230,57,70,0.04)";rowBorder="rgba(230,57,70,0.1)";}
+            const initials=(p.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+            return (
+              <div key={p.id||i}>
+                {i===5&&<div style={{display:"flex",alignItems:"center",gap:8,margin:"8px 0 6px"}}>
+                  <div style={{flex:1,height:1,background:"rgba(255,215,0,0.15)"}}/>
+                  <div style={{fontSize:8,color:"rgba(255,215,0,0.55)",letterSpacing:1,whiteSpace:"nowrap",fontFamily:"'Barlow',sans-serif",fontWeight:700,textTransform:"uppercase"}}>↑ Promotion</div>
+                  <div style={{flex:1,height:1,background:"rgba(255,215,0,0.15)"}}/>
+                </div>}
+                {i===players.length-5&&players.length>=10&&<div style={{display:"flex",alignItems:"center",gap:8,margin:"8px 0 6px"}}>
+                  <div style={{flex:1,height:1,background:"rgba(230,57,70,0.2)"}}/>
+                  <div style={{fontSize:8,color:"rgba(230,57,70,0.65)",letterSpacing:1,whiteSpace:"nowrap",fontFamily:"'Barlow',sans-serif",fontWeight:700,textTransform:"uppercase"}}>↓ Relégation</div>
+                  <div style={{flex:1,height:1,background:"rgba(230,57,70,0.2)"}}/>
+                </div>}
+                <div onClick={()=>!isMe&&onOpenFriend&&onOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:12,marginBottom:4,background:rowBg,border:`1px solid ${rowBorder}`,cursor:isMe?"default":"pointer"}}>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:15,
+                    color:i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":isBottom5&&p.trainPts===0?"rgba(230,57,70,0.6)":"rgba(240,237,232,0.55)",
+                    width:20,textAlign:"center",flexShrink:0}}>
+                    {i===0?"🥇":i===1?"🥈":i===2?"🥉":isBottom5&&p.trainPts===0?"↓":i+1}
+                  </div>
+                  <div style={{width:30,height:30,borderRadius:"50%",flexShrink:0,
+                    background:isMe?"rgba(255,215,0,0.15)":"rgba(255,255,255,0.07)",
+                    border:isMe?"1px solid rgba(255,215,0,0.3)":"1px solid rgba(255,255,255,0.05)",
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    fontFamily:"'Bebas Neue'",fontSize:12,color:"#F0EDE8",overflow:"hidden"}}>
+                    {p.avatar?<img src={p.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>:initials}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:14,
+                      color:isMe?"#FFD700":"#F0EDE8",letterSpacing:0.5,
+                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {p.name}{isMe?" ← toi":""}
+                    </div>
+                    <div style={{fontSize:9,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>
+                      {p.sessions>0?`${p.sessions} session${p.sessions>1?"s":""}${p.sports?.length?` · ${p.sports.map(s=>SPORT_EMOJI[s]||"·").join("")}`:""}`:"Aucune session"}
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:18,
+                      color:isMe?"#FFD700":p.trainPts>0?"#F0EDE8":"#444",letterSpacing:1,lineHeight:1}}>
+                      {p.trainPts}
+                    </div>
+                    <div style={{fontSize:7,color:"rgba(240,237,232,0.25)",letterSpacing:1,fontFamily:"'Barlow',sans-serif",marginTop:2}}>PTS</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* CTA */}
+          {ptsToPromote>0?(
+            <div style={{marginTop:12,background:"linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,215,0,0.05))",
+              border:"1px solid rgba(255,215,0,0.25)",borderRadius:14,padding:"14px 16px",
+              display:"flex",alignItems:"center",gap:12}}>
+              <span style={{fontSize:24,flexShrink:0}}>{nextLeague.icon}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FFD700",letterSpacing:1}}>
+                  +{ptsToPromote} pts pour la {nextLeague.label} !
+                </div>
+                <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>
+                  Ajoute un entraînement pour grimper
+                </div>
+              </div>
+              <button onClick={onAddTraining} style={{background:"#FFD700",border:"none",borderRadius:10,
+                padding:"8px 12px",fontFamily:"'Bebas Neue'",fontSize:12,
+                color:"#111",cursor:"pointer",letterSpacing:1,flexShrink:0}}>
+                + SÉANCE
+              </button>
+            </div>
+          ):myIdx>=0&&myPos<=5?(
+            <div style={{marginTop:12,background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.25)",borderRadius:14,padding:"14px 16px",textAlign:"center"}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FFD700",letterSpacing:1}}>🔥 Tu es en zone promotion !</div>
+              <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>Tiens ta place jusqu'à lundi pour monter en {nextLeague.label}.</div>
+            </div>
+          ):null}
+        </div>
+      )}
+
+      {/* My sessions */}
+      {subTab==="mes-sessions"&&(
+        <div>
+          <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>
+            Tes entraînements cette semaine
+          </div>
+          {mySessions.length===0?(
+            <div style={{padding:"24px",textAlign:"center",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,marginBottom:10}}>
+              <div style={{fontSize:24,marginBottom:6}}>💪</div>
+              <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>Aucun entraînement cette semaine.<br/>Lance une séance pour marquer des points !</div>
+            </div>
+          ):mySessions.map((s,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0}}>
+                <div style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
+                  {SPORT_EMOJI[s.sport]||"💪"}
+                </div>
+                <div style={{minWidth:0}}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.sport}</div>
+                  <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{s.dist} km · {s.day}</div>
+                </div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#FFD700",letterSpacing:1,lineHeight:1}}>{s.pts}</div>
+                <div style={{fontSize:8,color:"rgba(240,237,232,0.3)",letterSpacing:1,fontFamily:"'Barlow',sans-serif",marginTop:2}}>PTS</div>
+              </div>
+            </div>
+          ))}
+          {mySessions.length>0&&(
+            <div style={{padding:"14px",background:"rgba(255,215,0,0.06)",border:"1px solid rgba(255,215,0,0.2)",borderRadius:12,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+              <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>Total semaine</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#FFD700",letterSpacing:1}}>{totalSessionPts}</div>
+            </div>
+          )}
+          <div style={{marginTop:12,fontSize:11,color:"rgba(240,237,232,0.3)",textAlign:"center",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
+            Les points de ligue sont calculés sur tes entraînements uniquement.<br/>Ils remettent à 0 chaque lundi matin.
+          </div>
+        </div>
+      )}
+
+      {/* Progression frize */}
+      <div style={{marginTop:16,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.04)",borderRadius:14,padding:"14px"}}>
+        <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:12}}>
+          Progression des ligues
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {LEAGUES.map((l,i)=>(
+            <div key={l.id} style={{display:"flex",alignItems:"center"}}>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+                <LeagueBadge league={l} size={34} active={l.id===myLeague.id}/>
+                <div style={{fontSize:8,color:l.id===myLeague.id?l.color:"rgba(240,237,232,0.4)",
+                  fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>{l.label}</div>
+              </div>
+              {i<LEAGUES.length-1&&<div style={{width:14,height:1,background:"rgba(255,255,255,0.08)",margin:"0 2px"}}/>}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -818,7 +1054,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const [discFilter,setDiscFilter]=useState("All");
   const [rankData,setRankData]=useState([]);
   const [openFriend,setOpenFriend]=useState(null);
-  const [leagueIdx,setLeagueIdx]=useState(0);
+  const [leagueData,setLeagueData]=useState({players:[],myLeague:LEAGUES[0],mySessions:[]});
 
   useEffect(()=>{loadRanking();},[season,rankFilter,discFilter]);
   useEffect(()=>{
@@ -853,23 +1089,36 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       const offsetToMonday=day===0?-6:1-day;
       const monday=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offsetToMonday);
       const nextMonday=new Date(monday.getTime()+7*86400000);
-      const seasonRanked=allProfiles.map(p=>{
-        const pRes=allResults.filter(r=>r.user_id===p.id);
-        const pTrain=seasonTrainings.filter(t=>t.user_id===p.id);
-        const total=sumBestPts(pRes)+pTrain.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0)+raceBonusPts(pRes,allResultsFull.filter(r=>r.user_id===p.id))+trainingBonusPts(pTrain);
-        return{id:p.id,total};
-      }).sort((a,b)=>b.total-a.total);
-      const myIdx=seasonRanked.findIndex(s=>s.id===user.id);
-      const idx=myIdx>=0?Math.floor(myIdx/20):0;
-      setLeagueIdx(idx);
-      const leagueIds=new Set(seasonRanked.slice(idx*20,(idx+1)*20).map(s=>s.id));
-      const ranked=allProfiles.filter(p=>leagueIds.has(p.id)).map(p=>{
-        const weekTrain=(allTrainings||[]).filter(t=>{const d=new Date(t.date);return t.user_id===p.id&&d>=monday&&d<nextMonday;});
-        const pts=weekTrain.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
-        const badges=computeBadges({results:allResultsFull.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
-        return{...p,pts,badges};
+
+      let{data:myLeagueRow}=await supabase.from("user_leagues").select("*").eq("user_id",user.id).maybeSingle();
+      if(!myLeagueRow){
+        await supabase.from("user_leagues").insert({user_id:user.id,current_league:"bronze"});
+        myLeagueRow={user_id:user.id,current_league:"bronze",league_group_id:null};
+      }
+      const tier=myLeagueRow.current_league||"bronze";
+      const groupId=myLeagueRow.league_group_id;
+      let q=supabase.from("user_leagues").select("user_id,league_group_id").eq("current_league",tier);
+      if(groupId)q=q.eq("league_group_id",groupId);else q=q.is("league_group_id",null);
+      const{data:mates}=await q;
+      const memberIds=(mates||[]).map(m=>m.user_id);
+      const memberSet=new Set(memberIds);
+      const memberProfiles=allProfiles.filter(p=>memberSet.has(p.id));
+      const weekTrainings=(allTrainings||[]).filter(t=>{const d=new Date(t.date);return memberSet.has(t.user_id)&&d>=monday&&d<nextMonday;});
+      const players=memberProfiles.map(p=>{
+        const pTrains=weekTrainings.filter(t=>t.user_id===p.id);
+        const trainPts=pTrains.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+        const sports=[...new Set(pTrains.map(t=>t.sport).filter(Boolean))];
+        return{id:p.id,name:p.name||"Athlète",avatar:p.avatar,trainPts,sessions:pTrains.length,sports,isMe:p.id===user.id};
+      }).sort((a,b)=>b.trainPts-a.trainPts).slice(0,20);
+      const myWeekTrainings=weekTrainings.filter(t=>t.user_id===user.id);
+      const mySessions=myWeekTrainings.map(t=>{
+        const dt=t.date?new Date(t.date):null;
+        const day=dt?DAY_FR[dt.getDay()]:"";
+        const pts=t.points||calcTrainingPts(t.distance,t.sport,t.duration);
+        return{sport:t.sport,dist:t.distance,day,pts};
       }).sort((a,b)=>b.pts-a.pts);
-      setRankData(ranked);
+      const myLeague=LEAGUES.find(l=>l.id===tier)||LEAGUES[0];
+      setLeagueData({players,myLeague,mySessions});
       return;
     }
 
@@ -976,54 +1225,48 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         ))}
       </div>
 
-      {rankFilter==="ligue"
-        ?<LeagueHeader leagueIdx={leagueIdx}/>
-        :<div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",scrollbarWidth:"none"}}>
+      {rankFilter!=="ligue"&&(
+        <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",scrollbarWidth:"none"}}>
           {DISC_TABS.map(({k,l})=>(
             <button key={k} onClick={()=>setDiscFilter(k)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:discFilter===k?"#E63946":"rgba(255,255,255,0.06)",color:discFilter===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{l}</button>
           ))}
         </div>
-      }
+      )}
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(110px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch"}}>
-      {/* Ranking list */}
-      {rankData.length===0
-        ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":rankFilter==="ligue"?"Aucun athlète dans ta ligue pour le moment":"Aucun résultat pour cette saison"}</div>
-        :rankData.map((p,i)=>{
-          const lv=getSeasonLevel(p.pts);
-          const isLigue=rankFilter==="ligue";
-          const inCommunity=rankFilter==="general"&&p.id!==profile?.id;
-          const isFriend=friendIds.has(p.id);
-          const rowActions=!inCommunity
-            ?null
-            :isFriend
-              ?[{icon:"✕",bg:"rgba(255,255,255,0.12)",color:"rgba(240,237,232,0.75)",onClick:()=>handleCancelFriend(p.id)}]
-              :[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}];
-          const isMe=p.id===profile?.id;
-          const total=rankData.length;
-          const inTop5=isLigue&&i<5;
-          const inBottom5=isLigue&&i>=total-5&&total>=10;
-          const zoneColor=inTop5?"#27AE60":inBottom5?"#E63946":lv.color;
-          const zoneBg=inTop5?"rgba(39,174,96,0.1)":inBottom5?"rgba(230,57,70,0.08)":`${lv.color}0d`;
-          const row=(
-            <div onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:zoneBg,border:`1px solid ${zoneColor}${isMe?"66":"33"}`,borderLeft:isLigue&&(inTop5||inBottom5)?`3px solid ${zoneColor}`:`1px solid ${zoneColor}${isMe?"66":"33"}`,borderRadius:14,cursor:"pointer"}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":isLigue?(i+1):""}</div>
-              <Avatar profile={p} size={36}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:2,alignItems:"center"}}>{p.badges.slice(0,6).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}{p.badges.length>6&&<span style={{fontSize:9,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginLeft:1}}>+{p.badges.length-6}</span>}</div>
+      {rankFilter==="ligue"
+        ?<LeagueView players={leagueData.players} myLeague={leagueData.myLeague} mySessions={leagueData.mySessions} onAddTraining={onAddTraining} onOpenFriend={p=>setOpenFriend(p)}/>
+        :rankData.length===0
+          ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
+          :rankData.map((p,i)=>{
+            const lv=getSeasonLevel(p.pts);
+            const inCommunity=rankFilter==="general"&&p.id!==profile?.id;
+            const isFriend=friendIds.has(p.id);
+            const rowActions=!inCommunity
+              ?null
+              :isFriend
+                ?[{icon:"✕",bg:"rgba(255,255,255,0.12)",color:"rgba(240,237,232,0.75)",onClick:()=>handleCancelFriend(p.id)}]
+                :[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}];
+            const isMe=p.id===profile?.id;
+            const row=(
+              <div onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,borderRadius:14,cursor:"pointer"}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</div>
+                <Avatar profile={p} size={36}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:2,alignItems:"center"}}>{p.badges.slice(0,6).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}{p.badges.length>6&&<span style={{fontSize:9,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginLeft:1}}>+{p.badges.length-6}</span>}</div>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontSize:14,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{rankData.length}</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
+                </div>
               </div>
-              <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{fontSize:14,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{rankData.length}</div>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:zoneColor,letterSpacing:1}}>{p.pts}</div>
-              </div>
-            </div>
-          );
-          return rowActions
-            ?<SwipeRow key={p.id} radius={14} mb={8} actions={rowActions}>{row}</SwipeRow>
-            :<div key={p.id} style={{marginBottom:8}}>{row}</div>;
-        })}
+            );
+            return rowActions
+              ?<SwipeRow key={p.id} radius={14} mb={8} actions={rowActions}>{row}</SwipeRow>
+              :<div key={p.id} style={{marginBottom:8}}>{row}</div>;
+          })}
       </div>
       <div style={{position:"fixed",bottom:90,right:20,zIndex:99,width:56,height:56}}>
         {[
