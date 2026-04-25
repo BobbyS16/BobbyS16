@@ -574,7 +574,6 @@ function EditProfileModal({profile,onSave,onClose}){
   const [birthYear,setBirth]=useState(profile.birth_year||"");
   const [gender,setGender]=useState(profile.gender||"");
   const [nat,setNat]=useState(profile.nationality||"");
-  const [hidden,setHidden]=useState(!!profile.ranking_hidden);
   const [avFile,setAvFile]=useState(null);
   const [avPreview,setAvPreview]=useState(null);
   const [loading,setLoading]=useState(false);
@@ -600,7 +599,7 @@ function EditProfileModal({profile,onSave,onClose}){
       const{data}=supabase.storage.from("avatars").getPublicUrl(path);
       avatar_url=data.publicUrl+"?t="+Date.now();
     }
-    const{error:updErr}=await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url,ranking_hidden:hidden}).eq("id",profile.id);
+    const{error:updErr}=await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url}).eq("id",profile.id);
     setLoading(false);
     if(updErr){setError("Sauvegarde échouée : "+updErr.message);return;}
     onSave();
@@ -621,15 +620,6 @@ function EditProfileModal({profile,onSave,onClose}){
       <Lbl c="Année de naissance"/><Inp value={birthYear} onChange={setBirth} placeholder="Ex: 1990" type="number"/>
       <Lbl c="Sexe"/><Sel value={gender} onChange={setGender}><option value="">Non précisé</option><option value="H">Homme</option><option value="F">Femme</option></Sel>
       <Lbl c="Nationalité"/><Inp value={nat} onChange={setNat} placeholder="Ex: Française"/>
-      <div onClick={()=>setHidden(v=>!v)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:hidden?"rgba(230,57,70,0.08)":"rgba(255,255,255,0.04)",border:`1px solid ${hidden?"rgba(230,57,70,0.3)":"rgba(255,255,255,0.07)"}`,borderRadius:12,marginBottom:16,cursor:"pointer"}}>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,color:"#F0EDE8"}}>Cacher mon profil du classement</div>
-          <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>Ne pas apparaître dans les classements (ami, général, ligue)</div>
-        </div>
-        <div style={{width:38,height:22,borderRadius:11,background:hidden?"#E63946":"rgba(255,255,255,0.15)",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
-          <div style={{position:"absolute",top:2,left:hidden?18:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
-        </div>
-      </div>
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Sauvegarder"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
     </Modal>
@@ -2250,7 +2240,11 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:2,color:"#F0EDE8"}}>Mon Profil</div>
         <div style={{display:"flex",gap:6}}>
           <button onClick={()=>setShowEdit(true)} style={{padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>✏️ Éditer</button>
-          <button onClick={async()=>{await supabase.auth.signOut();}} style={{padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>Déco</button>
+          <button onClick={async()=>{
+            const newVal=!profile.ranking_hidden;
+            const{error:err}=await supabase.from("profiles").update({ranking_hidden:newVal}).eq("id",profile.id);
+            if(!err)onRefresh();
+          }} title={profile.ranking_hidden?"Visible : me ré-afficher dans les classements":"Caché : me retirer des classements"} style={{padding:"7px 12px",borderRadius:10,background:profile.ranking_hidden?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:profile.ranking_hidden?"1px solid rgba(230,57,70,0.4)":"none",color:profile.ranking_hidden?"#E63946":"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>{profile.ranking_hidden?"🙈 Caché":"👁️ Visible"}</button>
         </div>
       </div>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
@@ -2333,6 +2327,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         <button disabled style={{padding:"7px 12px",borderRadius:10,background:"#FC4C02",border:"none",color:"#fff",cursor:"not-allowed",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,flexShrink:0,opacity:0.4}}>Connecter</button>
       </div>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
+      <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🚪 Se déconnecter</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
       </div>
       </div>
