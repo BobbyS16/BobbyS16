@@ -1371,8 +1371,9 @@ function RankingTab({myProfile}){
   const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
 
   useEffect(()=>{
+    if(filter==="discipline")return;
     setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);
-  },[]);
+  },[filter]);
   useEffect(()=>{loadPlayers();},[filter,discFilter,selGroup,season]);
   useEffect(()=>{loadMyGroups();},[]);
 
