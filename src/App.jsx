@@ -2603,10 +2603,9 @@ function FriendProfileModal({friend,myId,onClose}){
         const bestsByDisc=results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{});
         const CATS=[["running","🏃 Running"],["trail","⛰️ Trail"],["triathlon","🏊 Triathlon"],["hyrox","🔥 Hyrox"]];
         const rows=CATS.map(([cat,lbl])=>{
-          const discs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat).map(([k])=>k);
-          const hasAny=discs.some(d=>bestsByDisc[d]);
-          return {cat,lbl,discs,hasAny};
-        }).filter(r=>r.hasAny);
+          const discs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat).map(([k])=>k).filter(d=>bestsByDisc[d]);
+          return {cat,lbl,discs};
+        }).filter(r=>r.discs.length>0);
         if(rows.length===0)return null;
         return (
           <div style={{marginBottom:16}}>
@@ -2617,13 +2616,13 @@ function FriendProfileModal({friend,myId,onClose}){
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"4px 6px"}}>
                     {discs.map(d=>{
                       const r=bestsByDisc[d];
-                      const pts=r?calcPoints(d,r.time,r.elevation):0;
+                      const pts=calcPoints(d,r.time,r.elevation);
                       const ptsLv=getLevel(pts);
                       return (
-                        <div key={d} style={{minWidth:0,opacity:r?1:0.3}}>
+                        <div key={d} style={{minWidth:0}}>
                           <div style={{fontSize:8,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{DISCIPLINES[d]?.label}</div>
-                          <div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:"#F0EDE8",letterSpacing:0.3}}>{r?fmtTime(r.time):"—"}</div>
-                          <div style={{fontSize:9,color:r?ptsLv.color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{r?`${pts} pts`:""}</div>
+                          <div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:"#F0EDE8",letterSpacing:0.3}}>{fmtTime(r.time)}</div>
+                          <div style={{fontSize:9,color:ptsLv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
                         </div>
                       );
                     })}
