@@ -2260,6 +2260,8 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [showPhoto,setShowPhoto]=useState(false);
   const [season,setSeason]=useState(CY);
   const [panel,setPanel]=useState("races");
+  const [friendsList,setFriendsList]=useState([]);
+  const [openFriend,setOpenFriend]=useState(null);
   const [hidden,setHidden]=useState(!!profile?.ranking_hidden);
   useEffect(()=>{setHidden(!!profile?.ranking_hidden);},[profile?.ranking_hidden]);
   const [stravaTokens,setStravaTokens]=useState(null);
@@ -2326,8 +2328,15 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const lv=getSeasonLevel(seasonPts);
 
   useEffect(()=>{
-    supabase.from("friendships").select("id",{count:"exact",head:true}).eq("user_id",profile.id).eq("status","accepted")
-      .then(({count})=>setFriendCount(count||0));
+    (async()=>{
+      const{data:fs,count}=await supabase.from("friendships").select("friend_id",{count:"exact"}).eq("user_id",profile.id).eq("status","accepted");
+      setFriendCount(count||0);
+      const ids=(fs||[]).map(f=>f.friend_id);
+      if(ids.length>0){
+        const{data:profs}=await supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids);
+        setFriendsList(profs||[]);
+      }else{setFriendsList([]);}
+    })();
     supabase.from("trainings").select("date,distance,duration,sport,points").eq("user_id",profile.id)
       .then(({data})=>setTrainings(data||[]));
     supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",profile.id)
@@ -2371,9 +2380,9 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         </div>
       </div>
       <div style={{display:"flex",gap:10,marginBottom:18}}>
-        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{friendCount}</div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Amis</div>
+        <div onClick={()=>setPanel("amis")} style={{flex:1,background:panel==="amis"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="amis"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="amis"?"#E63946":"#F0EDE8"}}>{friendCount}</div>
+          <div style={{fontSize:10,color:panel==="amis"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="amis"?700:400}}>Amis</div>
         </div>
         <div onClick={()=>setPanel("races")} style={{flex:1,background:panel==="races"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="races"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="races"?"#E63946":"#F0EDE8"}}>{results.length}</div>
@@ -2405,9 +2414,27 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       </div>
       </div>
       <div style={{paddingTop:8}}>
-      {panel==="badges"
-        ?<BadgesByCategory badges={badges}/>
-        :(results.length===0
+      {panel==="amis"?(
+        friendsList.length===0?
+          <div style={{padding:"30px 20px",textAlign:"center",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,marginBottom:14}}>
+            <div style={{fontSize:32,marginBottom:8}}>👥</div>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.55)"}}>Aucun ami pour le moment — utilise la recherche dans Social pour en ajouter !</div>
+          </div>
+        :<div style={{marginBottom:14}}>
+          {friendsList.map(p=>(
+            <div key={p.id} onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:14,marginBottom:6,cursor:"pointer"}}>
+              <Avatar profile={p} size={36}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
+              </div>
+              <div style={{color:"rgba(240,237,232,0.35)",fontSize:18,flexShrink:0}}>›</div>
+            </div>
+          ))}
+        </div>
+      ):panel==="badges"?(
+        <BadgesByCategory badges={badges}/>
+      ):(results.length===0
           ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13,marginBottom:14}}>Aucune course enregistrée</div>
           :<div style={{marginBottom:14}}>
             {[...results].sort((a,b)=>(b.race_date||`${b.year}-12-31`).localeCompare(a.race_date||`${a.year}-12-31`)).map(r=>{
@@ -2428,6 +2455,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
             })}
           </div>)
       }
+      {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       <div style={{paddingTop:10}}>
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(252,76,2,0.08)",border:"1px solid rgba(252,76,2,0.3)",borderRadius:14,marginBottom:10}}>
         <div style={{fontSize:22,flexShrink:0}}>🏃‍♂️</div>
