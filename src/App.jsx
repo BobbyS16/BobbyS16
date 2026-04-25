@@ -45,8 +45,8 @@ const DISCIPLINES = {
   "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2 },
   "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3 },
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5 },
-  "hyrox-solo":   { label:"Hyrox Solo",      icon:"🔥", category:"hyrox",     refTime:55*60,        prestige:1.2 },
-  "hyrox-double": { label:"Hyrox Double",    icon:"🔥", category:"hyrox",     refTime:50*60,        prestige:1.1 },
+  "hyrox-solo":   { label:"Hyrox Solo",      icon:"🔥", category:"hyrox",     refTime:54*60+24,     prestige:1.2 },
+  "hyrox-double": { label:"Hyrox Double",    icon:"🔥", category:"hyrox",     refTime:47*60+57,     prestige:1.1 },
 };
 
 const TRAINING_SPORTS = ["All","Run","Vélo","Natation","Trail"];
@@ -716,8 +716,8 @@ function HowItWorksModal({onClose}){
         <RefRow label="🏊 Triathlon Olympique"  time="1h50"  prestige="1.2" color="#9B59B6"/>
         <RefRow label="🏊 Half Ironman"         time="2h56"  prestige="1.3" color="#9B59B6"/>
         <RefRow label="🏊 Ironman"              time="5h50"  prestige="1.5" color="#9B59B6"/>
-        <RefRow label="🔥 Hyrox Solo"           time="55:00" prestige="1.2" color="#E63946"/>
-        <RefRow label="🔥 Hyrox Double"         time="50:00" prestige="1.1" color="#E63946"/>
+        <RefRow label="🔥 Hyrox Solo"           time="54:24" prestige="1.2" color="#E63946"/>
+        <RefRow label="🔥 Hyrox Double"         time="47:57" prestige="1.1" color="#E63946"/>
       </Section>
 
       <Section title="2 · Niveaux par course">
