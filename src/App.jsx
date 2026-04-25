@@ -149,12 +149,15 @@ function getLevel(pts) {
   return                 {label:"Débutant",    color:"#27AE60"};
 }
 function getSeasonLevel(pts) {
-  if (pts >= 3000) return {label:"Élite",      color:"#FFD700"};
-  if (pts >= 2000) return {label:"Expert",     color:"#C0C0C0"};
-  if (pts >= 1300) return {label:"Avancé",     color:"#CD7F32"};
-  if (pts >= 700)  return {label:"Confirmé",   color:"#9B59B6"};
-  if (pts >= 300)  return {label:"Interméd.",  color:"#4A90D9"};
-  return                  {label:"Débutant",   color:"#27AE60"};
+  if (pts >= 9000) return {label:"UltraStar", color:"#FF1493"};
+  if (pts >= 6500) return {label:"SuperStar", color:"#FF6B35"};
+  if (pts >= 4500) return {label:"Star",      color:"#00D4FF"};
+  if (pts >= 3000) return {label:"Élite",     color:"#FFD700"};
+  if (pts >= 2000) return {label:"Expert",    color:"#C0C0C0"};
+  if (pts >= 1300) return {label:"Avancé",    color:"#CD7F32"};
+  if (pts >= 700)  return {label:"Confirmé",  color:"#9B59B6"};
+  if (pts >= 300)  return {label:"Interméd.", color:"#4A90D9"};
+  return                  {label:"Débutant",  color:"#27AE60"};
 }
 function fmtTime(s) {
   if (!s && s !== 0) return "--:--:--";
@@ -1975,7 +1978,11 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         </div>
       </div>
       <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",lineHeight:1.7,marginBottom:14}}>
-        {[[{label:"Débutant",min:0,color:"#27AE60"},{label:"Intermédiaire",min:300,color:"#4A90D9"},{label:"Confirmé",min:700,color:"#9B59B6"}],[{label:"Avancé",min:1300,color:"#CD7F32"},{label:"Expert",min:2000,color:"#C0C0C0"},{label:"Élite",min:3000,color:"#FFD700"}]].map((row,i)=>(
+        {[
+          [{label:"Débutant",min:0,color:"#27AE60"},{label:"Intermédiaire",min:300,color:"#4A90D9"},{label:"Confirmé",min:700,color:"#9B59B6"}],
+          [{label:"Avancé",min:1300,color:"#CD7F32"},{label:"Expert",min:2000,color:"#C0C0C0"},{label:"Élite",min:3000,color:"#FFD700"}],
+          [{label:"Star",min:4500,color:"#00D4FF"},{label:"SuperStar",min:6500,color:"#FF6B35"},{label:"UltraStar",min:9000,color:"#FF1493"}],
+        ].map((row,i)=>(
           <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8}}>
             {row.map(l=>(<span key={l.label}><span style={{color:l.color,fontWeight:700}}>{l.label}</span> dès {l.min} pts</span>))}
           </div>
