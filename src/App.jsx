@@ -747,7 +747,29 @@ function HowItWorksModal({onClose}){
         </div>
       </Section>
 
-      <Section title="3 · Points bonus">
+      <Section title="3 · Statut saison">
+        <P>Tes points de la saison (courses + entraînements + bonus) te placent sur une échelle de 9 paliers, du <span style={{color:"#27AE60",fontWeight:700}}>Débutant</span> à l'<span style={{color:"#FF1493",fontWeight:700}}>UltraStar</span>. Ton statut s'affiche à côté de tes points sur ta carte de profil.</P>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:10}}>
+          {[
+            {label:"Débutant",min:0,color:"#27AE60"},
+            {label:"Interméd.",min:300,color:"#4A90D9"},
+            {label:"Confirmé",min:700,color:"#9B59B6"},
+            {label:"Avancé",min:1300,color:"#CD7F32"},
+            {label:"Expert",min:2000,color:"#C0C0C0"},
+            {label:"Élite",min:3000,color:"#FFD700"},
+            {label:"Star",min:4500,color:"#00D4FF"},
+            {label:"SuperStar",min:6500,color:"#FF6B35"},
+            {label:"UltraStar",min:9000,color:"#FF1493"},
+          ].map(l=>(
+            <div key={l.label} style={{padding:"8px 6px",background:`${l.color}12`,border:`1px solid ${l.color}55`,borderRadius:8,borderLeft:`3px solid ${l.color}`,textAlign:"center"}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:l.color,letterSpacing:0.4,lineHeight:1}}>{l.label}</div>
+              <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",letterSpacing:0.5,marginTop:3}}>dès {l.min} pts</div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="4 · Points bonus">
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:8}}>Courses</div>
         <Bullet emoji="🏆" bold="Record personnel battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
         <Bullet emoji="🥇" bold="Top 3 de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+300 pts</span></Bullet>
@@ -759,12 +781,12 @@ function HowItWorksModal({onClose}){
         <Bullet emoji="📏" bold="100 km parcourus dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
       </Section>
 
-      <Section title="4 · Le Streak">
+      <Section title="5 · Le Streak">
         <P>Le streak compte le nombre de <span style={{color:"#F0EDE8",fontWeight:700}}>semaines consécutives</span> avec au moins une activité enregistrée (course ou entraînement).</P>
         <P>Tant que tu fais bouger la machine au moins une fois par semaine, ton streak grimpe. Si tu rates une semaine entière, il repart à zéro.</P>
       </Section>
 
-      <Section title="5 · Les Ligues">
+      <Section title="6 · Les Ligues">
         <P>Chaque semaine, tu affrontes <span style={{color:"#F0EDE8",fontWeight:700}}>20 athlètes</span> de ton niveau dans une ligue. Le classement est basé uniquement sur tes <span style={{color:"#F0EDE8",fontWeight:700}}>points d'entraînement de la semaine</span> (les courses officielles ne comptent pas).</P>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginTop:10,marginBottom:10}}>
           {[
@@ -787,7 +809,7 @@ function HowItWorksModal({onClose}){
         <P>Les points <span style={{color:"#F0EDE8",fontWeight:700}}>remettent à 0 chaque lundi à 00h</span> : nouvelle semaine, nouveau classement.</P>
       </Section>
 
-      <Section title="6 · Les disciplines">
+      <Section title="7 · Les disciplines">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[
             {icon:"🏃",label:"Course à pied",color:"#4A90D9",desc:"5 km · 10 km · semi · marathon"},
@@ -2379,17 +2401,6 @@ function ProfileModal({profile,results,onRefresh,onClose}){
             {y}
             {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
           </button>
-        ))}
-      </div>
-      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",lineHeight:1.7,marginBottom:14}}>
-        {[
-          [{label:"Débutant",min:0,color:"#27AE60"},{label:"Intermédiaire",min:300,color:"#4A90D9"},{label:"Confirmé",min:700,color:"#9B59B6"}],
-          [{label:"Avancé",min:1300,color:"#CD7F32"},{label:"Expert",min:2000,color:"#C0C0C0"},{label:"Élite",min:3000,color:"#FFD700"}],
-          [{label:"Star",min:4500,color:"#00D4FF"},{label:"SuperStar",min:6500,color:"#FF6B35"},{label:"UltraStar",min:9000,color:"#FF1493"}],
-        ].map((row,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8}}>
-            {row.map(l=>(<span key={l.label}><span style={{color:l.color,fontWeight:700}}>{l.label}</span> dès {l.min} pts</span>))}
-          </div>
         ))}
       </div>
       </div>
