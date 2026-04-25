@@ -311,6 +311,8 @@ const M_VALS=Array.from({length:60},(_,i)=>String(i).padStart(2,"0"));
 const DAY_VALS=Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0"));
 const MON_VALS=["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
 const YR_VALS=Array.from({length:15},(_,i)=>String(CY-14+i));
+const BIRTH_YEARS=Array.from({length:CY-10-1920+1},(_,i)=>String(CY-10-i));
+const NATIONALITIES=["Française","Algérienne","Allemande","Américaine","Argentine","Australienne","Belge","Brésilienne","Britannique","Bulgare","Camerounaise","Canadienne","Chilienne","Chinoise","Coréenne","Croate","Danoise","Égyptienne","Espagnole","Finlandaise","Grecque","Hongroise","Indienne","Iranienne","Irlandaise","Israélienne","Italienne","Ivoirienne","Japonaise","Libanaise","Luxembourgeoise","Marocaine","Mexicaine","Néerlandaise","Néo-zélandaise","Norvégienne","Polonaise","Portugaise","Roumaine","Russe","Sénégalaise","Sud-africaine","Suédoise","Suisse","Tchèque","Tunisienne","Turque","Ukrainienne","Autre"];
 
 function TimePicker({value,onChange}) {
   const parse=v=>{if(v&&v.includes(":")){const[h,m,s]=v.split(":").map(x=>parseInt(x)||0);return[h,m,s];}return[0,0,0];};
@@ -617,9 +619,21 @@ function EditProfileModal({profile,onSave,onClose}){
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Lbl c="Nom complet"/><Inp value={name} onChange={setName} placeholder="Ton nom"/>
       <Lbl c="Ville"/><Inp value={city} onChange={setCity} placeholder="Ta ville"/>
-      <Lbl c="Année de naissance"/><Inp value={birthYear} onChange={setBirth} placeholder="Ex: 1990" type="number"/>
-      <Lbl c="Sexe"/><Sel value={gender} onChange={setGender}><option value="">Non précisé</option><option value="H">Homme</option><option value="F">Femme</option></Sel>
-      <Lbl c="Nationalité"/><Inp value={nat} onChange={setNat} placeholder="Ex: Française"/>
+      <Lbl c="Année de naissance"/>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",display:"flex",justifyContent:"center",marginBottom:16}}>
+        <DrumPicker values={BIRTH_YEARS} selectedIndex={Math.max(0,BIRTH_YEARS.indexOf(String(birthYear||CY-30)))} onChange={i=>setBirth(BIRTH_YEARS[i])} width={120}/>
+      </div>
+      <Lbl c="Sexe"/>
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        {[{v:"H",l:"👨 Homme"},{v:"F",l:"👩 Femme"}].map(({v,l})=>(
+          <button key={v} type="button" onClick={()=>setGender(v)} style={{flex:1,padding:"14px 0",borderRadius:12,border:`1px solid ${gender===v?"#E63946":"rgba(255,255,255,0.1)"}`,background:gender===v?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.05)",color:gender===v?"#E63946":"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14}}>{l}</button>
+        ))}
+      </div>
+      <Lbl c="Nationalité"/>
+      <Sel value={nat} onChange={setNat}>
+        <option value="">— Choisir —</option>
+        {NATIONALITIES.map(n=><option key={n} value={n}>{n}</option>)}
+      </Sel>
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Sauvegarder"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
     </Modal>
@@ -2688,9 +2702,21 @@ function OnboardingScreen({profile,onDone}){
         <div style={{fontSize:13,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginBottom:20,lineHeight:1.5}}>Ces informations sont nécessaires pour activer les classements (âge, ville, sexe, nationalité).</div>
         <Lbl c="Nom complet *"/><Inp value={name} onChange={setName} placeholder="Ton nom"/>
         <Lbl c="Ville *"/><Inp value={city} onChange={setCity} placeholder="Ta ville"/>
-        <Lbl c="Année de naissance *"/><Inp value={birthYear} onChange={setBirth} placeholder="Ex: 1990" type="number"/>
-        <Lbl c="Sexe *"/><Sel value={gender} onChange={setGender}><option value="">— Choisir —</option><option value="H">Homme</option><option value="F">Femme</option></Sel>
-        <Lbl c="Nationalité *"/><Inp value={nat} onChange={setNat} placeholder="Ex: Française"/>
+        <Lbl c="Année de naissance *"/>
+        <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",display:"flex",justifyContent:"center",marginBottom:16}}>
+          <DrumPicker values={BIRTH_YEARS} selectedIndex={Math.max(0,BIRTH_YEARS.indexOf(String(birthYear||CY-30)))} onChange={i=>setBirth(BIRTH_YEARS[i])} width={120}/>
+        </div>
+        <Lbl c="Sexe *"/>
+        <div style={{display:"flex",gap:10,marginBottom:16}}>
+          {[{v:"H",l:"👨 Homme"},{v:"F",l:"👩 Femme"}].map(({v,l})=>(
+            <button key={v} type="button" onClick={()=>setGender(v)} style={{flex:1,padding:"14px 0",borderRadius:12,border:`1px solid ${gender===v?"#E63946":"rgba(255,255,255,0.1)"}`,background:gender===v?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.05)",color:gender===v?"#E63946":"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14}}>{l}</button>
+          ))}
+        </div>
+        <Lbl c="Nationalité *"/>
+        <Sel value={nat} onChange={setNat}>
+          <option value="">— Choisir —</option>
+          {NATIONALITIES.map(n=><option key={n} value={n}>{n}</option>)}
+        </Sel>
         {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
         <Btn onClick={handleSave} disabled={!valid||loading} mb={8}>{loading?"Enregistrement...":"Commencer"}</Btn>
         <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"10px 0",background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer"}}>Se déconnecter</button>
