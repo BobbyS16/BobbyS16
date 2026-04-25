@@ -1222,11 +1222,11 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
           <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>
+          <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",minWidth:80,boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
             🔔
             {notifCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:"2px solid #0e0e0e",boxSizing:"content-box"}}>{notifCount>9?"9+":notifCount}</span>}
           </button>
-          <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,cursor:"pointer"}}>
+          <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",minWidth:80,boxSizing:"border-box",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,lineHeight:1.2,cursor:"pointer",textAlign:"center"}}>
             {copied?"✓ Copié !":"🔗 Inviter"}
           </button>
         </div>
