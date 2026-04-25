@@ -1059,21 +1059,46 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       const offsetToMonday=day===0?-6:1-day;
       const monday=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offsetToMonday);
       const nextMonday=new Date(monday.getTime()+7*86400000);
+      console.log("[league] semaine du",monday.toISOString(),"au",nextMonday.toISOString());
 
-      let{data:myLeagueRow}=await supabase.from("user_leagues").select("*").eq("user_id",user.id).maybeSingle();
-      if(!myLeagueRow){
-        await supabase.from("user_leagues").insert({user_id:user.id,current_league:"bronze"});
+      let myLeagueRow=null;
+      try{
+        const r=await supabase.from("user_leagues").select("*").eq("user_id",user.id).maybeSingle();
+        if(r.error){throw r.error;}
+        myLeagueRow=r.data;
+        if(!myLeagueRow){
+          const ins=await supabase.from("user_leagues").insert({user_id:user.id,current_league:"bronze"}).select().maybeSingle();
+          myLeagueRow=ins.data||{user_id:user.id,current_league:"bronze",league_group_id:null};
+        }
+      }catch(e){
+        console.error("[league] user_leagues indisponible — fallback Bronze solo",e?.message||e);
         myLeagueRow={user_id:user.id,current_league:"bronze",league_group_id:null};
       }
       const tier=myLeagueRow.current_league||"bronze";
       const groupId=myLeagueRow.league_group_id;
-      let q=supabase.from("user_leagues").select("user_id,league_group_id").eq("current_league",tier);
-      if(groupId)q=q.eq("league_group_id",groupId);else q=q.is("league_group_id",null);
-      const{data:mates}=await q;
-      const memberIds=(mates||[]).map(m=>m.user_id);
+
+      let memberIds=[user.id];
+      try{
+        let q=supabase.from("user_leagues").select("user_id,league_group_id").eq("current_league",tier);
+        if(groupId)q=q.eq("league_group_id",groupId);else q=q.is("league_group_id",null);
+        const{data:mates,error}=await q;
+        if(error)throw error;
+        if(mates&&mates.length>0)memberIds=[...new Set([user.id,...mates.map(m=>m.user_id)])];
+      }catch(e){
+        console.error("[league] requête mates échouée — solo dans la ligue",e?.message||e);
+      }
       const memberSet=new Set(memberIds);
-      const memberProfiles=allProfiles.filter(p=>memberSet.has(p.id));
-      const weekTrainings=(allTrainings||[]).filter(t=>{const d=new Date(t.date);return memberSet.has(t.user_id)&&d>=monday&&d<nextMonday;});
+      let memberProfiles=allProfiles.filter(p=>memberSet.has(p.id));
+      if(!memberProfiles.some(p=>p.id===user.id)){
+        const myProf=allProfiles.find(p=>p.id===user.id);
+        if(myProf)memberProfiles=[...memberProfiles,myProf];
+      }
+      const weekTrainings=(allTrainings||[]).filter(t=>{
+        if(!t.date||!memberSet.has(t.user_id))return false;
+        const d=new Date(t.date);
+        return d>=monday&&d<nextMonday;
+      });
+      console.log(`[league] ${memberProfiles.length} membres, ${weekTrainings.length} trainings cette semaine`);
       const players=memberProfiles.map(p=>{
         const pTrains=weekTrainings.filter(t=>t.user_id===p.id);
         const trainPts=pTrains.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
@@ -1083,11 +1108,12 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       const myWeekTrainings=weekTrainings.filter(t=>t.user_id===user.id);
       const mySessions=myWeekTrainings.map(t=>{
         const dt=t.date?new Date(t.date):null;
-        const day=dt?DAY_FR[dt.getDay()]:"";
+        const dlbl=dt?DAY_FR[dt.getDay()]:"";
         const pts=t.points||calcTrainingPts(t.distance,t.sport,t.duration);
-        return{sport:t.sport,dist:t.distance,day,pts};
+        return{sport:t.sport,dist:t.distance,day:dlbl,pts};
       }).sort((a,b)=>b.pts-a.pts);
       const myLeague=LEAGUES.find(l=>l.id===tier)||LEAGUES[0];
+      console.log(`[league] mes pts cette semaine: ${players.find(p=>p.isMe)?.trainPts||0}`);
       setLeagueData({players,myLeague,mySessions});
       return;
     }
