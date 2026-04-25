@@ -1345,7 +1345,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
 
 // ── RANKING TAB ───────────────────────────────────────────────────────────────
 function RankingTab({myProfile}){
-  const [filter,setFilter]=useState("group");
+  const [filter,setFilter]=useState("discipline");
   const [season,setSeason]=useState(CY);
   const seasonsRef=useRef(null);
   const [discFilter,setDisc]=useState("marathon");
