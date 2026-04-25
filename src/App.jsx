@@ -2582,13 +2582,13 @@ function FriendProfileModal({friend,myId,onClose}){
           <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="amis"?"#E63946":"#F0EDE8"}}>{friendCount}</div>
           <div style={{fontSize:10,color:panel==="amis"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="amis"?700:400}}>Amis</div>
         </div>
-        <div onClick={()=>setPanel("badges")} style={{flex:1,background:panel==="badges"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="badges"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="badges"?"#E63946":"#F0EDE8"}}>{badges.length}</div>
-          <div style={{fontSize:10,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400}}>Badges</div>
-        </div>
         <div onClick={()=>setPanel("courses")} style={{flex:1,background:panel==="courses"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="courses"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="courses"?"#E63946":"#F0EDE8"}}>{results.length}</div>
           <div style={{fontSize:10,color:panel==="courses"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="courses"?700:400}}>Courses</div>
+        </div>
+        <div onClick={()=>setPanel("badges")} style={{flex:1,background:panel==="badges"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="badges"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="badges"?"#E63946":"#F0EDE8"}}>{badges.length}</div>
+          <div style={{fontSize:10,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400}}>Badges</div>
         </div>
       </div>
 
