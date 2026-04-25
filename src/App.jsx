@@ -808,7 +808,6 @@ function LeagueBadge({league,size=40,active=false}){
 }
 
 function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
-  const [subTab,setSubTab]=useState("classement");
   const [now,setNow]=useState(Date.now());
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
   const d=new Date(now);
@@ -885,19 +884,8 @@ function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
         </div>
       </div>
 
-      {/* Sub tabs */}
-      <div style={{display:"flex",gap:6,marginBottom:12}}>
-        {[["classement","🏅 Classement"],["mes-sessions","💪 Mes sessions"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setSubTab(k)} style={{flex:1,padding:"7px 0",borderRadius:10,border:"none",
-            cursor:"pointer",background:subTab===k?"rgba(255,215,0,0.12)":"rgba(255,255,255,0.04)",
-            color:subTab===k?"#FFD700":"rgba(240,237,232,0.4)",
-            fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
-        ))}
-      </div>
-
       {/* Leaderboard */}
-      {subTab==="classement"&&(
-        <div>
+      <div>
           {players.map((p,i)=>{
             const isTop5=i<5;
             const isBottom5=i>=players.length-5&&players.length>=10;
@@ -981,48 +969,7 @@ function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
               <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>Tiens ta place jusqu'à lundi pour monter en {nextLeague.label}.</div>
             </div>
           ):null}
-        </div>
-      )}
-
-      {/* My sessions */}
-      {subTab==="mes-sessions"&&(
-        <div>
-          <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>
-            Tes entraînements cette semaine
-          </div>
-          {mySessions.length===0?(
-            <div style={{padding:"24px",textAlign:"center",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,marginBottom:10}}>
-              <div style={{fontSize:24,marginBottom:6}}>💪</div>
-              <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>Aucun entraînement cette semaine.<br/>Lance une séance pour marquer des points !</div>
-            </div>
-          ):mySessions.map((s,i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0}}>
-                <div style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
-                  {SPORT_EMOJI[s.sport]||"💪"}
-                </div>
-                <div style={{minWidth:0}}>
-                  <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.sport}</div>
-                  <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{s.dist} km · {s.day}</div>
-                </div>
-              </div>
-              <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#FFD700",letterSpacing:1,lineHeight:1}}>{s.pts}</div>
-                <div style={{fontSize:8,color:"rgba(240,237,232,0.3)",letterSpacing:1,fontFamily:"'Barlow',sans-serif",marginTop:2}}>PTS</div>
-              </div>
-            </div>
-          ))}
-          {mySessions.length>0&&(
-            <div style={{padding:"14px",background:"rgba(255,215,0,0.06)",border:"1px solid rgba(255,215,0,0.2)",borderRadius:12,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
-              <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>Total semaine</div>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#FFD700",letterSpacing:1}}>{totalSessionPts}</div>
-            </div>
-          )}
-          <div style={{marginTop:12,fontSize:11,color:"rgba(240,237,232,0.3)",textAlign:"center",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
-            Les points de ligue sont calculés sur tes entraînements uniquement.<br/>Ils remettent à 0 chaque lundi matin.
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Progression frize */}
       <div style={{marginTop:16,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.04)",borderRadius:14,padding:"14px"}}>
