@@ -2346,6 +2346,83 @@ function AuthScreen(){
   );
 }
 
+// ── INSTALL PROMPT ────────────────────────────────────────────────────────────
+function InstallPrompt(){
+  const [show,setShow]=useState(false);
+  const [showHelp,setShowHelp]=useState(false);
+  const [deferred,setDeferred]=useState(null);
+  const [platform,setPlatform]=useState(null);
+
+  useEffect(()=>{
+    const isStandalone=window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
+    if(isStandalone)return;
+    const dismissedAt=parseInt(localStorage.getItem("installPromptDismissedAt")||"0");
+    if(dismissedAt&&Date.now()-dismissedAt<7*24*3600*1000)return;
+    const ua=navigator.userAgent;
+    const isIOS=/iPad|iPhone|iPod/.test(ua)&&!window.MSStream;
+    const isInIOSWebView=isIOS&&!/Safari/.test(ua);
+    if(isIOS&&!isInIOSWebView){
+      setPlatform("ios");
+      const t=setTimeout(()=>setShow(true),10000);
+      return()=>clearTimeout(t);
+    }
+    const handler=e=>{
+      e.preventDefault();
+      setDeferred(e);
+      setPlatform("android");
+      setShow(true);
+    };
+    window.addEventListener("beforeinstallprompt",handler);
+    return()=>window.removeEventListener("beforeinstallprompt",handler);
+  },[]);
+
+  const dismiss=()=>{
+    try{localStorage.setItem("installPromptDismissedAt",String(Date.now()));}catch{}
+    setShow(false);setShowHelp(false);
+  };
+  const installAndroid=async()=>{
+    if(!deferred){setShowHelp(true);return;}
+    deferred.prompt();
+    const{outcome}=await deferred.userChoice;
+    setDeferred(null);setShow(false);
+    if(outcome==="dismissed")dismiss();
+  };
+
+  if(!show&&!showHelp)return null;
+
+  return (<>
+    {show&&(
+      <div style={{position:"fixed",left:12,right:12,bottom:"calc(80px + env(safe-area-inset-bottom))",zIndex:200,background:"rgba(20,20,20,0.97)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"11px 13px",display:"flex",alignItems:"center",gap:10,maxWidth:460,margin:"0 auto",boxShadow:"0 8px 24px rgba(0,0,0,0.45)"}}>
+        <div onClick={()=>platform==="android"?installAndroid():setShowHelp(true)} style={{flex:1,minWidth:0,cursor:"pointer",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:13,lineHeight:1.4}}>
+          📱 Installe PaceRank sur ton écran d'accueil pour un accès rapide
+        </div>
+        {platform==="android"&&<button onClick={installAndroid} style={{padding:"7px 12px",borderRadius:10,background:"#E63946",border:"none",color:"#fff",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,flexShrink:0}}>Installer</button>}
+        <button onClick={dismiss} aria-label="Fermer" style={{padding:"6px 9px",borderRadius:8,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.55)",cursor:"pointer",fontSize:14,flexShrink:0,lineHeight:1}}>✕</button>
+      </div>
+    )}
+    {showHelp&&(
+      <Modal onClose={()=>setShowHelp(false)}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:6}}>Installer PaceRank</div>
+        <div style={{fontSize:13,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginBottom:18,lineHeight:1.5}}>Ajoute l'app à ton écran d'accueil iOS en 3 étapes :</div>
+        {[
+          {n:"1",icon:"⬆️",title:"Tape sur le bouton Partager",desc:"En bas de Safari, l'icône carré avec une flèche vers le haut"},
+          {n:"2",icon:"🏠",title:"Choisis « Sur l'écran d'accueil »",desc:"Fais défiler le menu Partager si besoin"},
+          {n:"3",icon:"✅",title:"Confirme en haut à droite",desc:"L'icône PaceRank apparaît sur ton écran d'accueil"},
+        ].map(s=>(
+          <div key={s.n} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"12px 14px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,marginBottom:8}}>
+            <div style={{width:30,height:30,flexShrink:0,borderRadius:"50%",background:"rgba(230,57,70,0.15)",border:"1px solid rgba(230,57,70,0.45)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946"}}>{s.n}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{s.icon} {s.title}</div>
+              <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>{s.desc}</div>
+            </div>
+          </div>
+        ))}
+        <Btn onClick={()=>setShowHelp(false)} mb={0}>C'est compris</Btn>
+      </Modal>
+    )}
+  </>);
+}
+
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App(){
   const [session,setSession]=useState(null);
@@ -2454,6 +2531,7 @@ export default function App(){
       {addMode==="result"&&<ResultModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
+      <InstallPrompt/>
     </div>
   );
 }
