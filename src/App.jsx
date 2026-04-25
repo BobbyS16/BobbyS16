@@ -1981,6 +1981,14 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div style={{fontSize:10,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400}}>Badges</div>
         </div>
       </div>
+      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
+        {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
+          <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            {y}
+            {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
+          </button>
+        ))}
+      </div>
       <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",lineHeight:1.7,marginBottom:14}}>
         {[
           [{label:"Débutant",min:0,color:"#27AE60"},{label:"Intermédiaire",min:300,color:"#4A90D9"},{label:"Confirmé",min:700,color:"#9B59B6"}],
@@ -1990,14 +1998,6 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8}}>
             {row.map(l=>(<span key={l.label}><span style={{color:l.color,fontWeight:700}}>{l.label}</span> dès {l.min} pts</span>))}
           </div>
-        ))}
-      </div>
-      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:18,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
-        {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
-          <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            {y}
-            {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
-          </button>
         ))}
       </div>
       </div>
