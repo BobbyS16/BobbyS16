@@ -735,7 +735,30 @@ function HowItWorksModal({onClose}){
         <P>Tant que tu fais bouger la machine au moins une fois par semaine, ton streak grimpe. Si tu rates une semaine entière, il repart à zéro.</P>
       </Section>
 
-      <Section title="5 · Les disciplines">
+      <Section title="5 · Les Ligues">
+        <P>Chaque semaine, tu affrontes <span style={{color:"#F0EDE8",fontWeight:700}}>20 athlètes</span> de ton niveau dans une ligue. Le classement est basé uniquement sur tes <span style={{color:"#F0EDE8",fontWeight:700}}>points d'entraînement de la semaine</span> (les courses officielles ne comptent pas).</P>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginTop:10,marginBottom:10}}>
+          {[
+            {label:"Bronze",icon:"🥉",color:"#CD7F32"},
+            {label:"Argent",icon:"🥈",color:"#C0C0C0"},
+            {label:"Or",icon:"🥇",color:"#FFD700"},
+            {label:"Platine",icon:"💎",color:"#4A90D9"},
+            {label:"Élite",icon:"🔥",color:"#E63946"},
+          ].map(l=>(
+            <div key={l.label} style={{padding:"10px 4px",background:`${l.color}15`,border:`1px solid ${l.color}50`,borderRadius:10,textAlign:"center"}}>
+              <div style={{fontSize:18}}>{l.icon}</div>
+              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:10,color:l.color,letterSpacing:0.5,marginTop:2,textTransform:"uppercase"}}>{l.label}</div>
+            </div>
+          ))}
+        </div>
+        <P>Les nouveaux athlètes démarrent en <span style={{color:"#CD7F32",fontWeight:700}}>Bronze</span> et progressent jusqu'à <span style={{color:"#E63946",fontWeight:700}}>Élite</span>.</P>
+        <Bullet emoji="🏆" bold="TOP 5 ">→ promotion à la ligue supérieure le lundi suivant</Bullet>
+        <Bullet emoji="🛡️" bold="Du 6e au 15e ">→ maintien dans la ligue actuelle</Bullet>
+        <Bullet emoji="⚠️" bold="BOTTOM 5 ">→ relégation à la ligue inférieure</Bullet>
+        <P>Les points <span style={{color:"#F0EDE8",fontWeight:700}}>remettent à 0 chaque lundi à 00h</span> : nouvelle semaine, nouveau classement.</P>
+      </Section>
+
+      <Section title="6 · Les disciplines">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[
             {icon:"🏃",label:"Course à pied",color:"#4A90D9",desc:"5 km · 10 km · semi · marathon"},
