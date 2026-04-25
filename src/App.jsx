@@ -2528,12 +2528,14 @@ function FriendProfileModal({friend,myId,onClose}){
   const [trainings,setTrainings]=useState([]);
   const [fullProfile,setFullProfile]=useState(friend);
   const [friendCount,setFriendCount]=useState(0);
+  const [friendsList,setFriendsList]=useState([]);
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [season,setSeason]=useState(CY);
   const [tab,setTab]=useState("races");
   const [panel,setPanel]=useState("courses");
   const [loading,setLoading]=useState(true);
   const [showPhoto,setShowPhoto]=useState(false);
+  const [nestedFriend,setNestedFriend]=useState(null);
   const seasonsRef=useRef(null);
 
   useEffect(()=>{loadAll();},[friend.id]);
@@ -2541,16 +2543,21 @@ function FriendProfileModal({friend,myId,onClose}){
 
   const loadAll=async()=>{
     setLoading(true);
-    const[{data:r},{data:t},{data:prof},{count:fc},{count:gc}]=await Promise.all([
+    const[{data:r},{data:t},{data:prof},{data:fs,count:fc},{count:gc}]=await Promise.all([
       supabase.from("results").select("*").eq("user_id",friend.id).order("year",{ascending:false}),
       supabase.from("trainings").select("*").eq("user_id",friend.id).order("date",{ascending:false}),
       supabase.from("profiles").select("*").eq("id",friend.id).single(),
-      supabase.from("friendships").select("id",{count:"exact",head:true}).eq("user_id",friend.id).eq("status","accepted"),
+      supabase.from("friendships").select("friend_id",{count:"exact"}).eq("user_id",friend.id).eq("status","accepted"),
       supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",friend.id),
     ]);
     setResults(r||[]);setTrainings(t||[]);
     if(prof)setFullProfile(prof);
     setFriendCount(fc||0);setGroupsCreated(gc||0);
+    const friendIds=(fs||[]).map(f=>f.friend_id);
+    if(friendIds.length>0){
+      const{data:profs}=await supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",friendIds);
+      setFriendsList(profs||[]);
+    }else{setFriendsList([]);}
     setLoading(false);
   };
 
@@ -2689,12 +2696,24 @@ function FriendProfileModal({friend,myId,onClose}){
       {panel==="badges"&&<BadgesByCategory badges={badges}/>}
 
       {panel==="amis"&&(
-        <div style={{padding:"30px 20px",textAlign:"center",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14}}>
-          <div style={{fontSize:32,marginBottom:8}}>👥</div>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{friendCount} ami{friendCount>1?"s":""}</div>
-          {groupsCreated>0&&<div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:6}}>{groupsCreated} groupe{groupsCreated>1?"s":""} créé{groupsCreated>1?"s":""}</div>}
-        </div>
+        loading?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+        :friendsList.length===0?
+          <div style={{padding:"30px 20px",textAlign:"center",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14}}>
+            <div style={{fontSize:32,marginBottom:8}}>👥</div>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.55)"}}>Aucun ami pour le moment</div>
+          </div>
+        :friendsList.map(p=>(
+          <div key={p.id} onClick={()=>setNestedFriend(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:14,marginBottom:6,cursor:"pointer"}}>
+            <Avatar profile={p} size={36}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
+            </div>
+            <div style={{color:"rgba(240,237,232,0.35)",fontSize:18,flexShrink:0}}>›</div>
+          </div>
+        ))
       )}
+      {nestedFriend&&<FriendProfileModal friend={nestedFriend} myId={myId} onClose={()=>setNestedFriend(null)}/>}
       {showPhoto&&fullProfile?.avatar&&<PhotoViewer src={fullProfile.avatar} onClose={()=>setShowPhoto(false)}/>}
     </Modal>
   );
