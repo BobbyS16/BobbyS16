@@ -1882,9 +1882,6 @@ function PerfTab({userId,refreshKey}){
   const byDisc={};
   results.forEach(r=>{if(!byDisc[r.discipline]||r.time<byDisc[r.discipline].time)byDisc[r.discipline]=r;});
 
-  const byYear={};
-  [...results].forEach(r=>{const y=rYear(r);if(!byYear[y])byYear[y]=[];byYear[y].push(r);});
-
   const discResults=results.filter(r=>r.discipline===selDisc).sort((a,b)=>(a.race_date||`${a.year}-01-01`).localeCompare(b.race_date||`${b.year}-01-01`));
   const progressionData=discResults.map(r=>({label:String(rYear(r)),value:r.time}));
 
@@ -1892,7 +1889,7 @@ function PerfTab({userId,refreshKey}){
     <div style={{flex:1,minHeight:0,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:16}}>Performances</div>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["bests","🏆 Records"],["history","📅 Historique"],["progression","📈 Progression"]].map(([k,l])=>(
+        {[["bests","🏆 Records"],["progression","📈 Progression"]].map(([k,l])=>(
           <button key={k} onClick={()=>setSubTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:subTab===k?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.05)",color:subTab===k?"#E63946":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
         ))}
       </div>
@@ -1922,26 +1919,6 @@ function PerfTab({userId,refreshKey}){
               </div>
             );
           })}
-        </div>
-      )}
-
-      {subTab==="history"&&(
-        <div>
-          {Object.entries(byYear).sort((a,b)=>b[0]-a[0]).map(([yr,res])=>(
-            <div key={yr} style={{marginBottom:18}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",fontWeight:700,letterSpacing:2,marginBottom:7}}>{yr}</div>
-              {[...res].sort((a,b)=>{const cats=["running","trail","triathlon"];return cats.indexOf(DISCIPLINES[a.discipline]?.category)-cats.indexOf(DISCIPLINES[b.discipline]?.category);}).map((r,i)=>{
-                const pts=calcPoints(r.discipline,r.time,r.elevation);const lv=getLevel(pts);return(
-                <SwipeRow key={r.id||i} onDelete={()=>deleteResult(r.id)}>
-                  <div onClick={()=>setEditResult(r)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:12,cursor:"pointer"}}>
-                    <div><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{DISCIPLINES[r.discipline]?.icon} {r.race||DISCIPLINES[r.discipline]?.label}</div></div>
-                    <div style={{textAlign:"right"}}><div style={{fontFamily:"'Bebas Neue'",fontSize:19,color:lv.color}}>{fmtTime(r.time)}</div><div style={{fontSize:10,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{pts} pts</div></div>
-                  </div>
-                </SwipeRow>
-              );})}
-            </div>
-          ))}
-          {results.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>}
         </div>
       )}
 
@@ -2262,6 +2239,9 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [panel,setPanel]=useState("races");
   const [friendsList,setFriendsList]=useState([]);
   const [openFriend,setOpenFriend]=useState(null);
+  const [racesSearch,setRacesSearch]=useState("");
+  const [racesDiscFilter,setRacesDiscFilter]=useState("Toutes");
+  const [racesYearFilter,setRacesYearFilter]=useState("Toutes");
   const [hidden,setHidden]=useState(!!profile?.ranking_hidden);
   useEffect(()=>{setHidden(!!profile?.ranking_hidden);},[profile?.ranking_hidden]);
   const [stravaTokens,setStravaTokens]=useState(null);
@@ -2434,16 +2414,65 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         </div>
       ):panel==="badges"?(
         <BadgesByCategory badges={badges}/>
-      ):(results.length===0
-          ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13,marginBottom:14}}>Aucune course enregistrée</div>
-          :<div style={{marginBottom:14}}>
-            {[...results].sort((a,b)=>(b.race_date||`${b.year}-12-31`).localeCompare(a.race_date||`${a.year}-12-31`)).map(r=>{
-              const pts=calcPoints(r.discipline,r.time,r.elevation);const ptsLv=getLevel(pts);
+      ):(()=>{
+        const DISC_CHIPS=[
+          {k:"Toutes",cat:null},
+          {k:"Course",cat:"running"},
+          {k:"Trail",cat:"trail"},
+          {k:"Triathlon",cat:"triathlon"},
+          {k:"Hyrox",cat:"hyrox"},
+          {k:"Vélo",cat:"velo"},
+          {k:"Natation",cat:"natation"},
+        ];
+        const years=[...new Set(results.map(r=>rYear(r)))].sort((a,b)=>b-a);
+        const prByDisc=results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{});
+        const q=racesSearch.trim().toLowerCase();
+        const filtered=[...results].filter(r=>{
+          if(racesDiscFilter!=="Toutes"){
+            const cat=DISC_CHIPS.find(c=>c.k===racesDiscFilter)?.cat;
+            if(cat&&DISCIPLINES[r.discipline]?.category!==cat)return false;
+            if(!cat)return false;
+          }
+          if(racesYearFilter!=="Toutes"&&String(rYear(r))!==String(racesYearFilter))return false;
+          if(q){
+            const hay=`${r.race||""} ${DISCIPLINES[r.discipline]?.label||""}`.toLowerCase();
+            if(!hay.includes(q))return false;
+          }
+          return true;
+        }).sort((a,b)=>(b.race_date||`${b.year}-12-31`).localeCompare(a.race_date||`${a.year}-12-31`));
+        return (
+          <div style={{marginBottom:14}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12,display:"flex",alignItems:"center",gap:8}}>🏁 Mes courses</div>
+            <div style={{position:"relative",marginBottom:10}}>
+              <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:14,color:"rgba(240,237,232,0.4)",pointerEvents:"none"}}>🔍</span>
+              <input value={racesSearch} onChange={e=>setRacesSearch(e.target.value)} placeholder="Rechercher une course…" style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 12px 10px 36px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <div style={{display:"flex",gap:5,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginBottom:8,paddingBottom:2}}>
+              {DISC_CHIPS.map(({k})=>(
+                <button key={k} onClick={()=>setRacesDiscFilter(k)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:racesDiscFilter===k?"#E63946":"rgba(255,255,255,0.06)",color:racesDiscFilter===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{k}</button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:5,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginBottom:14,paddingBottom:2}}>
+              {["Toutes",...years].map(y=>(
+                <button key={y} onClick={()=>setRacesYearFilter(y)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:String(racesYearFilter)===String(y)?"#E63946":"rgba(255,255,255,0.06)",color:String(racesYearFilter)===String(y)?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{y}</button>
+              ))}
+            </div>
+            {results.length===0?(
+              <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune course enregistrée</div>
+            ):filtered.length===0?(
+              <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune course trouvée</div>
+            ):filtered.map(r=>{
+              const pts=calcPoints(r.discipline,r.time,r.elevation);
+              const ptsLv=getLevel(pts);
+              const isPR=prByDisc[r.discipline]?.id===r.id;
               return(
                 <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label} · {rYear(r)}</div>
-                    <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                      {isPR&&<span style={{background:"rgba(255,215,0,0.15)",border:"1px solid rgba(255,215,0,0.35)",color:"#FFD700",fontSize:9,padding:"2px 5px",borderRadius:4,fontWeight:700,letterSpacing:0.5,fontFamily:"'Barlow',sans-serif"}}>PR</span>}
+                    </div>
                     {r.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race}</div>}
                   </div>
                   <div style={{textAlign:"right",flexShrink:0}}>
@@ -2453,8 +2482,9 @@ function ProfileModal({profile,results,onRefresh,onClose}){
                 </div>
               );
             })}
-          </div>)
-      }
+          </div>
+        );
+      })()}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       <div style={{paddingTop:10}}>
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(252,76,2,0.08)",border:"1px solid rgba(252,76,2,0.3)",borderRadius:14,marginBottom:10}}>
