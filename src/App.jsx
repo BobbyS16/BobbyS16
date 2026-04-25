@@ -37,10 +37,10 @@ const DISCIPLINES = {
   "10km":     { label:"10 km",               icon:"🏃", category:"running",   refTime:27*60,        prestige:1.0 },
   "semi":     { label:"Semi-marathon",       icon:"🏃", category:"running",   refTime:58*60,        prestige:1.1 },
   "marathon": { label:"Marathon",            icon:"🏃", category:"running",   refTime:2*3600+2*60,  prestige:1.2 },
-  "trail-s":  { label:"Trail Court (<30km)", icon:"⛰️", category:"trail",     refTime:2*3600+30*60, prestige:1.1 },
-  "trail-m":  { label:"Trail Moyen (30-60)", icon:"⛰️", category:"trail",     refTime:5*3600+30*60, prestige:1.2 },
-  "trail-l":  { label:"Trail Long (60-100)", icon:"⛰️", category:"trail",     refTime:10*3600,      prestige:1.3 },
-  "trail-xl": { label:"Ultra Trail (100+)",  icon:"⛰️", category:"trail",     refTime:20*3600,      prestige:1.5 },
+  "trail-s":  { label:"Trail Court (<30km)", icon:"⛰️", category:"trail",     refTime:2*3600+30*60, prestige:1.1, refDplus:1500 },
+  "trail-m":  { label:"Trail Moyen (30-60)", icon:"⛰️", category:"trail",     refTime:5*3600+30*60, prestige:1.2, refDplus:2500 },
+  "trail-l":  { label:"Trail Long (60-100)", icon:"⛰️", category:"trail",     refTime:10*3600,      prestige:1.3, refDplus:4500 },
+  "trail-xl": { label:"Ultra Trail (100+)",  icon:"⛰️", category:"trail",     refTime:20*3600,      prestige:1.5, refDplus:9000 },
   "tri-s":    { label:"Triathlon S",         icon:"🏊", category:"triathlon", refTime:55*60,        prestige:1.1 },
   "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2 },
   "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3 },
@@ -70,14 +70,21 @@ function getAgeCat(birthYear) {
   return AGE_CATEGORIES.find(c => age >= c.min && age <= c.max)?.label || null;
 }
 
-function calcPoints(discipline, timeSeconds) {
+function calcPoints(discipline, timeSeconds, elevation) {
   const d = DISCIPLINES[discipline];
   if (!d || !timeSeconds) return 0;
-  return Math.max(0, Math.min(Math.round(1000 * Math.pow(d.refTime / timeSeconds, 2) * d.prestige), 2000));
+  let effTime = timeSeconds;
+  if (d.category === "trail" && d.refDplus && elevation && elevation > 0) {
+    // 6 sec / mètre : plus de D+ que la référence → temps effectif réduit (bonus),
+    // moins de D+ → temps effectif augmenté (malus). Plancher à 60% pour éviter
+    // qu'un D+ démesuré n'inflate le score.
+    effTime = Math.max(timeSeconds * 0.6, timeSeconds - (elevation - d.refDplus) * 6);
+  }
+  return Math.max(0, Math.min(Math.round(1000 * Math.pow(d.refTime / effTime, 2) * d.prestige), 2000));
 }
 function sumBestPts(results) {
   const best={};
-  results.forEach(r=>{const p=calcPoints(r.discipline,r.time);if(!best[r.discipline]||p>best[r.discipline])best[r.discipline]=p;});
+  results.forEach(r=>{const p=calcPoints(r.discipline,r.time,r.elevation);if(!best[r.discipline]||p>best[r.discipline])best[r.discipline]=p;});
   return Object.values(best).reduce((s,p)=>s+p,0);
 }
 const resultDate=r=>r.race_date||(r.year?`${r.year}-12-31`:null);
@@ -497,16 +504,18 @@ function ResultModal({existing,userId,onSave,onClose}){
   const [discipline,setDisc]=useState(existing?.discipline||"10km");
   const [timeStr,setTime]=useState(existing?fmtTime(existing.time):"00:00:00");
   const [raceName,setRace]=useState(existing?.race||"");
+  const [elevation,setElevation]=useState(existing?.elevation?String(existing.elevation):"");
   const today=(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;})();
   const [raceDate,setDate]=useState(existing?.race_date||today);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
+  const isTrail=DISCIPLINES[discipline]?.category==="trail";
   const handleSave=async()=>{
     const[h,m,s]=timeStr.split(":").map(Number);const t=h*3600+m*60+s;
     if(!t){setError("Sélectionne un temps valide");return;}
     setLoading(true);setError("");
     const year=raceDate?parseInt(raceDate.slice(0,4)):CY;
-    const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null};
+    const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null,elevation:isTrail&&elevation?parseInt(elevation)||null:null};
     let err;
     if(existing){({error:err}=await supabase.from("results").update(payload).eq("id",existing.id));}
     else{({error:err}=await supabase.from("results").insert({...payload,user_id:userId}));}
@@ -521,6 +530,10 @@ function ResultModal({existing,userId,onSave,onClose}){
       <Lbl c="Temps"/>
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><TimePicker value={timeStr} onChange={setTime}/></div>
       <Lbl c="Nom de la course (optionnel)"/><Inp value={raceName} onChange={setRace} placeholder="Ex: Marathon de Paris"/>
+      {isTrail&&(<>
+        <Lbl c={`Dénivelé positif (m) — référence ${DISCIPLINES[discipline]?.refDplus}m`}/>
+        <Inp value={elevation} onChange={setElevation} placeholder={`Ex: ${DISCIPLINES[discipline]?.refDplus}`} type="number"/>
+      </>)}
       <Lbl c="Date de la course"/>
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={raceDate} onChange={setDate}/></div>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
@@ -703,6 +716,7 @@ function HowItWorksModal({onClose}){
       <Section title="1 · Calcul des points">
         <P>Ton temps est comparé au temps de référence d'un athlète <span style={{color:"#FFD700",fontWeight:700}}>élite mondial</span> sur la même distance. Plus tu t'en approches, plus tu marques de points.</P>
         <P>Un coefficient <span style={{color:"#F0EDE8",fontWeight:700}}>prestige</span> est associé à chaque épreuve selon sa difficulté : plus la course est longue et exigeante, plus il est élevé (×1.0 sur un 10 km, jusqu'à ×1.5 sur un Ironman ou un Ultra Trail).</P>
+        <P>Pour le <span style={{color:"#27AE60",fontWeight:700}}>trail</span>, le <span style={{color:"#F0EDE8",fontWeight:700}}>dénivelé positif</span> est aussi pris en compte : si tu cours sur une course plus pentue que la référence, ton temps est ajusté à la baisse (bonus) — et inversement (malus) si moins de D+. Compte ≈ 6 sec par mètre d'écart avec la référence.</P>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Temps de référence élite</div>
         <RefRow label="🏃 5 km"              time="13:00"   prestige="1.0" color="#4A90D9"/>
         <RefRow label="🏃 10 km"             time="27:00"   prestige="1.0" color="#4A90D9"/>
@@ -1212,7 +1226,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const trainingPts=seasonTrainings.reduce((s,t)=>s+(t.points||0),0);
   const totalPts=sumBestPts(seasonResults)+trainingPts+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
-    .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
+    .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
   const myBadges=computeBadges({results});
   const myLv=getSeasonLevel(totalPts);
   const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"},{k:"hyrox",l:"🔥 Hyrox"}];
@@ -1268,7 +1282,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
         </div>
         {bests.length>0&&(
           <div style={{borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12,display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px"}}>
-            {bests.map((r,i)=>{const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
+            {bests.map((r,i)=>{const pts=calcPoints(r.discipline,r.time,r.elevation);const lv=getLevel(pts);return(
               <div key={i}>
                 <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
@@ -1402,7 +1416,7 @@ function RankingTab({myProfile}){
       let bestTime=null,racePts;
       if(filter==="discipline"){
         const b=pAllRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];
-        if(b){bestTime=b.time;racePts=calcPoints(discFilter,b.time);}else{racePts=0;}
+        if(b){bestTime=b.time;racePts=calcPoints(discFilter,b.time,b.elevation);}else{racePts=0;}
       }else{racePts=sumBestPts(pRes);}
       const tPts=filter==="discipline"?0:pTrainings.reduce((s,t)=>s+(t.points||0),0);
       const bonusPts=filter==="discipline"?0:raceBonusPts(pRes,pAllRes)+trainingBonusPts(pTrainings);
@@ -1892,7 +1906,7 @@ function PerfTab({userId,refreshKey}){
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:2,color,marginBottom:10}}>{label}</div>
                 {catBests.length===0
                   ?<div style={{textAlign:"center",color:"#444",fontSize:12,padding:"12px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
-                  :catBests.map(([disc,r])=>{const pts=calcPoints(disc,r.time);const lv=getLevel(pts);return(
+                  :catBests.map(([disc,r])=>{const pts=calcPoints(disc,r.time,r.elevation);const lv=getLevel(pts);return(
                     <div key={disc} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontFamily:"'Bebas Neue'",fontWeight:700,fontSize:16,color:"#F0EDE8",letterSpacing:1}}>{DISCIPLINES[disc]?.label}</div>
@@ -1916,7 +1930,7 @@ function PerfTab({userId,refreshKey}){
             <div key={yr} style={{marginBottom:18}}>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",fontWeight:700,letterSpacing:2,marginBottom:7}}>{yr}</div>
               {[...res].sort((a,b)=>{const cats=["running","trail","triathlon"];return cats.indexOf(DISCIPLINES[a.discipline]?.category)-cats.indexOf(DISCIPLINES[b.discipline]?.category);}).map((r,i)=>{
-                const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
+                const pts=calcPoints(r.discipline,r.time,r.elevation);const lv=getLevel(pts);return(
                 <SwipeRow key={r.id||i} onDelete={()=>deleteResult(r.id)}>
                   <div onClick={()=>setEditResult(r)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:12,cursor:"pointer"}}>
                     <div><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{DISCIPLINES[r.discipline]?.icon} {r.race||DISCIPLINES[r.discipline]?.label}</div></div>
@@ -1936,7 +1950,7 @@ function PerfTab({userId,refreshKey}){
           <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"16px",marginBottom:14,border:"1px solid rgba(255,255,255,0.06)"}}>
             <LineChart data={progressionData} color="#E63946" title={`Progression ${DISCIPLINES[selDisc]?.label}`} invert={true} formatY={v=>{const maxT=Math.max(...progressionData.map(d=>d.value));return maxT>2*3600?`${Math.floor(v/3600)}h${String(Math.floor((v%3600)/60)).padStart(2,"0")}`:`${Math.floor(v/60)}min`;}} />
           </div>
-          {discResults.map((r,i)=>{const pts=calcPoints(r.discipline,r.time);const lv=getLevel(pts);return(
+          {discResults.map((r,i)=>{const pts=calcPoints(r.discipline,r.time,r.elevation);const lv=getLevel(pts);return(
             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
               <div><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{r.race||DISCIPLINES[r.discipline]?.label}</div><div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{rYear(r)}</div></div>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:19,color:lv.color}}>{fmtTime(r.time)}</div>
@@ -2396,7 +2410,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13,marginBottom:14}}>Aucune course enregistrée</div>
           :<div style={{marginBottom:14}}>
             {[...results].sort((a,b)=>(b.race_date||`${b.year}-12-31`).localeCompare(a.race_date||`${a.year}-12-31`)).map(r=>{
-              const pts=calcPoints(r.discipline,r.time);const ptsLv=getLevel(pts);
+              const pts=calcPoints(r.discipline,r.time,r.elevation);const ptsLv=getLevel(pts);
               return(
                 <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
                   <div style={{flex:1,minWidth:0}}>
@@ -2544,7 +2558,7 @@ function FriendProfileModal({friend,myId,onClose}){
   const lv=getSeasonLevel(seasonPts);
   const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
   const bests=Object.values(results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
-    .sort((a,b)=>calcPoints(b.discipline,b.time)-calcPoints(a.discipline,a.time));
+    .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
 
   return (
     <Modal onClose={onClose}>
@@ -2580,7 +2594,7 @@ function FriendProfileModal({friend,myId,onClose}){
         <div style={{marginBottom:18}}>
           <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px"}}>
-            {bests.map((r,i)=>{const pts=calcPoints(r.discipline,r.time);const ptsLv=getLevel(pts);return(
+            {bests.map((r,i)=>{const pts=calcPoints(r.discipline,r.time,r.elevation);const ptsLv=getLevel(pts);return(
               <div key={i}>
                 <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
@@ -2612,7 +2626,7 @@ function FriendProfileModal({friend,myId,onClose}){
         seasonResults.length===0?
           <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune course pour cette saison</div>
         :seasonResults.map(r=>{
-          const pts=calcPoints(r.discipline,r.time);
+          const pts=calcPoints(r.discipline,r.time,r.elevation);
           const ptsLv=getLevel(pts);
           return (
             <ActivityCard key={r.id} myId={myId} activityType="result" activityId={r.id}>
