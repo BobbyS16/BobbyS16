@@ -2026,8 +2026,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
             })}
           </div>)
       }
-      </div>
-      <div style={{flexShrink:0,paddingTop:10}}>
+      <div style={{paddingTop:10}}>
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(252,76,2,0.08)",border:"1px solid rgba(252,76,2,0.3)",borderRadius:14,marginBottom:10}}>
         <div style={{fontSize:22,flexShrink:0}}>🏃‍♂️</div>
         <div style={{flex:1,minWidth:0}}>
@@ -2038,6 +2037,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       </div>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
+      </div>
       </div>
       </div>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
