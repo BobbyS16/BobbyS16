@@ -2160,6 +2160,8 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [showPhoto,setShowPhoto]=useState(false);
   const [season,setSeason]=useState(CY);
   const [panel,setPanel]=useState("races");
+  const [hidden,setHidden]=useState(!!profile?.ranking_hidden);
+  useEffect(()=>{setHidden(!!profile?.ranking_hidden);},[profile?.ranking_hidden]);
   const [stravaTokens,setStravaTokens]=useState(null);
   const [stravaBusy,setStravaBusy]=useState(false);
   const [stravaMsg,setStravaMsg]=useState("");
@@ -2241,10 +2243,19 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         <div style={{display:"flex",gap:6}}>
           <button onClick={()=>setShowEdit(true)} style={{padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>✏️ Éditer</button>
           <button onClick={async()=>{
-            const newVal=!profile.ranking_hidden;
+            const newVal=!hidden;
+            console.log("[hide-toggle] basculement vers",newVal);
+            setHidden(newVal);
             const{error:err}=await supabase.from("profiles").update({ranking_hidden:newVal}).eq("id",profile.id);
-            if(!err)onRefresh();
-          }} title={profile.ranking_hidden?"Visible : me ré-afficher dans les classements":"Caché : me retirer des classements"} style={{padding:"7px 12px",borderRadius:10,background:profile.ranking_hidden?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:profile.ranking_hidden?"1px solid rgba(230,57,70,0.4)":"none",color:profile.ranking_hidden?"#E63946":"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>{profile.ranking_hidden?"🙈 Caché":"👁️ Visible"}</button>
+            if(err){
+              console.error("[hide-toggle] échec update",err);
+              setHidden(!newVal);
+              alert("Impossible de modifier la visibilité : "+(err.message||"erreur inconnue")+"\n\nAs-tu bien exécuté le SQL dans Supabase ? (alter table profiles add column ranking_hidden boolean default false;)");
+              return;
+            }
+            console.log("[hide-toggle] OK");
+            onRefresh();
+          }} title={hidden?"Caché : me ré-afficher dans les classements":"Visible : me retirer des classements"} style={{padding:"7px 12px",borderRadius:10,background:hidden?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:hidden?"1px solid rgba(230,57,70,0.4)":"none",color:hidden?"#E63946":"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>{hidden?"🙈 Caché":"👁️ Visible"}</button>
         </div>
       </div>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
