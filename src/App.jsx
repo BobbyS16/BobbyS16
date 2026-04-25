@@ -1398,11 +1398,15 @@ function RankingTab({myProfile}){
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
       const pAllRes=results.filter(r=>r.user_id===p.id);
       const pTrainings=seasonTrainings.filter(t=>t.user_id===p.id);
-      const racePts=filter==="discipline"?(()=>{const b=pAllRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
+      let bestTime=null,racePts;
+      if(filter==="discipline"){
+        const b=pAllRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];
+        if(b){bestTime=b.time;racePts=calcPoints(discFilter,b.time);}else{racePts=0;}
+      }else{racePts=sumBestPts(pRes);}
       const tPts=filter==="discipline"?0:pTrainings.reduce((s,t)=>s+(t.points||0),0);
       const bonusPts=filter==="discipline"?0:raceBonusPts(pRes,pAllRes)+trainingBonusPts(pTrainings);
       const badges=computeBadges({results:pRes,trainings:pTrainings,profile:p});
-      return{...p,pts:racePts+tPts+bonusPts,badges};
+      return{...p,pts:racePts+tPts+bonusPts,bestTime,badges};
     }).sort((a,b)=>b.pts-a.pts);
     const myAgeCat=getAgeCat(myProfile?.birth_year);
     if(filter==="age_cat") display=display.filter(p=>getAgeCat(p.birth_year)===myAgeCat);
@@ -1461,7 +1465,10 @@ function RankingTab({myProfile}){
           <Avatar profile={p} size={36}/>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:2,alignItems:"center"}}>{(p.badges||[]).slice(0,6).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}{(p.badges||[]).length>6&&<span style={{fontSize:9,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginLeft:1}}>+{(p.badges||[]).length-6}</span>}</div>
+            {filter==="discipline"&&p.bestTime
+              ?<div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:"rgba(240,237,232,0.7)",letterSpacing:0.5,marginTop:1}}>{fmtTime(p.bestTime)}</div>
+              :<div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:2,alignItems:"center"}}>{(p.badges||[]).slice(0,6).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}{(p.badges||[]).length>6&&<span style={{fontSize:9,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginLeft:1}}>+{(p.badges||[]).length-6}</span>}</div>
+            }
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
             <div style={{fontSize:14,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{players.length}</div>
