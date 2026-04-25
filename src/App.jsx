@@ -1214,12 +1214,12 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"0 16px 4px",flexShrink:0}}>
       {/* Header */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:20,marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:"clamp(10px, 2.5dvh, 20px)",marginBottom:"clamp(10px, 2dvh, 16px)"}}>
         <div>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:36,letterSpacing:3,lineHeight:1}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:"clamp(20px, 5.5vw, 28px)",letterSpacing:3,lineHeight:1}}>
             <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
           </div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>RUN · TRIATHLON · TRAIL · HYROX</div>
+          <div style={{fontSize:"clamp(8px, 2vw, 10px)",color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
@@ -1325,17 +1325,17 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               :<div key={p.id} style={{marginBottom:8}}>{row}</div>;
           })}
       </div>
-      <div style={{position:"fixed",bottom:90,right:20,zIndex:99,width:56,height:56}}>
+      <div style={{position:"fixed",bottom:"clamp(74px, 11dvh, 90px)",right:"clamp(14px, 4vw, 20px)",zIndex:99,width:"clamp(44px, 7vw, 56px)",height:"clamp(44px, 7vw, 56px)"}}>
         {[
           {icon:"🏋️",label:"Entraînement",color:"#4ade80",cb:onAddTraining,tx:-12,ty:-68,delay:"0.06s"},
           {icon:"🏅",label:"Course officielle",color:"#E63946",cb:onAddRace,tx:-66,ty:-16,delay:"0s"},
         ].map(({icon,label,color,cb,tx,ty,delay},i)=>(
-          <button key={i} onClick={()=>{setFabOpen(false);cb();}} style={{position:"absolute",top:12,left:12,width:32,height:32,background:"transparent",border:"none",padding:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transform:fabOpen?`translate(${tx}px,${ty}px)`:"translate(0,0)",opacity:fabOpen?1:0,transition:`all 0.28s cubic-bezier(0.2,0.8,0.3,1.1) ${delay}`,pointerEvents:fabOpen?"auto":"none"}}>
+          <button key={i} onClick={()=>{setFabOpen(false);cb();}} style={{position:"absolute",top:"50%",left:"50%",marginTop:-16,marginLeft:-16,width:32,height:32,background:"transparent",border:"none",padding:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transform:fabOpen?`translate(${tx}px,${ty}px)`:"translate(0,0)",opacity:fabOpen?1:0,transition:`all 0.28s cubic-bezier(0.2,0.8,0.3,1.1) ${delay}`,pointerEvents:fabOpen?"auto":"none"}}>
             <span style={{position:"absolute",right:"calc(100% + 5px)",color,fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,letterSpacing:0.5,whiteSpace:"nowrap",textShadow:"0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)"}}>{label}</span>
             <span style={{fontSize:24,lineHeight:1,filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.7))"}}>{icon}</span>
           </button>
         ))}
-        <button onClick={()=>setFabOpen(v=>!v)} style={{position:"absolute",inset:0,width:56,height:56,borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:28,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)",transform:fabOpen?"rotate(45deg)":"rotate(0)",transition:"transform 0.22s"}}>+</button>
+        <button onClick={()=>setFabOpen(v=>!v)} style={{position:"absolute",inset:0,width:"100%",height:"100%",borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:"clamp(22px, 5vw, 28px)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)",transform:fabOpen?"rotate(45deg)":"rotate(0)",transition:"transform 0.22s"}}>+</button>
       </div>
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange}/>}
@@ -2644,16 +2644,16 @@ function NavBar({tab,onChange,notifCount=0}){
     {k:"social",  icon:"👥",label:"Social"},
   ];
   return (
-    <div style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(14,14,14,0.97)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",padding:"8px 0 20px",zIndex:100}}>
+    <div style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(14,14,14,0.97)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",paddingTop:"clamp(4px, 1dvh, 8px)",paddingBottom:"max(env(safe-area-inset-bottom), clamp(10px, 2.2dvh, 20px))",zIndex:100}}>
       {items.map(({k,icon,label})=>(
         <button key={k} onClick={()=>onChange(k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 0",position:"relative"}}>
-          <span style={{fontSize:17,opacity:tab===k?1:0.3,transition:"opacity 0.2s",position:"relative"}}>
+          <span style={{fontSize:"clamp(15px, 4vw, 19px)",opacity:tab===k?1:0.3,transition:"opacity 0.2s",position:"relative"}}>
             {icon}
             {k==="social"&&notifCount>0&&(
               <span style={{position:"absolute",top:-4,right:-8,background:"#E63946",borderRadius:"50%",minWidth:14,height:14,padding:"0 3px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1}}>{notifCount>9?"9+":notifCount}</span>
             )}
           </span>
-          <span style={{fontSize:7,letterSpacing:0.3,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,color:tab===k?"#E63946":"rgba(240,237,232,0.3)",transition:"color 0.2s"}}>{label}</span>
+          <span style={{fontSize:"clamp(7px, 1.8vw, 10px)",letterSpacing:0.3,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,color:tab===k?"#E63946":"rgba(240,237,232,0.3)",transition:"color 0.2s"}}>{label}</span>
         </button>
       ))}
     </div>
