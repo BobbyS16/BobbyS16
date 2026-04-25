@@ -1384,22 +1384,6 @@ function TrainingTab({userId}){
     if(!userId)return;
     try{const raw=localStorage.getItem(`trainingPlan_${userId}`);if(raw)setPlan(JSON.parse(raw));}catch{}
   },[userId]);
-  useEffect(()=>{
-    if(!userId)return;
-    const flag=`trainingPtsFormula_${userId}`;
-    const CURRENT="v2-0.2";
-    if(localStorage.getItem(flag)===CURRENT)return;
-    (async()=>{
-      const{data}=await supabase.from("trainings").select("id,distance,duration,sport,points").eq("user_id",userId);
-      if(!data)return;
-      const updates=data.map(t=>{const fresh=calcTrainingPts(t.distance,t.sport,t.duration);return fresh!==t.points?{id:t.id,points:fresh}:null;}).filter(Boolean);
-      if(updates.length){
-        await Promise.all(updates.map(u=>supabase.from("trainings").update({points:u.points}).eq("id",u.id)));
-        loadTrainings();
-      }
-      try{localStorage.setItem(flag,CURRENT);}catch{}
-    })();
-  },[userId]);
 
   const loadTrainings=async()=>{
     const{data}=await supabase.from("trainings").select("*").eq("user_id",userId).order("date",{ascending:false});
@@ -2718,6 +2702,27 @@ export default function App(){
   },[]);
 
   useEffect(()=>{if(session){loadProfile();loadResults();loadNotifCount();}},[session]);
+
+  useEffect(()=>{
+    if(!profile?.id)return;
+    const flag=`trainingPtsFormula_${profile.id}`;
+    const CURRENT="v3-2026-04";
+    if(localStorage.getItem(flag)===CURRENT)return;
+    (async()=>{
+      console.log("[sync-train-pts] re-calcul des points training pour",profile.id);
+      const{data}=await supabase.from("trainings").select("id,distance,duration,sport,points").eq("user_id",profile.id);
+      if(!data)return;
+      const updates=data.map(t=>{const fresh=calcTrainingPts(t.distance,t.sport,t.duration);return fresh!==t.points?{id:t.id,points:fresh}:null;}).filter(Boolean);
+      if(updates.length){
+        console.log(`[sync-train-pts] ${updates.length} entraînements à corriger`);
+        await Promise.all(updates.map(u=>supabase.from("trainings").update({points:u.points}).eq("id",u.id)));
+        setResultsKey(k=>k+1);
+      } else {
+        console.log("[sync-train-pts] tous les points sont déjà à jour");
+      }
+      try{localStorage.setItem(flag,CURRENT);}catch{}
+    })();
+  },[profile?.id]);
 
   useEffect(()=>{
     if(!session)return;
