@@ -1421,6 +1421,9 @@ function RankingTab({myProfile}){
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"0 16px 4px",flexShrink:0,overflowX:"hidden"}}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:12}}>Rank</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:12}}>
+        {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"7px 4px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.l}</button>)}
+      </div>
       {/* Season selector — caché en mode discipline (all-time) */}
       {filter!=="discipline"&&(
         <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
@@ -1432,9 +1435,6 @@ function RankingTab({myProfile}){
           ))}
         </div>
       )}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:12}}>
-        {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"7px 4px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.l}</button>)}
-      </div>
       {filter==="discipline"&&<Sel value={discFilter} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>}
       {filter==="group"&&selGroup&&(
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
