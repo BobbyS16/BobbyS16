@@ -574,6 +574,7 @@ function EditProfileModal({profile,onSave,onClose}){
   const [birthYear,setBirth]=useState(profile.birth_year||"");
   const [gender,setGender]=useState(profile.gender||"");
   const [nat,setNat]=useState(profile.nationality||"");
+  const [hidden,setHidden]=useState(!!profile.ranking_hidden);
   const [avFile,setAvFile]=useState(null);
   const [avPreview,setAvPreview]=useState(null);
   const [loading,setLoading]=useState(false);
@@ -599,7 +600,7 @@ function EditProfileModal({profile,onSave,onClose}){
       const{data}=supabase.storage.from("avatars").getPublicUrl(path);
       avatar_url=data.publicUrl+"?t="+Date.now();
     }
-    const{error:updErr}=await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url}).eq("id",profile.id);
+    const{error:updErr}=await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url,ranking_hidden:hidden}).eq("id",profile.id);
     setLoading(false);
     if(updErr){setError("Sauvegarde échouée : "+updErr.message);return;}
     onSave();
@@ -620,6 +621,15 @@ function EditProfileModal({profile,onSave,onClose}){
       <Lbl c="Année de naissance"/><Inp value={birthYear} onChange={setBirth} placeholder="Ex: 1990" type="number"/>
       <Lbl c="Sexe"/><Sel value={gender} onChange={setGender}><option value="">Non précisé</option><option value="H">Homme</option><option value="F">Femme</option></Sel>
       <Lbl c="Nationalité"/><Inp value={nat} onChange={setNat} placeholder="Ex: Française"/>
+      <div onClick={()=>setHidden(v=>!v)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:hidden?"rgba(230,57,70,0.08)":"rgba(255,255,255,0.04)",border:`1px solid ${hidden?"rgba(230,57,70,0.3)":"rgba(255,255,255,0.07)"}`,borderRadius:12,marginBottom:16,cursor:"pointer"}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,color:"#F0EDE8"}}>Cacher mon profil du classement</div>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>Ne pas apparaître dans les classements (ami, général, ligue)</div>
+        </div>
+        <div style={{width:38,height:22,borderRadius:11,background:hidden?"#E63946":"rgba(255,255,255,0.15)",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+          <div style={{position:"absolute",top:2,left:hidden?18:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+        </div>
+      </div>
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Sauvegarder"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
     </Modal>
@@ -1047,9 +1057,10 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const loadRanking=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
     const{data:allResultsFull}=await supabase.from("results").select("*");
-    const{data:allProfiles}=await supabase.from("profiles").select("*");
+    const{data:allProfilesRaw}=await supabase.from("profiles").select("*");
     const{data:allTrainings}=await supabase.from("trainings").select("user_id,sport,distance,duration,points,date");
-    if(!allResultsFull||!allProfiles)return;
+    if(!allResultsFull||!allProfilesRaw)return;
+    const allProfiles=allProfilesRaw.filter(p=>!p.ranking_hidden);
     const allResults=allResultsFull.filter(r=>rYear(r)===season);
     const seasonTrainings=(allTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
 
@@ -1309,7 +1320,8 @@ function RankingTab({myProfile}){
   const loadPlayers=async()=>{
     setLoading(true);
     if(filter==="group"&&!selGroup){setPlayers([]);setLoading(false);return;}
-    const{data:profiles}=await supabase.from("profiles").select("*");
+    const{data:profilesRaw}=await supabase.from("profiles").select("*");
+    const profiles=(profilesRaw||[]).filter(p=>!p.ranking_hidden);
     const{data:results}=await supabase.from("results").select("*");
     const{data:trainings}=await supabase.from("trainings").select("user_id,date,points");
     if(!profiles||!results){setLoading(false);return;}
