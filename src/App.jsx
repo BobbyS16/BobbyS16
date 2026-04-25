@@ -41,10 +41,10 @@ const DISCIPLINES = {
   "trail-m":  { label:"Trail Moyen (30-60)", icon:"⛰️", category:"trail",     refTime:5*3600+30*60, prestige:1.2, refDplus:2500 },
   "trail-l":  { label:"Trail Long (60-100)", icon:"⛰️", category:"trail",     refTime:10*3600,      prestige:1.3, refDplus:4500 },
   "trail-xl": { label:"Ultra Trail (100+)",  icon:"⛰️", category:"trail",     refTime:20*3600,      prestige:1.5, refDplus:9000 },
-  "tri-s":    { label:"Triathlon S",         icon:"🏊", category:"triathlon", refTime:55*60,        prestige:1.1 },
-  "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2 },
-  "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3 },
-  "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5 },
+  "tri-s":    { label:"Triathlon S",         icon:"🏊", category:"triathlon", refTime:55*60,        prestige:1.1, refDplus:100 },
+  "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2, refDplus:400 },
+  "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3, refDplus:1000 },
+  "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5, refDplus:2000 },
   "hyrox-solo":   { label:"Hyrox Solo",      icon:"🔥", category:"hyrox",     refTime:54*60+24,     prestige:1.2 },
   "hyrox-double": { label:"Hyrox Double",    icon:"🔥", category:"hyrox",     refTime:47*60+57,     prestige:1.1 },
 };
@@ -74,7 +74,7 @@ function calcPoints(discipline, timeSeconds, elevation) {
   const d = DISCIPLINES[discipline];
   if (!d || !timeSeconds) return 0;
   let effTime = timeSeconds;
-  if (d.category === "trail" && d.refDplus && elevation && elevation > 0) {
+  if ((d.category === "trail" || d.category === "triathlon") && d.refDplus && elevation && elevation > 0) {
     // 6 sec / mètre : plus de D+ que la référence → temps effectif réduit (bonus),
     // moins de D+ → temps effectif augmenté (malus). Plancher à 60% pour éviter
     // qu'un D+ démesuré n'inflate le score.
@@ -509,13 +509,14 @@ function ResultModal({existing,userId,onSave,onClose}){
   const [raceDate,setDate]=useState(existing?.race_date||today);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
-  const isTrail=DISCIPLINES[discipline]?.category==="trail";
+  const cat=DISCIPLINES[discipline]?.category;
+  const hasElevation=cat==="trail"||cat==="triathlon";
   const handleSave=async()=>{
     const[h,m,s]=timeStr.split(":").map(Number);const t=h*3600+m*60+s;
     if(!t){setError("Sélectionne un temps valide");return;}
     setLoading(true);setError("");
     const year=raceDate?parseInt(raceDate.slice(0,4)):CY;
-    const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null,elevation:isTrail&&elevation?parseInt(elevation)||null:null};
+    const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null,elevation:hasElevation&&elevation?parseInt(elevation)||null:null};
     let err;
     if(existing){({error:err}=await supabase.from("results").update(payload).eq("id",existing.id));}
     else{({error:err}=await supabase.from("results").insert({...payload,user_id:userId}));}
@@ -530,7 +531,7 @@ function ResultModal({existing,userId,onSave,onClose}){
       <Lbl c="Temps"/>
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><TimePicker value={timeStr} onChange={setTime}/></div>
       <Lbl c="Nom de la course (optionnel)"/><Inp value={raceName} onChange={setRace} placeholder="Ex: Marathon de Paris"/>
-      {isTrail&&(<>
+      {hasElevation&&(<>
         <Lbl c={`Dénivelé positif (m) — référence ${DISCIPLINES[discipline]?.refDplus}m`}/>
         <Inp value={elevation} onChange={setElevation} placeholder={`Ex: ${DISCIPLINES[discipline]?.refDplus}`} type="number"/>
       </>)}
@@ -716,7 +717,7 @@ function HowItWorksModal({onClose}){
       <Section title="1 · Calcul des points">
         <P>Ton temps est comparé au temps de référence d'un athlète <span style={{color:"#FFD700",fontWeight:700}}>élite mondial</span> sur la même distance. Plus tu t'en approches, plus tu marques de points.</P>
         <P>Un coefficient <span style={{color:"#F0EDE8",fontWeight:700}}>prestige</span> est associé à chaque épreuve selon sa difficulté : plus la course est longue et exigeante, plus il est élevé (×1.0 sur un 10 km, jusqu'à ×1.5 sur un Ironman ou un Ultra Trail).</P>
-        <P>Pour le <span style={{color:"#27AE60",fontWeight:700}}>trail</span>, le <span style={{color:"#F0EDE8",fontWeight:700}}>dénivelé positif</span> est aussi pris en compte : si tu cours sur une course plus pentue que la référence, ton temps est ajusté à la baisse (bonus) — et inversement (malus) si moins de D+. Compte ≈ 6 sec par mètre d'écart avec la référence.</P>
+        <P>Pour le <span style={{color:"#27AE60",fontWeight:700}}>trail</span> et le <span style={{color:"#9B59B6",fontWeight:700}}>triathlon</span>, le <span style={{color:"#F0EDE8",fontWeight:700}}>dénivelé positif</span> est aussi pris en compte : si tu cours sur une course plus pentue que la référence, ton temps est ajusté à la baisse (bonus) — et inversement (malus) si moins de D+. Compte ≈ 6 sec par mètre d'écart avec la référence.</P>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Temps de référence élite</div>
         <RefRow label="🏃 5 km"              time="13:00"   prestige="1.0" color="#4A90D9"/>
         <RefRow label="🏃 10 km"             time="27:00"   prestige="1.0" color="#4A90D9"/>
