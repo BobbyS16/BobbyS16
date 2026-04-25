@@ -688,11 +688,7 @@ function HowItWorksModal({onClose}){
 
       <Section title="1 · Calcul des points">
         <P>Ton temps est comparé au temps de référence d'un athlète <span style={{color:"#FFD700",fontWeight:700}}>élite mondial</span> sur la même distance. Plus tu t'en approches, plus tu marques de points.</P>
-        <div style={{background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:12,padding:"12px 14px",marginBottom:10}}>
-          <div style={{fontSize:11,color:"#E63946",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:6}}>Formule</div>
-          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",lineHeight:1.6}}>points = 1000 × (T<sub>réf</sub> / T<sub>toi</sub>)² × prestige</div>
-          <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:6,lineHeight:1.5}}>Plafond à 2000 pts. Le coefficient <span style={{color:"#F0EDE8",fontWeight:700}}>prestige</span> valorise les distances longues et exigeantes.</div>
-        </div>
+        <P>Un coefficient <span style={{color:"#F0EDE8",fontWeight:700}}>prestige</span> est associé à chaque épreuve selon sa difficulté : plus la course est longue et exigeante, plus il est élevé (×1.0 sur un 10 km, jusqu'à ×1.5 sur un Ironman ou un Ultra Trail).</P>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Temps de référence élite</div>
         <RefRow label="🏃 5 km"              time="13:00"   prestige="1.0" color="#4A90D9"/>
         <RefRow label="🏃 10 km"             time="27:00"   prestige="1.0" color="#4A90D9"/>
