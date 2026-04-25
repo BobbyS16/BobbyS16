@@ -2531,6 +2531,7 @@ function FriendProfileModal({friend,myId,onClose}){
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [season,setSeason]=useState(CY);
   const [tab,setTab]=useState("races");
+  const [panel,setPanel]=useState("courses");
   const [loading,setLoading]=useState(true);
   const [showPhoto,setShowPhoto]=useState(false);
   const seasonsRef=useRef(null);
@@ -2576,95 +2577,125 @@ function FriendProfileModal({friend,myId,onClose}){
         </div>
       </div>
 
-      <div style={{display:"flex",gap:10,marginBottom:18}}>
-        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{friendCount}</div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Amis</div>
+      <div style={{display:"flex",gap:10,marginBottom:14}}>
+        <div onClick={()=>setPanel("amis")} style={{flex:1,background:panel==="amis"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="amis"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="amis"?"#E63946":"#F0EDE8"}}>{friendCount}</div>
+          <div style={{fontSize:10,color:panel==="amis"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="amis"?700:400}}>Amis</div>
         </div>
-        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{badges.length}</div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Badges</div>
+        <div onClick={()=>setPanel("badges")} style={{flex:1,background:panel==="badges"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="badges"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="badges"?"#E63946":"#F0EDE8"}}>{badges.length}</div>
+          <div style={{fontSize:10,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400}}>Badges</div>
         </div>
-        <div style={{flex:1,background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8"}}>{results.length}</div>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Courses</div>
+        <div onClick={()=>setPanel("courses")} style={{flex:1,background:panel==="courses"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="courses"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="courses"?"#E63946":"#F0EDE8"}}>{results.length}</div>
+          <div style={{fontSize:10,color:panel==="courses"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="courses"?700:400}}>Courses</div>
         </div>
       </div>
 
-      {bests.length>0&&(
-        <div style={{marginBottom:18}}>
-          <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px"}}>
-            {bests.map((r,i)=>{const pts=calcPoints(r.discipline,r.time,r.elevation);const ptsLv=getLevel(pts);return(
-              <div key={i}>
-                <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
-                <div style={{fontSize:11,color:ptsLv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
-              </div>
-            );})}
+      {(()=>{
+        const bestsByDisc=results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{});
+        const CATS=[["running","🏃 Running"],["trail","⛰️ Trail"],["triathlon","🏊 Triathlon"],["hyrox","🔥 Hyrox"]];
+        const rows=CATS.map(([cat,lbl])=>{
+          const discs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat).map(([k])=>k);
+          const hasAny=discs.some(d=>bestsByDisc[d]);
+          return {cat,lbl,discs,hasAny};
+        }).filter(r=>r.hasAny);
+        if(rows.length===0)return null;
+        return (
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {rows.map(({cat,lbl,discs})=>(
+                <div key={cat}>
+                  <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>{lbl}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"4px 6px"}}>
+                    {discs.map(d=>{
+                      const r=bestsByDisc[d];
+                      const pts=r?calcPoints(d,r.time,r.elevation):0;
+                      const ptsLv=getLevel(pts);
+                      return (
+                        <div key={d} style={{minWidth:0,opacity:r?1:0.3}}>
+                          <div style={{fontSize:8,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{DISCIPLINES[d]?.label}</div>
+                          <div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:"#F0EDE8",letterSpacing:0.3}}>{r?fmtTime(r.time):"—"}</div>
+                          <div style={{fontSize:9,color:r?ptsLv.color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{r?`${pts} pts`:""}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+        );
+      })()}
+
+      {panel==="courses"&&(<>
+        <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
+          {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
+            <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              {y}
+              {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
+            </button>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:6,marginBottom:14}}>
+          {[["races",`🏁 Courses (${seasonResults.length})`],["trainings",`🏋️ Entraînements (${seasonTrainings.length})`]].map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:tab===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:tab===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>{l}</button>
+          ))}
+        </div>
+        {loading?(
+          <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+        ):tab==="races"?(
+          seasonResults.length===0?
+            <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune course pour cette saison</div>
+          :seasonResults.map(r=>{
+            const pts=calcPoints(r.discipline,r.time,r.elevation);
+            const ptsLv=getLevel(pts);
+            return (
+              <ActivityCard key={r.id} myId={myId} activityType="result" activityId={r.id}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:3}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                    {r.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race}</div>}
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:ptsLv.color,letterSpacing:1}}>{pts}</div>
+                    <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
+                  </div>
+                </div>
+              </ActivityCard>
+            );
+          })
+        ):(
+          seasonTrainings.length===0?
+            <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun entraînement pour cette saison</div>
+          :seasonTrainings.map(t=>{
+            const pts=t.points||calcTrainingPts(t.distance,t.sport,t.duration);
+            return (
+              <ActivityCard key={t.id} myId={myId} activityType="training" activityId={t.id}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
+                    <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",marginTop:2,fontFamily:"'Barlow',sans-serif"}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
+                  </div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:"#E63946",flexShrink:0}}>+{pts}pts</div>
+                </div>
+              </ActivityCard>
+            );
+          })
+        )}
+      </>)}
+
+      {panel==="badges"&&<BadgesByCategory badges={badges}/>}
+
+      {panel==="amis"&&(
+        <div style={{padding:"30px 20px",textAlign:"center",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14}}>
+          <div style={{fontSize:32,marginBottom:8}}>👥</div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{friendCount} ami{friendCount>1?"s":""}</div>
+          {groupsCreated>0&&<div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:6}}>{groupsCreated} groupe{groupsCreated>1?"s":""} créé{groupsCreated>1?"s":""}</div>}
         </div>
       )}
-
-      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
-        {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
-          <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            {y}
-            {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
-          </button>
-        ))}
-      </div>
-
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["races",`🏁 Courses (${seasonResults.length})`],["trainings",`🏋️ Entraînements (${seasonTrainings.length})`]].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:tab===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:tab===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>{l}</button>
-        ))}
-      </div>
-
-      {loading?(
-        <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
-      ):tab==="races"?(
-        seasonResults.length===0?
-          <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune course pour cette saison</div>
-        :seasonResults.map(r=>{
-          const pts=calcPoints(r.discipline,r.time,r.elevation);
-          const ptsLv=getLevel(pts);
-          return (
-            <ActivityCard key={r.id} myId={myId} activityType="result" activityId={r.id}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:3}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
-                  <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
-                  {r.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race}</div>}
-                </div>
-                <div style={{textAlign:"right",flexShrink:0}}>
-                  <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:ptsLv.color,letterSpacing:1}}>{pts}</div>
-                  <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
-                </div>
-              </div>
-            </ActivityCard>
-          );
-        })
-      ):(
-        seasonTrainings.length===0?
-          <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun entraînement pour cette saison</div>
-        :seasonTrainings.map(t=>{
-          const pts=t.points||calcTrainingPts(t.distance,t.sport,t.duration);
-          return (
-            <ActivityCard key={t.id} myId={myId} activityType="training" activityId={t.id}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
-                  <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",marginTop:2,fontFamily:"'Barlow',sans-serif"}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
-                </div>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:"#E63946",flexShrink:0}}>+{pts}pts</div>
-              </div>
-            </ActivityCard>
-          );
-        })
-      )}
-
-      <div style={{marginTop:18}}><BadgesByCategory badges={badges}/></div>
       {showPhoto&&fullProfile?.avatar&&<PhotoViewer src={fullProfile.avatar} onClose={()=>setShowPhoto(false)}/>}
     </Modal>
   );
