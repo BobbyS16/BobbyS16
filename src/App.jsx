@@ -2019,18 +2019,10 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(252,76,2,0.08)",border:"1px solid rgba(252,76,2,0.3)",borderRadius:14,marginBottom:10}}>
         <div style={{fontSize:22,flexShrink:0}}>🏃‍♂️</div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FC4C02",letterSpacing:1}}>STRAVA</div>
-          <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {stravaMsg||(stravaTokens?(stravaTokens.athlete?`${stravaTokens.athlete.firstname||""} ${stravaTokens.athlete.lastname||""}`.trim()||"Connecté":"Connecté"):"Importe tes activités")}
-          </div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FC4C02",letterSpacing:1}}>Synchronisation Strava bientôt disponible 🚀</div>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>En attente de validation Strava — disponible sous peu</div>
         </div>
-        {stravaTokens
-          ?<div style={{display:"flex",gap:6,flexShrink:0}}>
-            <button onClick={importStrava} disabled={stravaBusy} style={{padding:"7px 11px",borderRadius:10,background:"#FC4C02",border:"none",color:"#fff",cursor:stravaBusy?"default":"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,opacity:stravaBusy?0.5:1}}>{stravaBusy?"…":"Import"}</button>
-            <button onClick={disconnectStrava} style={{padding:"7px 10px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>✕</button>
-          </div>
-          :<button onClick={connectStrava} style={{padding:"7px 12px",borderRadius:10,background:"#FC4C02",border:"none",color:"#fff",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,flexShrink:0}}>Connecter</button>
-        }
+        <button disabled style={{padding:"7px 12px",borderRadius:10,background:"#FC4C02",border:"none",color:"#fff",cursor:"not-allowed",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,flexShrink:0,opacity:0.4}}>Connecter</button>
       </div>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
