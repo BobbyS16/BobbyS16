@@ -2605,9 +2605,8 @@ function FriendProfileModal({friend,myId,onClose}){
           <div style={{marginBottom:16}}>
             <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {rows.map(({cat,lbl,discs})=>(
+              {rows.map(({cat,discs})=>(
                 <div key={cat}>
-                  <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>{lbl}</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"4px 6px"}}>
                     {discs.map(d=>{
                       const r=bestsByDisc[d];
