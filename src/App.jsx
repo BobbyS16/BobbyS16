@@ -1397,7 +1397,7 @@ function RankingTab({myProfile}){
     setPlayers(display);setLoading(false);
   };
 
-  const FILTERS=[{k:"group",l:"👥 Groupe"},{k:"global",l:"🌍 Global"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
+  const FILTERS=[{k:"group",l:"👥 Groupe"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
