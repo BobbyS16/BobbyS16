@@ -2422,13 +2422,13 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           </div>
         :<div style={{marginBottom:14}}>
           {friendsList.map(p=>(
-            <div key={p.id} onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:14,marginBottom:6,cursor:"pointer"}}>
-              <Avatar profile={p} size={36}/>
+            <div key={p.id} onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 4px",borderBottom:"1px solid rgba(255,255,255,0.04)",cursor:"pointer"}}>
+              <Avatar profile={p} size={32}/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
               </div>
-              <div style={{color:"rgba(240,237,232,0.35)",fontSize:18,flexShrink:0}}>›</div>
+              <div style={{color:"rgba(240,237,232,0.3)",fontSize:16,flexShrink:0}}>›</div>
             </div>
           ))}
         </div>
@@ -2730,13 +2730,13 @@ function FriendProfileModal({friend,myId,onClose}){
             <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.55)"}}>Aucun ami pour le moment</div>
           </div>
         :friendsList.map(p=>(
-          <div key={p.id} onClick={()=>setNestedFriend(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:14,marginBottom:6,cursor:"pointer"}}>
-            <Avatar profile={p} size={36}/>
+          <div key={p.id} onClick={()=>setNestedFriend(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 4px",borderBottom:"1px solid rgba(255,255,255,0.04)",cursor:"pointer"}}>
+            <Avatar profile={p} size={32}/>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
-              <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
+              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
             </div>
-            <div style={{color:"rgba(240,237,232,0.35)",fontSize:18,flexShrink:0}}>›</div>
+            <div style={{color:"rgba(240,237,232,0.3)",fontSize:16,flexShrink:0}}>›</div>
           </div>
         ))
       )}
