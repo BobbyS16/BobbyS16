@@ -1384,7 +1384,7 @@ function RankingTab({myProfile}){
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
       const pAllRes=results.filter(r=>r.user_id===p.id);
       const pTrainings=seasonTrainings.filter(t=>t.user_id===p.id);
-      const racePts=filter==="discipline"?(()=>{const b=pRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
+      const racePts=filter==="discipline"?(()=>{const b=pAllRes.filter(r=>r.discipline===discFilter).sort((a,b)=>a.time-b.time)[0];return b?calcPoints(discFilter,b.time):0;})():sumBestPts(pRes);
       const tPts=filter==="discipline"?0:pTrainings.reduce((s,t)=>s+(t.points||0),0);
       const bonusPts=filter==="discipline"?0:raceBonusPts(pRes,pAllRes)+trainingBonusPts(pTrainings);
       const badges=computeBadges({results:pRes,trainings:pTrainings,profile:p});
@@ -1403,15 +1403,17 @@ function RankingTab({myProfile}){
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"0 16px 4px",flexShrink:0,overflowX:"hidden"}}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,marginBottom:12}}>Rank</div>
-      {/* Season selector */}
-      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
-        {SEASONS.map(y=>(
-          <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            {y}
-            {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
-          </button>
-        ))}
-      </div>
+      {/* Season selector — caché en mode discipline (all-time) */}
+      {filter!=="discipline"&&(
+        <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
+          {SEASONS.map(y=>(
+            <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              {y}
+              {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:12}}>
         {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"7px 4px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.l}</button>)}
       </div>
