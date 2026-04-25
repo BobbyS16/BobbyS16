@@ -759,6 +759,33 @@ function HowItWorksModal({onClose}){
 
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
+
+function LeagueHeader({leagueIdx}){
+  const [now,setNow]=useState(Date.now());
+  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
+  const d=new Date(now);
+  const day=d.getDay();
+  const offsetToMonday=day===0?-6:1-day;
+  const monday=new Date(d.getFullYear(),d.getMonth(),d.getDate()+offsetToMonday);
+  const nextMonday=new Date(monday.getTime()+7*86400000);
+  const remaining=Math.max(0,nextMonday.getTime()-now);
+  const days=Math.floor(remaining/86400000);
+  const hours=Math.floor((remaining%86400000)/3600000);
+  const mins=Math.floor((remaining%3600000)/60000);
+  const secs=Math.floor((remaining%60000)/1000);
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 13px",background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.3)",borderRadius:12,marginBottom:14}}>
+      <div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:1.5,color:"#FFD700"}}>Ligue {leagueIdx+1}</div>
+        <div style={{fontSize:10,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:1,letterSpacing:0.5}}>Points training de la semaine</div>
+      </div>
+      <div style={{textAlign:"right"}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:0.5,lineHeight:1}}>{days>0?`${days}j `:""}{String(hours).padStart(2,"0")}:{String(mins).padStart(2,"0")}:{String(secs).padStart(2,"0")}</div>
+        <div style={{fontSize:9,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",marginTop:2}}>Reset lundi 00h</div>
+      </div>
+    </div>
+  );
+}
 const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p.length>1?`${p[0]} ${p[1][0].toUpperCase()}.`:p[0];};
 
 function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile}){
@@ -791,6 +818,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const [discFilter,setDiscFilter]=useState("All");
   const [rankData,setRankData]=useState([]);
   const [openFriend,setOpenFriend]=useState(null);
+  const [leagueIdx,setLeagueIdx]=useState(0);
 
   useEffect(()=>{loadRanking();},[season,rankFilter,discFilter]);
   useEffect(()=>{
@@ -818,6 +846,33 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
     if(!allResultsFull||!allProfiles)return;
     const allResults=allResultsFull.filter(r=>rYear(r)===season);
     const seasonTrainings=(allTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
+
+    if(rankFilter==="ligue"){
+      const now=new Date();
+      const day=now.getDay();
+      const offsetToMonday=day===0?-6:1-day;
+      const monday=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offsetToMonday);
+      const nextMonday=new Date(monday.getTime()+7*86400000);
+      const seasonRanked=allProfiles.map(p=>{
+        const pRes=allResults.filter(r=>r.user_id===p.id);
+        const pTrain=seasonTrainings.filter(t=>t.user_id===p.id);
+        const total=sumBestPts(pRes)+pTrain.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0)+raceBonusPts(pRes,allResultsFull.filter(r=>r.user_id===p.id))+trainingBonusPts(pTrain);
+        return{id:p.id,total};
+      }).sort((a,b)=>b.total-a.total);
+      const myIdx=seasonRanked.findIndex(s=>s.id===user.id);
+      const idx=myIdx>=0?Math.floor(myIdx/20):0;
+      setLeagueIdx(idx);
+      const leagueIds=new Set(seasonRanked.slice(idx*20,(idx+1)*20).map(s=>s.id));
+      const ranked=allProfiles.filter(p=>leagueIds.has(p.id)).map(p=>{
+        const weekTrain=(allTrainings||[]).filter(t=>{const d=new Date(t.date);return t.user_id===p.id&&d>=monday&&d<nextMonday;});
+        const pts=weekTrain.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+        const badges=computeBadges({results:allResultsFull.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
+        return{...p,pts,badges};
+      }).sort((a,b)=>b.pts-a.pts);
+      setRankData(ranked);
+      return;
+    }
+
     let pool=allProfiles;
     if(rankFilter==="amis"){
       const{data:fs}=await supabase.from("friendships").select("friend_id").eq("user_id",user.id).eq("status","accepted");
@@ -916,26 +971,29 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
 
       {/* Rank toggle */}
       <div style={{display:"flex",gap:6,marginBottom:12}}>
-        {[["amis","👥 Amis"],["communaute","🌍 Communauté"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setRankFilter(k)} style={{flex:1,padding:"9px 0",borderRadius:12,border:"none",cursor:"pointer",background:rankFilter===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:rankFilter===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>{l}</button>
+        {[["amis","👥 Amis"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setRankFilter(k)} style={{flex:1,padding:"9px 0",borderRadius:12,border:"none",cursor:"pointer",background:rankFilter===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:rankFilter===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>{l}</button>
         ))}
       </div>
 
-      {/* Disc filter */}
-      <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",scrollbarWidth:"none"}}>
-        {DISC_TABS.map(({k,l})=>(
-          <button key={k} onClick={()=>setDiscFilter(k)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:discFilter===k?"#E63946":"rgba(255,255,255,0.06)",color:discFilter===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{l}</button>
-        ))}
-      </div>
+      {rankFilter==="ligue"
+        ?<LeagueHeader leagueIdx={leagueIdx}/>
+        :<div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",scrollbarWidth:"none"}}>
+          {DISC_TABS.map(({k,l})=>(
+            <button key={k} onClick={()=>setDiscFilter(k)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:discFilter===k?"#E63946":"rgba(255,255,255,0.06)",color:discFilter===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{l}</button>
+          ))}
+        </div>
+      }
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(110px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch"}}>
       {/* Ranking list */}
       {rankData.length===0
-        ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
+        ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":rankFilter==="ligue"?"Aucun athlète dans ta ligue pour le moment":"Aucun résultat pour cette saison"}</div>
         :rankData.map((p,i)=>{
           const lv=getSeasonLevel(p.pts);
-          const inCommunity=rankFilter==="communaute"&&p.id!==profile?.id;
+          const isLigue=rankFilter==="ligue";
+          const inCommunity=rankFilter==="general"&&p.id!==profile?.id;
           const isFriend=friendIds.has(p.id);
           const rowActions=!inCommunity
             ?null
@@ -943,9 +1001,14 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               ?[{icon:"✕",bg:"rgba(255,255,255,0.12)",color:"rgba(240,237,232,0.75)",onClick:()=>handleCancelFriend(p.id)}]
               :[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}];
           const isMe=p.id===profile?.id;
+          const total=rankData.length;
+          const inTop5=isLigue&&i<5;
+          const inBottom5=isLigue&&i>=total-5&&total>=10;
+          const zoneColor=inTop5?"#27AE60":inBottom5?"#E63946":lv.color;
+          const zoneBg=inTop5?"rgba(39,174,96,0.1)":inBottom5?"rgba(230,57,70,0.08)":`${lv.color}0d`;
           const row=(
-            <div onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,borderRadius:14,cursor:"pointer"}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</div>
+            <div onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:zoneBg,border:`1px solid ${zoneColor}${isMe?"66":"33"}`,borderLeft:isLigue&&(inTop5||inBottom5)?`3px solid ${zoneColor}`:`1px solid ${zoneColor}${isMe?"66":"33"}`,borderRadius:14,cursor:"pointer"}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":isLigue?(i+1):""}</div>
               <Avatar profile={p} size={36}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
@@ -953,7 +1016,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
                 <div style={{fontSize:14,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{i+1}/{rankData.length}</div>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:lv.color,letterSpacing:1}}>{p.pts}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:zoneColor,letterSpacing:1}}>{p.pts}</div>
               </div>
             </div>
           );
