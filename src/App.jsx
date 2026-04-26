@@ -2212,9 +2212,9 @@ function PerfTab({userId, refreshKey}) {
               <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8"}}>🏆 Records personnels</div>
               <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>All-time</div>
             </div>
-            <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:14,scrollbarWidth:"none"}}>
+            <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:6,marginBottom:14,scrollbarWidth:"none"}}>
               {PR_DISCIPLINES.map(d => (
-                <button key={d.key} onClick={()=>setActiveDisc(d.key)} style={{flexShrink:0,padding:"6px 14px",borderRadius:20,border:"none",cursor:"pointer",background:activeDisc===d.key?"#E63946":"rgba(255,255,255,0.06)",color:activeDisc===d.key?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap"}}>
+                <button key={d.key} onClick={()=>setActiveDisc(d.key)} style={{flexShrink:0,padding:"5px 11px",borderRadius:14,border:"none",cursor:"pointer",background:activeDisc===d.key?"#E63946":"rgba(255,255,255,0.06)",color:activeDisc===d.key?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap",letterSpacing:0.2}}>
                   {d.icon} {d.label}
                 </button>
               ))}
@@ -2274,18 +2274,18 @@ function PerfTab({userId, refreshKey}) {
 
             <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>📈 Progression</div>
             <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,padding:14,marginBottom:24}}>
-              <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:8,marginBottom:10,scrollbarWidth:"none"}}>
+              <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:6,marginBottom:8,scrollbarWidth:"none"}}>
                 {DISCIPLINE_TABS.map(t => (
-                  <button key={t.key} onClick={()=>onSelectProgDisc(t.key)} style={{flexShrink:0,padding:"6px 12px",borderRadius:18,border:"none",cursor:"pointer",background:progDisc===t.key?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:progDisc===t.key?"#E63946":"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,letterSpacing:0.3,whiteSpace:"nowrap"}}>
+                  <button key={t.key} onClick={()=>onSelectProgDisc(t.key)} style={{flexShrink:0,padding:"5px 11px",borderRadius:14,border:"none",cursor:"pointer",background:progDisc===t.key?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:progDisc===t.key?"#E63946":"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,letterSpacing:0.2,whiteSpace:"nowrap"}}>
                     {t.icon?`${t.icon} `:""}{t.label}
                   </button>
                 ))}
               </div>
               {progDisc !== "points" && availableFormats.length > 0 && (
-                <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:8,marginBottom:10,scrollbarWidth:"none"}}>
-                  <button onClick={()=>setProgFormat("all")} style={{flexShrink:0,padding:"5px 12px",borderRadius:16,border:"none",cursor:"pointer",background:progFormat==="all"?"#E63946":"rgba(255,255,255,0.05)",color:progFormat==="all"?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>Tous</button>
+                <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:6,marginBottom:10,scrollbarWidth:"none"}}>
+                  <button onClick={()=>setProgFormat("all")} style={{flexShrink:0,padding:"4px 10px",borderRadius:12,border:"none",cursor:"pointer",background:progFormat==="all"?"#E63946":"rgba(255,255,255,0.05)",color:progFormat==="all"?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:10,whiteSpace:"nowrap",letterSpacing:0.2}}>Tous</button>
                   {availableFormats.map(fmt => (
-                    <button key={fmt.disc} onClick={()=>setProgFormat(fmt.disc)} style={{flexShrink:0,padding:"5px 12px",borderRadius:16,border:"none",cursor:"pointer",background:progFormat===fmt.disc?"#E63946":"rgba(255,255,255,0.05)",color:progFormat===fmt.disc?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>{fmt.label}</button>
+                    <button key={fmt.disc} onClick={()=>setProgFormat(fmt.disc)} style={{flexShrink:0,padding:"4px 10px",borderRadius:12,border:"none",cursor:"pointer",background:progFormat===fmt.disc?"#E63946":"rgba(255,255,255,0.05)",color:progFormat===fmt.disc?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:10,whiteSpace:"nowrap",letterSpacing:0.2}}>{fmt.label}</button>
                   ))}
                 </div>
               )}
