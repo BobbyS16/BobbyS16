@@ -1947,84 +1947,455 @@ function TrainingPlanModal({userId,existing,onSave,onDelete,onClose}){
 }
 
 // ── PERF TAB ──────────────────────────────────────────────────────────────────
-function PerfTab({userId,refreshKey}){
-  const [results,setResults]=useState([]);
-  const [subTab,setSubTab]=useState("bests");
-  const [selDisc,setSelDisc]=useState("marathon");
-  const [editResult,setEditResult]=useState(null);
+const PR_DISCIPLINES = [
+  {key:"course", label:"Course", icon:"🏃", formats:[
+    {label:"5 km", disc:"5km"},
+    {label:"10 km", disc:"10km"},
+    {label:"Semi-marathon", disc:"semi"},
+    {label:"Marathon", disc:"marathon"},
+  ]},
+  {key:"trail", label:"Trail", icon:"⛰️", formats:[
+    {label:"Trail S (<25 km)", disc:"trail-s"},
+    {label:"Trail M (25-50 km)", disc:"trail-m"},
+    {label:"Trail L (>50 km)", disc:"trail-l"},
+    {label:"Ultra (>80 km)", disc:"trail-xl"},
+  ]},
+  {key:"triathlon", label:"Triathlon", icon:"🏊", formats:[
+    {label:"Sprint", disc:"tri-s"},
+    {label:"M (Olympique)", disc:"tri-m"},
+    {label:"Half-Iron", disc:"tri-l"},
+    {label:"Ironman", disc:"tri-xl"},
+  ]},
+  {key:"hyrox", label:"Hyrox", icon:"🔥", formats:[
+    {label:"Pro", disc:null},
+    {label:"Open", disc:"hyrox-solo"},
+    {label:"Doubles", disc:"hyrox-double"},
+    {label:"Relay", disc:null},
+  ]},
+  {key:"velo", label:"Vélo", icon:"🚴", formats:[
+    {label:"40 km", disc:null},
+    {label:"100 km", disc:null},
+    {label:"160 km", disc:null},
+  ]},
+  {key:"natation", label:"Natation", icon:"🏊", formats:[
+    {label:"800 m", disc:null},
+    {label:"1500 m", disc:null},
+    {label:"5 km", disc:null},
+  ]},
+];
 
-  useEffect(()=>{
-    if(!userId)return;
-    supabase.from("results").select("*").eq("user_id",userId).order("year",{ascending:false})
-      .then(({data})=>setResults(data||[]));
-  },[userId,refreshKey]);
+const DISC_DIST_KM = {
+  "5km":5, "10km":10, "semi":21.1, "marathon":42.2,
+  "trail-s":20, "trail-m":45, "trail-l":80, "trail-xl":120,
+  "tri-s":25.75, "tri-m":51.5, "tri-l":113, "tri-xl":226,
+  "hyrox-solo":8, "hyrox-double":8,
+};
 
-  const reload=()=>supabase.from("results").select("*").eq("user_id",userId).order("year",{ascending:false}).then(({data})=>setResults(data||[]));
-  const deleteResult=async id=>{await supabase.from("results").delete().eq("id",id);reload();};
+const PROG_TABS = [
+  {key:"points", label:"Points"},
+  {key:"marathon", label:"Marathon"},
+  {key:"semi", label:"Semi"},
+  {key:"10km", label:"10K"},
+  {key:"trail", label:"Trail"},
+];
 
-  const byDisc={};
-  results.forEach(r=>{if(!byDisc[r.discipline]||r.time<byDisc[r.discipline].time)byDisc[r.discipline]=r;});
+const monthLabel = i => MONTHS_FR[i].normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase();
 
-  const discResults=results.filter(r=>r.discipline===selDisc).sort((a,b)=>(a.race_date||`${a.year}-01-01`).localeCompare(b.race_date||`${b.year}-01-01`));
-  const progressionData=discResults.map(r=>({label:String(rYear(r)),value:r.time}));
+function fmtRaceTime(s) {
+  if (s==null) return "—";
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+  if (h>0) return `${h}H${String(m).padStart(2,"0")}`;
+  const sec=Math.round(s%60);
+  return `${m}'${String(sec).padStart(2,"0")}`;
+}
+function fmtTimeShort(s) {
+  if (s==null) return "—";
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=Math.round(s%60);
+  if (h>0) return `${h}:${String(m).padStart(2,"0")}`;
+  return `${m}:${String(sec).padStart(2,"0")}`;
+}
+function fmtPace(secPerKm) {
+  if (!secPerKm || !isFinite(secPerKm)) return "—";
+  const m=Math.floor(secPerKm/60), s=Math.round(secPerKm%60);
+  return `${m}'${String(s).padStart(2,"0")}`;
+}
+
+function buildMonthlyPoints(results) {
+  const now=new Date();
+  const months=[];
+  for (let i=11; i>=0; i--) {
+    const d=new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push({
+      key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`,
+      label:monthLabel(d.getMonth()),
+      year:d.getFullYear(),
+      month:d.getMonth(),
+      value:0,
+    });
+  }
+  results.forEach(r=>{
+    const date=r.race_date||(r.year?`${r.year}-12-31`:null);
+    if(!date)return;
+    const m=months.find(x=>x.key===date.slice(0,7));
+    if(m) m.value+=calcPoints(r.discipline,r.time,r.elevation);
+  });
+  return months;
+}
+function buildPrev12Total(results) {
+  const now=new Date();
+  const start=new Date(now.getFullYear(), now.getMonth()-23, 1);
+  const end=new Date(now.getFullYear(), now.getMonth()-11, 1);
+  let total=0;
+  results.forEach(r=>{
+    const date=r.race_date||(r.year?`${r.year}-12-31`:null);
+    if(!date)return;
+    const d=new Date(date);
+    if(d>=start && d<end) total+=calcPoints(r.discipline,r.time,r.elevation);
+  });
+  return total;
+}
+
+function PerfTab({userId, refreshKey}) {
+  const [results, setResults] = useState([]);
+  const [editResult, setEditResult] = useState(null);
+  const [activeDisc, setActiveDisc] = useState("course");
+  const [progTab, setProgTab] = useState("points");
+  const season = CY;
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from("results").select("*").eq("user_id", userId).order("race_date", {ascending:false})
+      .then(({data}) => setResults(data || []));
+  }, [userId, refreshKey]);
+
+  const reload = () => supabase.from("results").select("*").eq("user_id",userId).order("race_date",{ascending:false}).then(({data})=>setResults(data||[]));
+
+  const bestByDisc = useMemo(() => {
+    const map = {};
+    results.forEach(r => {
+      if (!map[r.discipline] || r.time < map[r.discipline].time) map[r.discipline] = r;
+    });
+    return map;
+  }, [results]);
+
+  const seasonResults = useMemo(() => results.filter(r => rYear(r) === season), [results, season]);
+  const lastSeasonResults = useMemo(() => results.filter(r => rYear(r) === season - 1), [results, season]);
+
+  const courseCount = seasonResults.length;
+  const courseDelta = courseCount - lastSeasonResults.length;
+  const totalKm = useMemo(() => seasonResults.reduce((s, r) => s + (DISC_DIST_KM[r.discipline] || 0), 0), [seasonResults]);
+  const totalKmLast = useMemo(() => lastSeasonResults.reduce((s, r) => s + (DISC_DIST_KM[r.discipline] || 0), 0), [lastSeasonResults]);
+  const totalElev = useMemo(() => seasonResults.reduce((s, r) => s + (r.elevation || 0), 0), [seasonResults]);
+  const totalElevLast = useMemo(() => lastSeasonResults.reduce((s, r) => s + (r.elevation || 0), 0), [lastSeasonResults]);
+  const totalPts = useMemo(() => sumBestPts(seasonResults), [seasonResults]);
+  const totalPtsLast = useMemo(() => sumBestPts(lastSeasonResults), [lastSeasonResults]);
+  const bestPerf = useMemo(() => {
+    if (seasonResults.length === 0) return null;
+    return [...seasonResults].sort((a,b) => calcPoints(b.discipline,b.time,b.elevation) - calcPoints(a.discipline,a.time,a.elevation))[0];
+  }, [seasonResults]);
+
+  const monthlyData = useMemo(() => buildMonthlyPoints(results), [results]);
+  const last12Total = useMemo(() => monthlyData.reduce((s, m) => s + m.value, 0), [monthlyData]);
+  const prev12Total = useMemo(() => buildPrev12Total(results), [results]);
+  const yoyDelta = prev12Total > 0 ? ((last12Total / prev12Total - 1) * 100) : null;
+  const bestMonth = useMemo(() => monthlyData.reduce((b,m) => m.value > (b?.value||0) ? m : b, null), [monthlyData]);
+
+  const formatRaces = useMemo(() => {
+    if (progTab === "points") return [];
+    if (progTab === "trail") {
+      return results
+        .filter(r => DISCIPLINES[r.discipline]?.category === "trail")
+        .filter(r => DISC_DIST_KM[r.discipline])
+        .map(r => ({
+          ...r,
+          _date: r.race_date || (r.year ? `${r.year}-06-15` : null),
+          _pace: r.time / DISC_DIST_KM[r.discipline],
+        }))
+        .filter(r => r._date)
+        .sort((a, b) => a._date.localeCompare(b._date));
+    }
+    return results
+      .filter(r => r.discipline === progTab)
+      .map(r => ({...r, _date: r.race_date || (r.year ? `${r.year}-06-15` : null)}))
+      .filter(r => r._date)
+      .sort((a, b) => a._date.localeCompare(b._date));
+  }, [progTab, results]);
+
+  const formatPR = useMemo(() => {
+    if (progTab === "points" || formatRaces.length === 0) return null;
+    if (progTab === "trail") return [...formatRaces].sort((a,b) => a._pace - b._pace)[0];
+    return [...formatRaces].sort((a,b) => a.time - b.time)[0];
+  }, [progTab, formatRaces]);
+
+  const noRaces = results.length === 0;
+  const activeDiscObj = PR_DISCIPLINES.find(d => d.key === activeDisc) || PR_DISCIPLINES[0];
 
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{flexShrink:0,padding:"0 16px"}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Performances</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Perfs</div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["bests","🏆 Records"],["progression","📈 Progression"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setSubTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:subTab===k?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.05)",color:subTab===k?"#E63946":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
-        ))}
-      </div>
-
-      {subTab==="bests"&&(
-        <div>
-          {[{cat:"running",label:"🏃 Run",color:"#4A90D9"},{cat:"triathlon",label:"🏊 Triathlon",color:"#9B59B6"},{cat:"trail",label:"⛰️ Trail",color:"#27AE60"},{cat:"hyrox",label:"🔥 Hyrox",color:"#E63946"}].map(({cat,label,color})=>{
-            const catDiscs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat);
-            const catBests=catDiscs.map(([disc])=>byDisc[disc]?[disc,byDisc[disc]]:null).filter(Boolean);
-            return(
-              <div key={cat} style={{marginBottom:22}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:2,color,marginBottom:10}}>{label}</div>
-                {catBests.length===0
-                  ?<div style={{textAlign:"center",color:"#444",fontSize:12,padding:"12px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
-                  :catBests.map(([disc,r])=>{const pts=calcPoints(disc,r.time,r.elevation);const lv=getLevel(pts);return(
-                    <div key={disc} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontFamily:"'Bebas Neue'",fontWeight:700,fontSize:16,color:"#F0EDE8",letterSpacing:1}}>{DISCIPLINES[disc]?.label}</div>
-                        <div style={{fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{r.race||""}{r.race_date?` · ${r.race_date.slice(0,4)}`:r.year?` · ${r.year}`:""}</div>
+        {noRaces ? (
+          <div style={{textAlign:"center",padding:"60px 20px",color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif"}}>
+            <div style={{fontSize:48,marginBottom:16}}>🏁</div>
+            <div style={{fontSize:14}}>Pas encore de course enregistrée.</div>
+            <div style={{fontSize:13,marginTop:6}}>Ajoute ta première course !</div>
+          </div>
+        ) : (
+          <>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8"}}>🏆 Records personnels</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>All-time</div>
+            </div>
+            <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:14,scrollbarWidth:"none"}}>
+              {PR_DISCIPLINES.map(d => (
+                <button key={d.key} onClick={()=>setActiveDisc(d.key)} style={{flexShrink:0,padding:"6px 14px",borderRadius:20,border:"none",cursor:"pointer",background:activeDisc===d.key?"#E63946":"rgba(255,255,255,0.06)",color:activeDisc===d.key?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap"}}>
+                  {d.icon} {d.label}
+                </button>
+              ))}
+            </div>
+            <div style={{marginBottom:24}}>
+              {activeDiscObj.formats.map(fmt => {
+                const pr = fmt.disc ? bestByDisc[fmt.disc] : null;
+                if (pr) {
+                  const dateStr = pr.race_date ? pr.race_date.split("-").reverse().join("/") : (pr.year || "");
+                  return (
+                    <div key={fmt.label} onClick={()=>setEditResult(pr)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,255,255,0.02))",border:"1px solid rgba(255,215,0,0.2)",borderRadius:14,marginBottom:8,cursor:"pointer"}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,215,0,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
+                        {DISCIPLINES[fmt.disc]?.icon || activeDiscObj.icon}
                       </div>
-                      <div style={{flexShrink:0,textAlign:"right",display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
-                        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,color:lv.color,letterSpacing:1,lineHeight:1}}>{fmtTime(r.time)}</div>
-                        <div style={{fontSize:9,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>{lv.label}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",letterSpacing:0.5}}>{fmt.label}</div>
+                        <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                          {pr.race || "Course"}{dateStr?` · ${dateStr}`:""}
+                        </div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#FFD700",letterSpacing:1,lineHeight:1}}>{fmtTime(pr.time)}</div>
+                        <div style={{fontSize:9,color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginTop:3}}>RECORD</div>
                       </div>
                     </div>
-                  );})}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {subTab==="progression"&&(
-        <div>
-          <Sel value={selDisc} onChange={setSelDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>
-          <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"16px",marginBottom:14,border:"1px solid rgba(255,255,255,0.06)"}}>
-            <LineChart data={progressionData} color="#E63946" title={`Progression ${DISCIPLINES[selDisc]?.label}`} invert={true} formatY={v=>{const maxT=Math.max(...progressionData.map(d=>d.value));return maxT>2*3600?`${Math.floor(v/3600)}h${String(Math.floor((v%3600)/60)).padStart(2,"0")}`:`${Math.floor(v/60)}min`;}} />
-          </div>
-          {discResults.map((r,i)=>{const pts=calcPoints(r.discipline,r.time,r.elevation);const lv=getLevel(pts);return(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
-              <div><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{r.race||DISCIPLINES[r.discipline]?.label}</div><div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif"}}>{rYear(r)}</div></div>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:19,color:lv.color}}>{fmtTime(r.time)}</div>
+                  );
+                }
+                return (
+                  <div key={fmt.label} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:14,marginBottom:8,opacity:0.55}}>
+                    <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.04)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,color:"rgba(240,237,232,0.3)"}}>—</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"rgba(240,237,232,0.6)",letterSpacing:0.5}}>{fmt.label}</div>
+                      <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>Pas encore couru</div>
+                    </div>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"rgba(240,237,232,0.25)",letterSpacing:1}}>—</div>
+                  </div>
+                );
+              })}
             </div>
-          );})}
-          {discResults.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat pour cette discipline</div>}
-        </div>
-      )}
-      {editResult&&<ResultModal existing={editResult} userId={userId} onSave={()=>{setEditResult(null);reload();}} onClose={()=>setEditResult(null)}/>}
+
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>📈 Progression</div>
+            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,padding:14,marginBottom:24}}>
+              <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:8,marginBottom:10,scrollbarWidth:"none"}}>
+                {PROG_TABS.map(t => (
+                  <button key={t.key} onClick={()=>setProgTab(t.key)} style={{flexShrink:0,padding:"6px 12px",borderRadius:18,border:"none",cursor:"pointer",background:progTab===t.key?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:progTab===t.key?"#E63946":"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,letterSpacing:0.3}}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              {progTab === "points"
+                ? <PointsProgressionChart monthlyData={monthlyData} last12Total={last12Total} yoyDelta={yoyDelta} bestMonth={bestMonth}/>
+                : <FormatProgressionChart progTab={progTab} races={formatRaces} pr={formatPR}/>}
+            </div>
+
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>📊 Saison en chiffres</div>
+            <div style={{background:"linear-gradient(135deg, rgba(230,57,70,0.08), rgba(230,57,70,0.02))",border:"1px solid rgba(230,57,70,0.15)",borderRadius:16,padding:16,marginBottom:14}}>
+              <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:14}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:2,color:"#F0EDE8"}}>SAISON {season}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>vs {season-1}</div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                <KPICard label="Courses" value={courseCount} delta={courseDelta} year={season-1}/>
+                <KPICard label="Volume km" value={`${Math.round(totalKm)} km`} delta={Math.round(totalKm-totalKmLast)} year={season-1} suffix=" km"/>
+                <KPICard label="Dénivelé+" value={`${totalElev} m`} delta={totalElev-totalElevLast} year={season-1} suffix=" m"/>
+                <KPICard label="Total points" value={totalPts} delta={totalPts-totalPtsLast} year={season-1} suffix=" pts"/>
+              </div>
+              {bestPerf && (
+                <div onClick={()=>setEditResult(bestPerf)} style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.2)",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+                  <div style={{fontSize:22}}>🏆</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:9,color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",marginBottom:2}}>MEILLEURE PERF</div>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FFD700",letterSpacing:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                      {(DISCIPLINES[bestPerf.discipline]?.label||bestPerf.discipline).toUpperCase()} · {fmtRaceTime(bestPerf.time)}{bestPerf.race?` · ${bestPerf.race.toUpperCase()}`:""}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+      {editResult && <ResultModal existing={editResult} userId={userId} onSave={()=>{setEditResult(null);reload();}} onClose={()=>setEditResult(null)}/>}
     </div>
+  );
+}
+
+function KPICard({label, value, delta, year, suffix=""}) {
+  let deltaText="", deltaColor="rgba(240,237,232,0.4)";
+  if (delta>0) { deltaText=`↗ +${delta}${suffix} vs ${year}`; deltaColor="#4ADE80"; }
+  else if (delta===0) { deltaText=`= stable vs ${year}`; }
+  else { deltaText=`vs ${year}`; }
+  return (
+    <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"10px 12px"}}>
+      <div style={{fontSize:9,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{label}</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:"#F0EDE8",letterSpacing:1,lineHeight:1}}>{value}</div>
+      <div style={{fontSize:10,color:deltaColor,fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{deltaText}</div>
+    </div>
+  );
+}
+
+function ChartStat({label, value, color}) {
+  return (
+    <div style={{flex:1,background:"rgba(255,255,255,0.03)",borderRadius:10,padding:"8px 10px",textAlign:"center",minWidth:0}}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:color||"#F0EDE8",letterSpacing:0.5,lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{value}</div>
+      <div style={{fontSize:8,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginTop:4}}>{label}</div>
+    </div>
+  );
+}
+
+function PointsProgressionChart({monthlyData, last12Total, yoyDelta, bestMonth}) {
+  const W=320, H=110, PL=12, PR=12, PT=12, PB=22;
+  const chartW=W-PL-PR, chartH=H-PT-PB;
+  const max=Math.max(...monthlyData.map(m=>m.value), 1);
+  const xOf=i => PL + (i/(monthlyData.length-1))*chartW;
+  const yOf=v => PT + (1 - v/max)*chartH;
+  const pts=monthlyData.map((m,i)=>({x:xOf(i), y:yOf(m.value), ...m}));
+  const path=pts.map((p,i)=>`${i===0?"M":"L"}${p.x},${p.y}`).join(" ");
+  const lastPt=pts[pts.length-1];
+  const labelIdxs=monthlyData.map((_,i)=>i).filter(i=>i%2===0||i===monthlyData.length-1);
+
+  return (
+    <div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:10}}>Sur les 12 derniers mois</div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",overflow:"visible",marginBottom:10}}>
+        <defs>
+          <linearGradient id="ptsGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E63946" stopOpacity="0.4"/>
+            <stop offset="100%" stopColor="#E63946" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d={`${path} L${lastPt.x},${PT+chartH} L${pts[0].x},${PT+chartH} Z`} fill="url(#ptsGrad)"/>
+        <path d={path} fill="none" stroke="#E63946" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx={lastPt.x} cy={lastPt.y} r="6" fill="#E63946" opacity="0.4">
+          <animate attributeName="r" values="5;13;5" dur="1.6s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.5;0;0.5" dur="1.6s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx={lastPt.x} cy={lastPt.y} r="3.5" fill="#E63946"/>
+        {labelIdxs.map(i => (
+          <text key={i} x={xOf(i)} y={H-6} textAnchor="middle" fill="rgba(240,237,232,0.4)" fontSize="9" fontFamily="Barlow,sans-serif" fontWeight="600" letterSpacing="0.5">{monthlyData[i].label}</text>
+        ))}
+      </svg>
+      <div style={{display:"flex",gap:8}}>
+        <ChartStat label="Points 12 mois" value={last12Total}/>
+        <ChartStat label="Vs an dernier" value={yoyDelta!==null?`${yoyDelta>=0?"+":""}${yoyDelta.toFixed(0)}%`:"—"} color={yoyDelta!==null && yoyDelta>0?"#4ADE80":undefined}/>
+        <ChartStat label="Meilleur mois" value={bestMonth && bestMonth.value>0?`${bestMonth.label} ${String(bestMonth.year).slice(-2)}`:"—"}/>
+      </div>
+    </div>
+  );
+}
+
+function FormatProgressionChart({progTab, races, pr}) {
+  const labelMap={marathon:"marathons", semi:"semis", "10km":"10 km", trail:"trails"};
+  const formatLabel=labelMap[progTab]||progTab;
+  const singularLabel=formatLabel.replace(/s$/,"");
+
+  if (races.length===0) {
+    return (
+      <div>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:10}}>Aucun {singularLabel} pour l'instant</div>
+        <div style={{textAlign:"center",padding:"40px 12px",color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun {singularLabel} pour l'instant. Lance-toi !</div>
+      </div>
+    );
+  }
+
+  const firstYear=rYear(races[0]);
+  const subTitle=`Tes ${races.length} ${formatLabel} depuis ${firstYear}`;
+  const isPace=progTab==="trail";
+  const yvalOf=r => isPace?r._pace:r.time;
+  const labelOf=r => isPace?fmtPace(r._pace):fmtTimeShort(r.time);
+  const prVal=pr?yvalOf(pr):null;
+
+  if (races.length===1) {
+    const r=races[0];
+    return (
+      <div>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:14}}>{subTitle}</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"22px 12px",gap:14}}>
+          <div style={{width:14,height:14,borderRadius:"50%",background:"#FFD700",boxShadow:"0 0 0 6px rgba(255,215,0,0.25)"}}/>
+          <div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#FFD700",letterSpacing:1,lineHeight:1}}>{labelOf(r)}{isPace?"/km":""}</div>
+            <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:4}}>{rYear(r)}</div>
+          </div>
+        </div>
+        <div style={{textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:6,marginBottom:8}}>Encore 1 course pour voir ta progression</div>
+        <div style={{display:"flex",gap:8,marginTop:10}}>
+          <ChartStat label="Record actuel" value={isPace?`${fmtPace(prVal)}/km`:fmtTimeShort(prVal)} color="#FFD700"/>
+          <ChartStat label="Total" value={races.length}/>
+        </div>
+      </div>
+    );
+  }
+
+  const W=320, H=140, PL=14, PR_PAD=14, PT=26, PB=22;
+  const chartW=W-PL-PR_PAD, chartH=H-PT-PB;
+  const vals=races.map(yvalOf);
+  const min=Math.min(...vals), max=Math.max(...vals), range=(max-min)||1;
+  const xOf=i => PL + (i/(races.length-1))*chartW;
+  const yOf=v => PT + ((v-min)/range)*chartH;
+  const pts=races.map((r,i)=>({x:xOf(i), y:yOf(yvalOf(r)), r, isPR:yvalOf(r)===prVal}));
+  const path=pts.map((p,i)=>`${i===0?"M":"L"}${p.x},${p.y}`).join(" ");
+  const years=[...new Set(races.map(r=>rYear(r)))].sort((a,b)=>a-b);
+  const yearXs=years.map(y => {
+    const idx=races.findIndex(r=>rYear(r)===y);
+    return {y, x:xOf(idx)};
+  });
+
+  const firstVal=yvalOf(races[0]);
+  const diff=firstVal-prVal;
+  const diffStr=isPace
+    ? `-${fmtPace(diff)}/km`
+    : (() => { const m=Math.floor(diff/60), s=Math.round(diff%60); return m>0?`-${m}'${String(s).padStart(2,"0")}`:`-${s}s`; })();
+
+  return (
+    <div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:10}}>{subTitle}</div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",overflow:"visible",marginBottom:10}}>
+        <defs>
+          <linearGradient id="fmtGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E63946" stopOpacity="0.4"/>
+            <stop offset="100%" stopColor="#E63946" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d={`${path} L${pts[pts.length-1].x},${PT+chartH} L${pts[0].x},${PT+chartH} Z`} fill="url(#fmtGrad)"/>
+        <path d={path} fill="none" stroke="#E63946" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        {pts.map((p,i)=> p.isPR ? (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="11" fill="#FFD700" opacity="0.25"/>
+            <circle cx={p.x} cy={p.y} r="6" fill="#FFD700"/>
+            <text x={p.x} y={p.y-14} textAnchor="middle" fill="#FFD700" fontSize="10" fontWeight="700" fontFamily="Bebas Neue" letterSpacing="0.5">{labelOf(p.r)} PR</text>
+          </g>
+        ) : (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="4" fill="#E63946"/>
+            <text x={p.x} y={p.y-9} textAnchor="middle" fill="rgba(240,237,232,0.7)" fontSize="9" fontWeight="600" fontFamily="Barlow,sans-serif">{labelOf(p.r)}</text>
+          </g>
+        ))}
+        {yearXs.map(({y,x})=>(
+          <text key={y} x={x} y={H-6} textAnchor="middle" fill="rgba(240,237,232,0.4)" fontSize="9" fontFamily="Barlow,sans-serif" fontWeight="600">{y}</text>
+        ))}
+      </svg>
+      <div style={{display:"flex",gap:8}}>
+        <ChartStat label="Record actuel" value={isPace?`${fmtPace(prVal)}/km`:fmtTimeShort(prVal)} color="#FFD700"/>
+        <ChartStat label={`Vs 1er ${singularLabel}`} value={diff>0?diffStr:"—"} color={diff>0?"#4ADE80":undefined}/>
+        <ChartStat label="Total" value={races.length}/>
+      </div>
     </div>
   );
 }
