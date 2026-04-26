@@ -2491,10 +2491,10 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       ):(()=>{
         const DISC_CHIPS=[
           {k:"Toutes",cat:null},
+          {k:"Course",cat:"running"},
           {k:"Trail",cat:"trail"},
           {k:"Triathlon",cat:"triathlon"},
           {k:"Hyrox",cat:"hyrox"},
-          {k:"Natation",cat:"natation"},
         ];
         const years=[...new Set(results.map(r=>rYear(r)))].sort((a,b)=>b-a);
         const prByDisc=results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{});
