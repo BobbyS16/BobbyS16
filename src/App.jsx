@@ -2203,7 +2203,7 @@ function SocialTab({myProfile,onNotifsChange}){
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["friends","👥 Amis"],["groups","🏠 Groupes"],["search","🔍 Chercher"]].map(([k,l])=>(
+        {[["friends","💬 Tchat"],["groups","🏠 Groupes"],["search","🔍 Chercher"]].map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:tab===k?"#E63946":"rgba(255,255,255,0.06)",color:tab===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,position:"relative"}}>
             {l}
             {k==="friends"&&notifs.length>0&&<span style={{position:"absolute",top:4,right:6,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:tab===k?"1.5px solid #fff":"none"}}>{notifs.length>9?"9+":notifs.length}</span>}
