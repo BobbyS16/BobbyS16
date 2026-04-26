@@ -1291,10 +1291,10 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:"clamp(10px, 2.5dvh, 20px)",marginBottom:"clamp(10px, 2dvh, 16px)"}}>
         <div>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:"clamp(20px, 5.5vw, 28px)",letterSpacing:3,lineHeight:1}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:"clamp(28px, 8vw, 42px)",letterSpacing:3,lineHeight:1}}>
             <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
           </div>
-          <div style={{fontSize:"clamp(8px, 2vw, 10px)",color:"rgba(240,237,232,0.3)",letterSpacing:3,fontFamily:"'Barlow',sans-serif"}}>RUN · TRIATHLON · TRAIL · HYROX</div>
+          <div style={{fontSize:"clamp(9px, 2.2vw, 11px)",color:"#F0EDE8",letterSpacing:3,fontFamily:"'Barlow',sans-serif",fontWeight:600,marginTop:4}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
