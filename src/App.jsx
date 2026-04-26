@@ -2076,7 +2076,7 @@ function ChatModal({myId,title,table,filterCol,filterId,friendId,onClose}){
   return(
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>{title}</div>
-      <div style={{height:340,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12,paddingRight:4}}>
+      <div style={{height:"clamp(240px, 48dvh, 380px)",overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12,paddingRight:4}}>
         {messages.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun message</div>}
         {messages.map((m,i)=>{
           const mine=m.sender_id===myId;
@@ -2098,10 +2098,10 @@ function ChatModal({myId,title,table,filterCol,filterId,friendId,onClose}){
         })}
         <div ref={bottomRef}/>
       </div>
-      <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+      <div style={{display:"flex",gap:8,alignItems:"flex-end",marginBottom:12}}>
         <textarea value={text} onChange={e=>setText(e.target.value)} onKeyDown={onKey}
           placeholder="Message…" rows={1}
-          style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",resize:"none",boxSizing:"border-box"}}/>
+          style={{flex:1,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",resize:"none",boxSizing:"border-box"}}/>
         <button onClick={send} style={{background:"#E63946",border:"none",borderRadius:12,width:42,height:42,cursor:"pointer",fontSize:18,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>➤</button>
       </div>
     </Modal>
