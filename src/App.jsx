@@ -1611,11 +1611,11 @@ function TrainingTab({userId}){
         <div style={{paddingTop:20,paddingBottom:10}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Training</div>
         </div>
-        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-          <button onClick={()=>setPlanView(plan?"detail":"setup")} style={{background:"#F0EDE8",border:"none",borderRadius:10,padding:"9px 14px",color:"#1a1a1a",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.5}}>📋 {plan?"Mon plan d'entraînement":"Générer plan d'entraînement"}</button>
-        </div>
       </div>
       <div style={{flex:1,minHeight:0,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))"}}>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+        <button onClick={()=>setPlanView(plan?"detail":"setup")} style={{background:"#F0EDE8",border:"none",borderRadius:10,padding:"9px 14px",color:"#1a1a1a",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.5}}>📋 {plan?"Mon plan d'entraînement":"Générer plan d'entraînement"}</button>
+      </div>
       {plan&&(()=>{
         const today=new Date();today.setHours(0,0,0,0);
         const target=plan.date?new Date(plan.date):null;
