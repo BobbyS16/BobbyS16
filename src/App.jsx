@@ -2491,11 +2491,9 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       ):(()=>{
         const DISC_CHIPS=[
           {k:"Toutes",cat:null},
-          {k:"Course",cat:"running"},
           {k:"Trail",cat:"trail"},
           {k:"Triathlon",cat:"triathlon"},
           {k:"Hyrox",cat:"hyrox"},
-          {k:"Vélo",cat:"velo"},
           {k:"Natation",cat:"natation"},
         ];
         const years=[...new Set(results.map(r=>rYear(r)))].sort((a,b)=>b-a);
