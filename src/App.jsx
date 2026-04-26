@@ -1969,17 +1969,17 @@ const PR_DISCIPLINES = [
     {label:"Semi-marathon", disc:"semi"},
     {label:"Marathon", disc:"marathon"},
   ]},
-  {key:"trail", label:"Trail", icon:"⛰️", formats:[
-    {label:"Trail S (<25 km)", disc:"trail-s"},
-    {label:"Trail M (25-50 km)", disc:"trail-m"},
-    {label:"Trail L (>50 km)", disc:"trail-l"},
-    {label:"Ultra (>80 km)", disc:"trail-xl"},
-  ]},
   {key:"triathlon", label:"Triathlon", icon:"🏊", formats:[
     {label:"Sprint", disc:"tri-s"},
     {label:"M (Olympique)", disc:"tri-m"},
     {label:"Half-Iron", disc:"tri-l"},
     {label:"Ironman", disc:"tri-xl"},
+  ]},
+  {key:"trail", label:"Trail", icon:"⛰️", formats:[
+    {label:"Trail S (<25 km)", disc:"trail-s"},
+    {label:"Trail M (25-50 km)", disc:"trail-m"},
+    {label:"Trail L (>50 km)", disc:"trail-l"},
+    {label:"Ultra (>80 km)", disc:"trail-xl"},
   ]},
   {key:"hyrox", label:"Hyrox", icon:"🔥", formats:[
     {label:"Pro", disc:"hyrox-pro"},
