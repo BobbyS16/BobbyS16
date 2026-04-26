@@ -2519,7 +2519,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
             <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12,display:"flex",alignItems:"center",gap:8}}>🏁 Mes courses</div>
             <div style={{position:"relative",marginBottom:10}}>
               <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:14,color:"rgba(240,237,232,0.4)",pointerEvents:"none"}}>🔍</span>
-              <input value={racesSearch} onChange={e=>setRacesSearch(e.target.value)} placeholder="Rechercher une course…" style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 12px 10px 36px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box"}}/>
+              <input value={racesSearch} onChange={e=>setRacesSearch(e.target.value)} placeholder="Rechercher une course…" style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 12px 10px 36px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box"}}/>
             </div>
             <div style={{display:"flex",gap:5,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginBottom:8,paddingBottom:2}}>
               {DISC_CHIPS.map(({k})=>(
