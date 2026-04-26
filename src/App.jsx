@@ -559,11 +559,14 @@ function ResultModal({existing,userId,onSave,onClose}){
     setLoading(true);setError("");
     const year=raceDate?parseInt(raceDate.slice(0,4)):CY;
     const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null,elevation:hasElevation&&elevation?parseInt(elevation)||null:null};
-    let err;
-    if(existing){({error:err}=await supabase.from("results").update(payload).eq("id",existing.id));}
-    else{({error:err}=await supabase.from("results").insert({...payload,user_id:userId}));}
+    console.log("[result-save]",existing?"UPDATE":"INSERT",existing?.id,payload);
+    let err,data;
+    if(existing){({error:err,data}=await supabase.from("results").update(payload).eq("id",existing.id).select());}
+    else{({error:err,data}=await supabase.from("results").insert({...payload,user_id:userId}).select());}
     setLoading(false);
-    if(err){setError("Erreur lors de l'enregistrement");return;}
+    console.log("[result-save] résultat",{err,data});
+    if(err){setError("Erreur : "+(err.message||err.details||JSON.stringify(err)));return;}
+    if(existing&&(!data||data.length===0)){setError("Aucune ligne modifiée — RLS Supabase bloque peut-être l'UPDATE pour cet utilisateur");return;}
     onSave();
   };
   return (
