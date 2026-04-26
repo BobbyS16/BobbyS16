@@ -2328,6 +2328,11 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [racesSearch,setRacesSearch]=useState("");
   const [racesDiscFilter,setRacesDiscFilter]=useState("Toutes");
   const [racesYearFilter,setRacesYearFilter]=useState("Toutes");
+  const [editResult,setEditResult]=useState(null);
+  const handleDeleteResult=async id=>{
+    await supabase.from("results").delete().eq("id",id);
+    onRefresh();
+  };
   const [hidden,setHidden]=useState(!!profile?.ranking_hidden);
   useEffect(()=>{setHidden(!!profile?.ranking_hidden);},[profile?.ranking_hidden]);
   const [stravaTokens,setStravaTokens]=useState(null);
@@ -2539,20 +2544,22 @@ function ProfileModal({profile,results,onRefresh,onClose}){
               const ptsLv=getLevel(pts);
               const isPR=prByDisc[r.discipline]?.id===r.id;
               return(
-                <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label} · {rYear(r)}</div>
-                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                      <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
-                      {isPR&&<span style={{background:"rgba(255,215,0,0.15)",border:"1px solid rgba(255,215,0,0.35)",color:"#FFD700",fontSize:9,padding:"2px 5px",borderRadius:4,fontWeight:700,letterSpacing:0.5,fontFamily:"'Barlow',sans-serif"}}>PR</span>}
+                <SwipeRow key={r.id} radius={12} mb={6} onDelete={()=>handleDeleteResult(r.id)}>
+                  <div onClick={()=>setEditResult(r)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:12,border:"1px solid rgba(255,255,255,0.05)",cursor:"pointer"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label} · {rYear(r)}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                        <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                        {isPR&&<span style={{background:"rgba(255,215,0,0.15)",border:"1px solid rgba(255,215,0,0.35)",color:"#FFD700",fontSize:9,padding:"2px 5px",borderRadius:4,fontWeight:700,letterSpacing:0.5,fontFamily:"'Barlow',sans-serif"}}>PR</span>}
+                      </div>
+                      {r.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race}</div>}
                     </div>
-                    {r.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race}</div>}
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:ptsLv.color,letterSpacing:1}}>{pts}</div>
+                      <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
+                    </div>
                   </div>
-                  <div style={{textAlign:"right",flexShrink:0}}>
-                    <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:ptsLv.color,letterSpacing:1}}>{pts}</div>
-                    <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
-                  </div>
-                </div>
+                </SwipeRow>
               );
             })}
           </div>
@@ -2577,6 +2584,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       {showPhoto&&profile?.avatar&&<PhotoViewer src={profile.avatar} onClose={()=>setShowPhoto(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
       {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
+      {editResult&&<ResultModal existing={editResult} userId={profile.id} onSave={()=>{setEditResult(null);onRefresh();}} onClose={()=>setEditResult(null)}/>}
     </Modal>
   );
 }
