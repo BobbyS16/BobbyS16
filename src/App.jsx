@@ -117,7 +117,7 @@ async function checkAndNotifyOvertake(userId){
     const mySR=(myResults||[]).filter(r=>rYear(r)===season);
     const mySTr=(myTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
     const myRP=sumBestPts(mySR);
-    const myTP=mySTr.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+    const myTP=mySTr.reduce((s,t)=>s+(effectiveTrainingPts(t)),0);
     const myBP=raceBonusPts(mySR,myResults||[])+trainingBonusPts(mySTr);
     const myNew=myRP+myTP+myBP;
     let lastPts=parseInt(localStorage.getItem(lsKey));
@@ -134,7 +134,7 @@ async function checkAndNotifyOvertake(userId){
         const fSR=(fRes||[]).filter(r=>r.user_id===fid&&rYear(r)===season);
         const fSTr=(fTr||[]).filter(t=>t.user_id===fid&&new Date(t.date).getFullYear()===season);
         const fAllRes=(fRes||[]).filter(r=>r.user_id===fid);
-        const fPts=sumBestPts(fSR)+fSTr.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0)+raceBonusPts(fSR,fAllRes)+trainingBonusPts(fSTr);
+        const fPts=sumBestPts(fSR)+fSTr.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+raceBonusPts(fSR,fAllRes)+trainingBonusPts(fSTr);
         return fPts>=lastPts&&fPts<myNew;
       });
       if(overtaken.length>0){
@@ -203,6 +203,68 @@ function calcTrainingPts(distKm, sport, durationSec) {
   }
   return Math.round(d * intensity * 0.2);
 }
+function effectiveTrainingPts(t) {
+  if (!t) return 0;
+  if (t.is_official_race) return 0;
+  return t.points || calcTrainingPts(t.distance, t.sport, t.duration);
+}
+function normalizeText(s) {
+  if (!s) return "";
+  return s.toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+}
+const OFFICIAL_RACE_KEYWORDS = [
+  // Forts
+  "marathon","semi-marathon","semi marathon","trail","ultra","triathlon","ironman","hyrox","championnat","championnats","utmb",
+  // Faibles / explicites
+  "10 km","10km","5 km","5km","tri ","iron","half iron","70.3","olympique","sprint distance","h race",
+  "course de","officiel","competition","edition","race","compet",
+];
+function detectOfficialRace(title) {
+  const norm = normalizeText(title);
+  if (!norm) return false;
+  if (OFFICIAL_RACE_KEYWORDS.some(k => norm.includes(k))) return true;
+  // Patterns numériques courants : "10k", "5k", "21k", "42k"
+  if (/\b(5|10|15|21|42)\s*k(m)?\b/.test(norm)) return true;
+  return false;
+}
+function detectRaceFormat(title) {
+  const norm = normalizeText(title);
+  if (!norm) return null;
+  if (/\b5\s*k(m)?\b/.test(norm)) return "5km";
+  if (/\b10\s*k(m)?\b/.test(norm)) return "10km";
+  if (/semi[\s-]?marathon|\bsemi\b/.test(norm)) return "semi";
+  if (/\bmarathon\b/.test(norm)) return "marathon";
+  if (/utmb/.test(norm)) return "trail-xl";
+  if (/\bultra\b/.test(norm)) return "trail-xl";
+  if (/ironman|\b70\.?3\b|half[\s-]?iron/.test(norm)) return /ironman/.test(norm) && !/half/.test(norm) ? "tri-xl" : "tri-l";
+  if (/olympique/.test(norm)) return "tri-m";
+  if (/\bsprint\b/.test(norm)) return "tri-s";
+  if (/triathlon|\btri\b/.test(norm)) return "tri-m";
+  if (/hyrox.*pro/.test(norm)) return "hyrox-pro";
+  if (/hyrox.*relay/.test(norm)) return "hyrox-relay";
+  if (/hyrox.*double/.test(norm)) return "hyrox-double";
+  if (/hyrox/.test(norm)) return "hyrox-open";
+  if (/trail/.test(norm)) return "trail-m";
+  return null;
+}
+const RACE_FORMAT_OPTIONS = [
+  {value:"5km", label:"Course · 5 km"},
+  {value:"10km", label:"Course · 10 km"},
+  {value:"semi", label:"Course · Semi-marathon"},
+  {value:"marathon", label:"Course · Marathon"},
+  {value:"trail-s", label:"Trail S (<25 km)"},
+  {value:"trail-m", label:"Trail M (25-50 km)"},
+  {value:"trail-l", label:"Trail L (>50 km)"},
+  {value:"trail-xl", label:"Ultra (>80 km)"},
+  {value:"tri-s", label:"Triathlon · Sprint"},
+  {value:"tri-m", label:"Triathlon · Olympique (M)"},
+  {value:"tri-l", label:"Triathlon · Half-Iron"},
+  {value:"tri-xl", label:"Triathlon · Ironman"},
+  {value:"hyrox-pro", label:"Hyrox · Pro"},
+  {value:"hyrox-open", label:"Hyrox · Open"},
+  {value:"hyrox-double", label:"Hyrox · Doubles"},
+  {value:"hyrox-relay", label:"Hyrox · Relay"},
+];
 function getLevel(pts) {
   if (pts >= 900) return {label:"Élite",       color:"#FFD700"};
   if (pts >= 700) return {label:"Expert",      color:"#C0C0C0"};
@@ -566,8 +628,34 @@ function ResultModal({existing,userId,onSave,onClose}){
   const [raceDate,setDate]=useState(existing?.race_date||today);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
+  const [linkedTraining,setLinkedTraining]=useState(null);
   const cat=DISCIPLINES[discipline]?.category;
   const hasElevation=cat==="trail"||cat==="triathlon";
+
+  useEffect(() => {
+    if (!existing?.id) return;
+    supabase.from("trainings").select("*").eq("linked_result_id", existing.id).maybeSingle()
+      .then(({data}) => setLinkedTraining(data||null));
+  }, [existing?.id]);
+
+  const reclassifyAsTraining = async () => {
+    if (!linkedTraining || !existing?.id) return;
+    if (!window.confirm("Reclasser cette course en entraînement ? Le résultat officiel sera supprimé et l'activité retournera dans tes entraînements.")) return;
+    setLoading(true);
+    const recomputedPts = calcTrainingPts(linkedTraining.distance, linkedTraining.sport, linkedTraining.duration);
+    await supabase.from("trainings").update({
+      is_official_race: false,
+      classification_status: "classified_as_training",
+      official_race_format: null,
+      official_race_name: null,
+      official_race_location: null,
+      linked_result_id: null,
+      points: recomputedPts,
+    }).eq("id", linkedTraining.id);
+    await supabase.from("results").delete().eq("id", existing.id);
+    setLoading(false);
+    onSave();
+  };
   const handleSave=async()=>{
     const[h,m,s]=timeStr.split(":").map(Number);const t=h*3600+m*60+s;
     if(!t){setError("Sélectionne un temps valide");return;}
@@ -599,13 +687,16 @@ function ResultModal({existing,userId,onSave,onClose}){
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={raceDate} onChange={setDate}/></div>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Valider"}</Btn>
-      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={linkedTraining?8:0}>Annuler</Btn>
+      {linkedTraining && (
+        <button onClick={reclassifyAsTraining} disabled={loading} style={{width:"100%",background:"transparent",border:"1px solid rgba(240,237,232,0.15)",borderRadius:14,padding:"11px 0",color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.3,opacity:loading?0.5:1}}>↩ Reclasser en entraînement</button>
+      )}
     </Modal>
   );
 }
 
 // ── TRAINING MODAL ────────────────────────────────────────────────────────────
-function TrainingModal({existing,userId,onSave,onClose}){
+function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
   const [sport,setSport]=useState(existing?.sport||"Run");
   const [title,setTitle]=useState(existing?.title||"");
   const [dist,setDist]=useState(existing?String(existing.distance||""):"");
@@ -619,10 +710,15 @@ function TrainingModal({existing,userId,onSave,onClose}){
     setLoading(true);setErr("");
     const durationSec=parseDurStr(duration);
     const pts=calcTrainingPts(parseFloat(dist)||0,sport,durationSec);
-    const payload={sport,title:title.trim()||null,distance:parseFloat(dist)||0,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts};
+    const trimmedTitle = title.trim();
+    const payload={sport,title:trimmedTitle||null,distance:parseFloat(dist)||0,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts};
     let err;
     if(existing){({error:err}=await supabase.from("trainings").update(payload).eq("id",existing.id));}
-    else{({error:err}=await supabase.from("trainings").insert({...payload,user_id:userId}));}
+    else{
+      const insertPayload={...payload,user_id:userId};
+      if(detectOfficialRace(trimmedTitle)) insertPayload.auto_detected_official=true;
+      ({error:err}=await supabase.from("trainings").insert(insertPayload));
+    }
     setLoading(false);
     if(err){setErr(err.message||err.details||JSON.stringify(err));return;}
     onSave();
@@ -640,7 +736,144 @@ function TrainingModal({existing,userId,onSave,onClose}){
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={date} onChange={setDate}/></div>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Valider"}</Btn>
-      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={existing&&onConvertToRace?8:0}>Annuler</Btn>
+      {existing && onConvertToRace && !existing.is_official_race && (
+        <button onClick={()=>{onClose();onConvertToRace(existing);}} style={{width:"100%",background:"transparent",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,padding:"11px 0",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.3}}>🏁 Convertir en course officielle</button>
+      )}
+    </Modal>
+  );
+}
+
+// ── RACE CLASSIFICATION MODAL ─────────────────────────────────────────────────
+async function convertTrainingToRace({training, format, name, location, userId}) {
+  const yr = parseInt((training.date||"").slice(0,4)) || CY;
+  const racePayload = {
+    user_id: userId,
+    discipline: format,
+    time: training.duration||0,
+    race: name||DISCIPLINES[format]?.label||"Course",
+    year: yr,
+    race_date: training.date||null,
+    elevation: null,
+  };
+  const {data:result, error:resErr} = await supabase.from("results").insert(racePayload).select();
+  if (resErr) return {error:resErr};
+  const linkedId = result?.[0]?.id || null;
+  const {error:upErr} = await supabase.from("trainings").update({
+    is_official_race: true,
+    classification_status: "classified_as_race",
+    official_race_format: format,
+    official_race_name: name||null,
+    official_race_location: location||null,
+    linked_result_id: linkedId,
+    points: 0,
+  }).eq("id", training.id);
+  return {error:upErr, resultId:linkedId};
+}
+async function markTrainingAsTraining(trainingId) {
+  return supabase.from("trainings").update({
+    classification_status: "classified_as_training",
+  }).eq("id", trainingId);
+}
+
+function RaceClassificationModal({pending, userId, onDone, onClose, singleMode=false}) {
+  const [idx, setIdx] = useState(0);
+  const [step, setStep] = useState(singleMode ? "form" : "ask");
+  const [confirmed, setConfirmed] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const current = pending[idx];
+  const [format, setFormat] = useState("marathon");
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+
+  useEffect(() => {
+    if (!current) return;
+    setFormat(detectRaceFormat(current.title) || "marathon");
+    setName((current.title||"").trim());
+    setLocation("");
+    setStep(singleMode ? "form" : "ask");
+    setErr("");
+  }, [idx, current?.id, singleMode]);
+
+  if (!current) {
+    onDone(confirmed);
+    return null;
+  }
+
+  const next = () => {
+    if (idx + 1 >= pending.length) {
+      onDone(confirmed);
+    } else {
+      setIdx(idx + 1);
+    }
+  };
+
+  const onSayTraining = async () => {
+    setBusy(true);
+    await markTrainingAsTraining(current.id);
+    setBusy(false);
+    next();
+  };
+
+  const onSayRace = () => setStep("form");
+
+  const onConfirmRace = async () => {
+    if (!format) { setErr("Choisis un format"); return; }
+    setBusy(true);
+    setErr("");
+    const {error} = await convertTrainingToRace({training:current, format, name:name.trim(), location:location.trim(), userId});
+    setBusy(false);
+    if (error) { setErr(error.message||"Erreur d'enregistrement"); return; }
+    setConfirmed(c => c + 1);
+    next();
+  };
+
+  const distLabel = current.distance ? `${current.distance} km` : "";
+  const durLabel = current.duration ? fmtTime(current.duration) : "";
+  const dateLabel = current.date ? fmtFrShortDate(current.date) : "";
+  const sportIcon = {Run:"🏃","Vélo":"🚴",Natation:"🏊",Trail:"⛰️"}[current.sport]||"🏁";
+
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:4}}>Classer cette activité</div>
+      {pending.length>1 && <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginBottom:14}}>{idx+1} / {pending.length}</div>}
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,padding:"14px",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+          <div style={{fontSize:22}}>{sportIcon}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{current.title||"(sans titre)"}</div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:3}}>
+              {[current.sport, distLabel, durLabel, dateLabel].filter(Boolean).join(" · ")}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {step === "ask" ? (
+        <>
+          <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",marginBottom:14,lineHeight:1.4}}>
+            Le titre suggère une course officielle. Confirmer ou laisser comme entraînement ?
+          </div>
+          <Btn onClick={onSayRace} mb={8}>🏁 C'est une course officielle</Btn>
+          <Btn onClick={onSayTraining} variant="secondary" mb={0} disabled={busy}>{busy?"…":"Non, c'est un entraînement"}</Btn>
+        </>
+      ) : (
+        <>
+          <Lbl c="Nom officiel de l'événement"/>
+          <Inp value={name} onChange={setName} placeholder="Ex: Marathon de Paris"/>
+          <Lbl c="Format"/>
+          <Sel value={format} onChange={setFormat}>
+            {RACE_FORMAT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Sel>
+          <Lbl c="Lieu (optionnel)"/>
+          <Inp value={location} onChange={setLocation} placeholder="Ex: Paris"/>
+          {err && <div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{err}</div>}
+          <Btn onClick={onConfirmRace} mb={8} disabled={busy}>{busy?"Enregistrement…":(idx+1>=pending.length?"Confirmer":"Confirmer et passer à la suivante")}</Btn>
+          {!singleMode && <Btn onClick={()=>setStep("ask")} variant="secondary" mb={0}>← Retour</Btn>}
+        </>
+      )}
     </Modal>
   );
 }
@@ -1189,14 +1422,45 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
+  const [pendingClassif,setPendingClassif]=useState([]);
+  const [classifModalOpen,setClassifModalOpen]=useState(false);
+  const [classifToast,setClassifToast]=useState("");
   const [friendIds,setFriendIds]=useState(new Set());
+
+  const loadPendingClassif = useCallback(async () => {
+    if (!userId) return;
+    const {data} = await supabase.from("trainings")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("auto_detected_official", true)
+      .eq("classification_status", "pending")
+      .order("date", {ascending:false});
+    setPendingClassif(data||[]);
+  }, [userId]);
+
   useEffect(()=>{
     if(!userId)return;
     supabase.from("results").select("*").eq("user_id",userId)
       .then(({data})=>setResults(data||[]));
     supabase.from("trainings").select("*").eq("user_id",userId)
       .then(({data,error})=>{if(!error)setTrainings(data||[]);});
-  },[userId,refreshKey]);
+    (async () => {
+      const lsKey = `retro_classif_${userId}`;
+      if (!localStorage.getItem(lsKey)) {
+        const {data:all} = await supabase.from("trainings")
+          .select("id,title,classification_status,auto_detected_official")
+          .eq("user_id", userId)
+          .eq("classification_status", "pending")
+          .eq("auto_detected_official", false);
+        const toFlag = (all||[]).filter(t => detectOfficialRace(t.title)).map(t => t.id);
+        if (toFlag.length > 0) {
+          await supabase.from("trainings").update({auto_detected_official:true}).in("id", toFlag);
+        }
+        try { localStorage.setItem(lsKey, "1"); } catch {}
+      }
+      loadPendingClassif();
+    })();
+  },[userId,refreshKey,loadPendingClassif]);
 
   const seasons=useMemo(()=>{
     const base=[CY-3,CY-2,CY-1,CY];
@@ -1293,7 +1557,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       console.log(`[league] ${memberProfiles.length} membres, ${weekTrainings.length} trainings cette semaine`);
       const players=memberProfiles.map(p=>{
         const pTrains=weekTrainings.filter(t=>t.user_id===p.id);
-        const trainPts=pTrains.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+        const trainPts=pTrains.reduce((s,t)=>s+(effectiveTrainingPts(t)),0);
         const sports=[...new Set(pTrains.map(t=>t.sport).filter(Boolean))];
         return{id:p.id,name:p.name||"Athlète",avatar:p.avatar,trainPts,sessions:pTrains.length,sports,isMe:p.id===user.id};
       }).sort((a,b)=>b.trainPts-a.trainPts).slice(0,20);
@@ -1301,7 +1565,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       const mySessions=myWeekTrainings.map(t=>{
         const dt=t.date?new Date(t.date):null;
         const dlbl=dt?DAY_FR[dt.getDay()]:"";
-        const pts=t.points||calcTrainingPts(t.distance,t.sport,t.duration);
+        const pts=effectiveTrainingPts(t);
         return{sport:t.sport,dist:t.distance,day:dlbl,pts};
       }).sort((a,b)=>b.pts-a.pts);
       const myLeague=LEAGUES.find(l=>l.id===tier)||LEAGUES[0];
@@ -1321,7 +1585,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       const pAllRes=allResultsFull.filter(r=>r.user_id===p.id);
       const pSeasonTrainings=seasonTrainings.filter(t=>t.user_id===p.id);
       const racePts=sumBestPts(pRes);
-      const trainPts=discFilter==="All"?pSeasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0):0;
+      const trainPts=discFilter==="All"?pSeasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0):0;
       const bonusPts=discFilter==="All"?raceBonusPts(pRes,pAllRes)+trainingBonusPts(pSeasonTrainings):0;
       const pts=racePts+trainPts+bonusPts;
       const badges=computeBadges({results:allResultsFull.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
@@ -1371,6 +1635,21 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(110px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch"}}>
+      {pendingClassif.length>0 && (
+        <div style={{background:"linear-gradient(135deg, rgba(230,57,70,0.12), rgba(230,57,70,0.04))",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,padding:"12px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+          <div style={{fontSize:22,flexShrink:0}}>🏁</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,color:"#E63946"}}>{pendingClassif.length} activité{pendingClassif.length>1?"s":""} à classer</div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.35}}>Une activité ressemble à une course officielle. Veux-tu la classer ?</div>
+          </div>
+          <button onClick={()=>setClassifModalOpen(true)} style={{flexShrink:0,background:"#E63946",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3}}>Classer</button>
+        </div>
+      )}
+      {classifToast && (
+        <div style={{background:"rgba(74,222,128,0.12)",border:"1px solid rgba(74,222,128,0.35)",borderRadius:12,padding:"9px 12px",marginBottom:12,fontSize:13,color:"#4ADE80",fontFamily:"'Barlow',sans-serif",fontWeight:600}}>
+          {classifToast}
+        </div>
+      )}
       {/* My card */}
       <div onClick={onOpenProfile} style={{background:`${myLv.color}12`,border:`1px solid ${myLv.color}44`,borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer"}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0}}>
@@ -1466,6 +1745,21 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       {showPicker&&<AddPickerModal onPickTraining={onAddTraining} onPickRace={onAddRace} onClose={()=>setShowPicker(false)}/>}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange}/>}
+      {classifModalOpen && pendingClassif.length>0 && (
+        <RaceClassificationModal
+          pending={pendingClassif}
+          userId={userId}
+          onClose={()=>{ setClassifModalOpen(false); loadPendingClassif(); }}
+          onDone={(count)=>{
+            setClassifModalOpen(false);
+            loadPendingClassif();
+            if (count>0) {
+              setClassifToast(`✅ ${count} course${count>1?"s":""} officielle${count>1?"s":""} ajoutée${count>1?"s":""}`);
+              setTimeout(()=>setClassifToast(""), 4000);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1602,6 +1896,7 @@ function TrainingTab({userId}){
   const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
   const [editTraining,setEditTraining]=useState(null);
+  const [convertTraining,setConvertTraining]=useState(null);
   const [planView,setPlanView]=useState(null);
   const [plan,setPlan]=useState(null);
 
@@ -1617,10 +1912,10 @@ function TrainingTab({userId}){
   };
   const deleteTraining=async id=>{await supabase.from("trainings").delete().eq("id",id);loadTrainings();};
 
-  const filtered=trainings.filter(t=>(selSport==="All"||t.sport===selSport)&&new Date(t.date).getFullYear()===selYear);
+  const filtered=trainings.filter(t=>!t.is_official_race&&(selSport==="All"||t.sport===selSport)&&new Date(t.date).getFullYear()===selYear);
   const monthlyDist=MONTHS_FR.map((label,i)=>({label,value:Math.round(filtered.filter(t=>new Date(t.date).getMonth()===i).reduce((s,t)=>s+(t.distance||0),0))}));
   const totalDist=filtered.reduce((s,t)=>s+(t.distance||0),0);
-  const totalPts=filtered.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+  const totalPts=filtered.reduce((s,t)=>s+(effectiveTrainingPts(t)),0);
 
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",boxSizing:"border-box"}}>
@@ -1675,14 +1970,15 @@ function TrainingTab({userId}){
                 <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title?.trim()||`${t.sport} · ${t.distance} km`}</div>
                 <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title?.trim()?`${t.sport} · ${t.distance} km · `:""}{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
               </div>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{t.points||calcTrainingPts(t.distance,t.sport,t.duration)}pts</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{effectiveTrainingPts(t)}pts</div>
             </div>
           </ActivityCard>
         </SwipeRow>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
       </div>
-      {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();}} onClose={()=>setEditTraining(null)}/>}
+      {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();}} onClose={()=>setEditTraining(null)} onConvertToRace={(t)=>setConvertTraining(t)}/>}
+      {convertTraining&&<RaceClassificationModal pending={[convertTraining]} userId={userId} singleMode={true} onClose={()=>{setConvertTraining(null);loadTrainings();}} onDone={()=>{setConvertTraining(null);loadTrainings();}}/>}
       {planView==="detail"&&plan&&<TrainingPlanDetailModal plan={plan} onEdit={()=>setPlanView("setup")} onClose={()=>setPlanView(null)}/>}
       {planView==="setup"&&<TrainingPlanModal userId={userId} existing={plan} onSave={p=>{setPlan(p);setPlanView("detail");}} onDelete={()=>{setPlan(null);setPlanView(null);}} onClose={()=>setPlanView(plan?"detail":null)}/>}
     </div>
@@ -2878,7 +3174,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         const key=`${date}|${sport}|${Math.round(distance*10)}`;
         if(seen.has(key))return;
         seen.add(key);
-        inserts.push({user_id:profile.id,sport,title:a.name||null,distance,duration,date,points:calcTrainingPts(distance,sport,duration)});
+        inserts.push({user_id:profile.id,sport,title:a.name||null,distance,duration,date,points:calcTrainingPts(distance,sport,duration),auto_detected_official:detectOfficialRace(a.name||"")});
       });
       if(inserts.length===0){setStravaMsg("Aucune nouvelle activité à importer");return;}
       const{error}=await supabase.from("trainings").insert(inserts);
@@ -2892,7 +3188,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const seasonResults=results.filter(r=>rYear(r)===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
-  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
+  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
   const lv=getSeasonLevel(seasonPts);
 
   useEffect(()=>{
@@ -3213,7 +3509,7 @@ function FriendProfileModal({friend,myId,onClose}){
 
   const seasonResults=results.filter(r=>r.year===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
-  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
+  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
   const lv=getSeasonLevel(seasonPts);
   const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
   const bests=Object.values(results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
@@ -3326,7 +3622,7 @@ function FriendProfileModal({friend,myId,onClose}){
           seasonTrainings.length===0?
             <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun entraînement pour cette saison</div>
           :seasonTrainings.map(t=>{
-            const pts=t.points||calcTrainingPts(t.distance,t.sport,t.duration);
+            const pts=effectiveTrainingPts(t);
             return (
               <ActivityCard key={t.id} myId={myId} activityType="training" activityId={t.id}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
