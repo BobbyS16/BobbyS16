@@ -1098,11 +1098,35 @@ function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
 }
 const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p.length>1?`${p[0]} ${p[1][0].toUpperCase()}.`:p[0];};
 
+function AddPickerModal({onPickTraining,onPickRace,onClose}){
+  const opts=[
+    {icon:"🏋️",label:"Entraînement",desc:"Run, Vélo, Natation, Trail",color:"#4ade80",cb:onPickTraining},
+    {icon:"🏅",label:"Course officielle",desc:"5km, 10km, marathon, trail, triathlon, hyrox…",color:"#E63946",cb:onPickRace},
+  ];
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:6}}>Ajouter une activité</div>
+      <div style={{fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginBottom:18,lineHeight:1.5}}>Choisis le type d'activité — la discipline se choisira ensuite.</div>
+      {opts.map(o=>(
+        <button key={o.label} onClick={()=>{onClose();o.cb();}} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"16px 18px",background:`${o.color}10`,border:`1px solid ${o.color}40`,borderRadius:14,marginBottom:10,cursor:"pointer",textAlign:"left"}}>
+          <div style={{width:48,height:48,borderRadius:12,background:`${o.color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{o.icon}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:o.color,letterSpacing:1}}>{o.label}</div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>{o.desc}</div>
+          </div>
+          <div style={{color:o.color,fontSize:18,flexShrink:0}}>›</div>
+        </button>
+      ))}
+      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
+    </Modal>
+  );
+}
+
 function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange}){
   const [showNotifs,setShowNotifs]=useState(false);
+  const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
-  const [fabOpen,setFabOpen]=useState(false);
   const [friendIds,setFriendIds]=useState(new Set());
   useEffect(()=>{
     if(!userId)return;
@@ -1376,18 +1400,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               :<div key={p.id} style={{marginBottom:8}}>{row}</div>;
           })}
       </div>
-      <div style={{position:"fixed",bottom:"clamp(74px, 11dvh, 90px)",right:"clamp(14px, 4vw, 20px)",zIndex:99,width:"clamp(44px, 7vw, 56px)",height:"clamp(44px, 7vw, 56px)"}}>
-        {[
-          {icon:"🏋️",label:"Entraînement",color:"#4ade80",cb:onAddTraining,tx:-12,ty:-68,delay:"0.06s"},
-          {icon:"🏅",label:"Course officielle",color:"#E63946",cb:onAddRace,tx:-66,ty:-16,delay:"0s"},
-        ].map(({icon,label,color,cb,tx,ty,delay},i)=>(
-          <button key={i} onClick={()=>{setFabOpen(false);cb();}} style={{position:"absolute",top:"50%",left:"50%",marginTop:-16,marginLeft:-16,width:32,height:32,background:"transparent",border:"none",padding:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transform:fabOpen?`translate(${tx}px,${ty}px)`:"translate(0,0)",opacity:fabOpen?1:0,transition:`all 0.28s cubic-bezier(0.2,0.8,0.3,1.1) ${delay}`,pointerEvents:fabOpen?"auto":"none"}}>
-            <span style={{position:"absolute",right:"calc(100% + 5px)",color,fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,letterSpacing:0.5,whiteSpace:"nowrap",textShadow:"0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)"}}>{label}</span>
-            <span style={{fontSize:24,lineHeight:1,filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.7))"}}>{icon}</span>
-          </button>
-        ))}
-        <button onClick={()=>setFabOpen(v=>!v)} style={{position:"absolute",inset:0,width:"100%",height:"100%",borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:"clamp(22px, 5vw, 28px)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)",transform:fabOpen?"rotate(45deg)":"rotate(0)",transition:"transform 0.22s"}}>+</button>
-      </div>
+      <button onClick={()=>setShowPicker(true)} style={{position:"fixed",bottom:"clamp(74px, 11dvh, 90px)",right:"clamp(14px, 4vw, 20px)",zIndex:99,width:"clamp(44px, 7vw, 56px)",height:"clamp(44px, 7vw, 56px)",borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:"clamp(22px, 5vw, 28px)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)"}}>+</button>
+      {showPicker&&<AddPickerModal onPickTraining={onAddTraining} onPickRace={onAddRace} onClose={()=>setShowPicker(false)}/>}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange}/>}
     </div>
