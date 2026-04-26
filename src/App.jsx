@@ -45,8 +45,10 @@ const DISCIPLINES = {
   "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2, refDplus:400 },
   "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3, refDplus:1000 },
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5, refDplus:2000 },
-  "hyrox-solo":   { label:"Hyrox Solo",      icon:"🔥", category:"hyrox",     refTime:54*60+24,     prestige:1.2 },
-  "hyrox-double": { label:"Hyrox Double",    icon:"🔥", category:"hyrox",     refTime:47*60+57,     prestige:1.1 },
+  "hyrox-open":   { label:"Hyrox Open",      icon:"🔥", category:"hyrox",     refTime:54*60+24,     prestige:1.2 },
+  "hyrox-pro":    { label:"Hyrox Pro",       icon:"🔥", category:"hyrox",     refTime:54*60,        prestige:1.4 },
+  "hyrox-double": { label:"Hyrox Doubles",   icon:"🔥", category:"hyrox",     refTime:47*60+57,     prestige:1.1 },
+  "hyrox-relay":  { label:"Hyrox Relay",     icon:"🔥", category:"hyrox",     refTime:38*60,        prestige:1.0 },
 };
 
 const TRAINING_SPORTS = ["All","Run","Vélo","Natation","Trail"];
@@ -1967,10 +1969,10 @@ const PR_DISCIPLINES = [
     {label:"Ironman", disc:"tri-xl"},
   ]},
   {key:"hyrox", label:"Hyrox", icon:"🔥", formats:[
-    {label:"Pro", disc:null},
-    {label:"Open", disc:"hyrox-solo"},
+    {label:"Pro", disc:"hyrox-pro"},
+    {label:"Open", disc:"hyrox-open"},
     {label:"Doubles", disc:"hyrox-double"},
-    {label:"Relay", disc:null},
+    {label:"Relay", disc:"hyrox-relay"},
   ]},
   {key:"velo", label:"Vélo", icon:"🚴", formats:[
     {label:"40 km", disc:null},
@@ -1988,7 +1990,7 @@ const DISC_DIST_KM = {
   "5km":5, "10km":10, "semi":21.1, "marathon":42.2,
   "trail-s":20, "trail-m":45, "trail-l":80, "trail-xl":120,
   "tri-s":25.75, "tri-m":51.5, "tri-l":113, "tri-xl":226,
-  "hyrox-solo":8, "hyrox-double":8,
+  "hyrox-open":8, "hyrox-pro":8, "hyrox-double":8, "hyrox-relay":8,
 };
 
 const PROG_TABS = [
