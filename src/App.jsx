@@ -103,6 +103,47 @@ function raceBonusPts(seasonResults, allUserResults) {
   }
   return bonus;
 }
+async function checkAndNotifyOvertake(userId){
+  if(!userId)return;
+  try{
+    const season=CY;
+    const lsKey=`last_season_pts_${userId}_${season}`;
+    const[{data:myResults},{data:myTrainings}]=await Promise.all([
+      supabase.from("results").select("*").eq("user_id",userId),
+      supabase.from("trainings").select("*").eq("user_id",userId),
+    ]);
+    const mySR=(myResults||[]).filter(r=>rYear(r)===season);
+    const mySTr=(myTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
+    const myRP=sumBestPts(mySR);
+    const myTP=mySTr.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0);
+    const myBP=raceBonusPts(mySR,myResults||[])+trainingBonusPts(mySTr);
+    const myNew=myRP+myTP+myBP;
+    let lastPts=parseInt(localStorage.getItem(lsKey));
+    if(isNaN(lastPts)){try{localStorage.setItem(lsKey,String(myNew));}catch{}return;}
+    if(myNew<=lastPts){try{localStorage.setItem(lsKey,String(myNew));}catch{}return;}
+    const{data:fs}=await supabase.from("friendships").select("friend_id").eq("user_id",userId).eq("status","accepted");
+    const friendIds=(fs||[]).map(f=>f.friend_id);
+    if(friendIds.length>0){
+      const[{data:fRes},{data:fTr}]=await Promise.all([
+        supabase.from("results").select("*").in("user_id",friendIds),
+        supabase.from("trainings").select("*").in("user_id",friendIds),
+      ]);
+      const overtaken=friendIds.filter(fid=>{
+        const fSR=(fRes||[]).filter(r=>r.user_id===fid&&rYear(r)===season);
+        const fSTr=(fTr||[]).filter(t=>t.user_id===fid&&new Date(t.date).getFullYear()===season);
+        const fAllRes=(fRes||[]).filter(r=>r.user_id===fid);
+        const fPts=sumBestPts(fSR)+fSTr.reduce((s,t)=>s+(t.points||calcTrainingPts(t.distance,t.sport,t.duration)),0)+raceBonusPts(fSR,fAllRes)+trainingBonusPts(fSTr);
+        return fPts>=lastPts&&fPts<myNew;
+      });
+      if(overtaken.length>0){
+        console.log(`[overtake] notification envoyée à ${overtaken.length} ami(s)`);
+        await supabase.from("notifications").insert(overtaken.map(fid=>({user_id:fid,from_user_id:userId,type:"friend_overtake",read:false})));
+      }
+    }
+    try{localStorage.setItem(lsKey,String(myNew));}catch{}
+  }catch(e){console.error("[overtake] check failed",e);}
+}
+
 function trainingBonusPts(seasonTrainings) {
   if(!seasonTrainings||seasonTrainings.length===0) return 0;
   let bonus=0;
@@ -870,7 +911,7 @@ function NotificationsModal({onClose,onNotifsChange}){
        :notifs.length===0?
          <div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune notification 🎉</div>
         :notifs.map(n=>{
-          const txt={friend_added:"t'a ajouté en ami",like_result:"a aimé ta course",like_training:"a aimé ton entraînement",comment_result:"a commenté ta course",comment_training:"a commenté ton entraînement"}[n.type]||"";
+          const txt={friend_added:"t'a ajouté en ami",like_result:"a aimé ta course",like_training:"a aimé ton entraînement",comment_result:"a commenté ta course",comment_training:"a commenté ton entraînement",friend_overtake:"🚀 t'a dépassé au classement saison"}[n.type]||"";
           return (
             <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
               <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{cursor:"pointer"}}><Avatar profile={n.from_user} size={36}/></div>
@@ -2174,7 +2215,7 @@ function SocialTab({myProfile,onNotifsChange}){
             <button onClick={markAllNotifsRead} style={{background:"none",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:11,cursor:"pointer",fontWeight:600}}>Tout marquer lu</button>
           </div>
           {notifs.map(n=>{
-            const txt={friend_added:"t'a ajouté en ami",like_result:"a aimé ta course",like_training:"a aimé ton entraînement",comment_result:"a commenté ta course",comment_training:"a commenté ton entraînement"}[n.type]||"";
+            const txt={friend_added:"t'a ajouté en ami",like_result:"a aimé ta course",like_training:"a aimé ton entraînement",comment_result:"a commenté ta course",comment_training:"a commenté ton entraînement",friend_overtake:"🚀 t'a dépassé au classement saison"}[n.type]||"";
             return (
               <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
                 <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{cursor:"pointer"}}><Avatar profile={n.from_user} size={32}/></div>
@@ -3075,7 +3116,7 @@ export default function App(){
     const{data}=await supabase.from("results").select("*").eq("user_id",user.id).order("year",{ascending:false});
     setResults(data||[]);
   };
-  const refresh=()=>{loadProfile();loadResults();setResultsKey(k=>k+1);};
+  const refresh=()=>{loadProfile();loadResults();setResultsKey(k=>k+1);if(profile?.id)checkAndNotifyOvertake(profile.id);};
   const loadNotifCount=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
     if(!user)return;
