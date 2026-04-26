@@ -171,21 +171,34 @@ function trainingBonusPts(seasonTrainings) {
 }
 function fmtDuration(sec){if(!sec)return"";const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?`${h}h${String(m).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;}
 function parseDurStr(s){if(!s)return 0;const p=s.split(":").map(Number);return(p[0]||0)*3600+(p[1]||0)*60+(p[2]||0);}
+function getSwimIntensity(paceSecPer100m) {
+  if (paceSecPer100m <= 80)  return 12;
+  if (paceSecPer100m <= 90)  return 10;
+  if (paceSecPer100m <= 100) return 8;
+  if (paceSecPer100m <= 110) return 7;
+  if (paceSecPer100m <= 120) return 6;
+  if (paceSecPer100m <= 130) return 5;
+  if (paceSecPer100m <= 140) return 4;
+  return 2;
+}
 function calcTrainingPts(distKm, sport, durationSec) {
   const d = distKm||0;
   if(!d) return 0;
   const sec = parseInt(durationSec)||0;
+  if(sport==="Natation"){
+    if(sec<=0) return 0;
+    const distM = d*1000;
+    const paceSec100 = sec*100/distM;
+    return Math.round((distM/100) * getSwimIntensity(paceSec100) * 0.4);
+  }
   let intensity = 3;
   if(sec > 0) {
     if(sport==="Run"||sport==="Trail"){
-      const pace = (sec/60)/d; // min/km
+      const pace = (sec/60)/d;
       intensity = pace<4?10:pace<5?7:pace<6?5:3;
     } else if(sport==="Vélo"){
-      const speed = d/(sec/3600); // km/h
+      const speed = d/(sec/3600);
       intensity = speed>=40?10:speed>=32?7:speed>=25?5:3;
-    } else if(sport==="Natation"){
-      const pace100 = (sec/60)/(d*10); // min/100m
-      intensity = pace100<2?10:pace100<2.5?7:pace100<3?5:3;
     }
   }
   return Math.round(d * intensity * 0.2);
@@ -1980,9 +1993,11 @@ const PR_DISCIPLINES = [
     {label:"160 km", disc:null},
   ]},
   {key:"natation", label:"Natation", icon:"🏊", formats:[
-    {label:"800 m", disc:null},
-    {label:"1500 m", disc:null},
-    {label:"5 km", disc:null},
+    {label:"750 m", refDist:750},
+    {label:"1500 m", refDist:1500},
+    {label:"1900 m", refDist:1900},
+    {label:"3800 m", refDist:3800},
+    {label:"5 km", refDist:5000},
   ]},
 ];
 
@@ -2034,6 +2049,13 @@ function fmtPace(secPerKm) {
   const m=Math.floor(secPerKm/60), s=Math.round(secPerKm%60);
   return `${m}'${String(s).padStart(2,"0")}`;
 }
+function fmtFrShortDate(d) {
+  if (!d) return "";
+  const date = new Date(d);
+  if (isNaN(date)) return "";
+  const months = ["jan","fév","mar","avr","mai","jun","jul","aoû","sep","oct","nov","déc"];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
 
 function buildMonthlyPoints(results) {
   const now=new Date();
@@ -2072,7 +2094,9 @@ function buildPrev12Total(results) {
 
 function PerfTab({userId, refreshKey}) {
   const [results, setResults] = useState([]);
+  const [swimTrainings, setSwimTrainings] = useState([]);
   const [editResult, setEditResult] = useState(null);
+  const [editSwim, setEditSwim] = useState(null);
   const [activeDisc, setActiveDisc] = useState("course");
   const [progDisc, setProgDisc] = useState("points");
   const [progFormat, setProgFormat] = useState("all");
@@ -2085,11 +2109,38 @@ function PerfTab({userId, refreshKey}) {
 
   useEffect(() => {
     if (!userId) return;
-    supabase.from("results").select("*").eq("user_id", userId).order("race_date", {ascending:false})
-      .then(({data}) => setResults(data || []));
+    Promise.all([
+      supabase.from("results").select("*").eq("user_id", userId).order("race_date", {ascending:false}),
+      supabase.from("trainings").select("*").eq("user_id", userId).eq("sport", "Natation").order("date", {ascending:false}),
+    ]).then(([{data:r},{data:t}]) => {
+      setResults(r || []);
+      setSwimTrainings(t || []);
+    });
   }, [userId, refreshKey]);
 
-  const reload = () => supabase.from("results").select("*").eq("user_id",userId).order("race_date",{ascending:false}).then(({data})=>setResults(data||[]));
+  const reload = () => Promise.all([
+    supabase.from("results").select("*").eq("user_id",userId).order("race_date",{ascending:false}),
+    supabase.from("trainings").select("*").eq("user_id",userId).eq("sport","Natation").order("date",{ascending:false}),
+  ]).then(([{data:r},{data:t}]) => { setResults(r||[]); setSwimTrainings(t||[]); });
+
+  const swimRecords = useMemo(() => {
+    const map = {};
+    swimTrainings.forEach(t => {
+      const d = parseFloat(t.distance) || 0;
+      const dur = parseInt(t.duration) || 0;
+      if (d <= 0 || dur <= 0) return;
+      const distM = d * 1000;
+      const paceSec100 = dur * 100 / distM;
+      [750, 1500, 1900, 3800, 5000].forEach(refDist => {
+        if (refDist > distM) return;
+        const projected = paceSec100 * (refDist / 100);
+        if (!map[refDist] || projected < map[refDist].time) {
+          map[refDist] = { time: projected, source: t, isProjection: refDist !== distM };
+        }
+      });
+    });
+    return map;
+  }, [swimTrainings]);
 
   const bestByDisc = useMemo(() => {
     const map = {};
@@ -2140,7 +2191,7 @@ function PerfTab({userId, refreshKey}) {
       .sort((a, b) => a._date.localeCompare(b._date));
   }, [progDisc, progFormat, results]);
 
-  const noRaces = results.length === 0;
+  const noRaces = results.length === 0 && swimTrainings.length === 0;
   const activeDiscObj = PR_DISCIPLINES.find(d => d.key === activeDisc) || PR_DISCIPLINES[0];
 
   return (
@@ -2170,23 +2221,40 @@ function PerfTab({userId, refreshKey}) {
             </div>
             <div style={{marginBottom:24}}>
               {activeDiscObj.formats.map(fmt => {
-                const pr = fmt.disc ? bestByDisc[fmt.disc] : null;
-                if (pr) {
-                  const dateStr = pr.race_date ? pr.race_date.split("-").reverse().join("/") : (pr.year || "");
+                let prTime=null, prSubtitle="", onClickPr=null, prIcon=DISCIPLINES[fmt.disc]?.icon||activeDiscObj.icon, isSwimProj=false;
+                if (fmt.refDist) {
+                  const rec = swimRecords[fmt.refDist];
+                  if (rec) {
+                    prTime = rec.time;
+                    isSwimProj = rec.isProjection;
+                    const baseLabel = isSwimProj ? `Projection ${(rec.source.distance||0)} km` : "Entraînement piscine";
+                    prSubtitle = `${baseLabel}${rec.source.date?` · ${fmtFrShortDate(rec.source.date)}`:""}`;
+                    onClickPr = () => setEditSwim(rec.source);
+                  }
+                } else if (fmt.disc) {
+                  const pr = bestByDisc[fmt.disc];
+                  if (pr) {
+                    prTime = pr.time;
+                    const dateStr = pr.race_date ? fmtFrShortDate(pr.race_date) : (pr.year || "");
+                    prSubtitle = `${pr.race || "Course"}${dateStr?` · ${dateStr}`:""}`;
+                    onClickPr = () => setEditResult(pr);
+                  }
+                }
+                if (prTime != null) {
                   return (
-                    <div key={fmt.label} onClick={()=>setEditResult(pr)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,255,255,0.02))",border:"1px solid rgba(255,215,0,0.2)",borderRadius:14,marginBottom:8,cursor:"pointer"}}>
+                    <div key={fmt.label} onClick={onClickPr} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,255,255,0.02))",border:"1px solid rgba(255,215,0,0.2)",borderRadius:14,marginBottom:8,cursor:"pointer"}}>
                       <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,215,0,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
-                        {DISCIPLINES[fmt.disc]?.icon || activeDiscObj.icon}
+                        {prIcon}
                       </div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",letterSpacing:0.5}}>{fmt.label}</div>
                         <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                          {pr.race || "Course"}{dateStr?` · ${dateStr}`:""}
+                          {prSubtitle}
                         </div>
                       </div>
                       <div style={{textAlign:"right",flexShrink:0}}>
-                        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#FFD700",letterSpacing:1,lineHeight:1}}>{fmtTime(pr.time)}</div>
-                        <div style={{fontSize:9,color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginTop:3}}>RECORD</div>
+                        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#FFD700",letterSpacing:1,lineHeight:1}}>{fmtTime(Math.round(prTime))}</div>
+                        <div style={{fontSize:9,color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginTop:3}}>{isSwimProj?"RECORD ✦":"RECORD"}</div>
                       </div>
                     </div>
                   );
@@ -2254,6 +2322,7 @@ function PerfTab({userId, refreshKey}) {
         )}
       </div>
       {editResult && <ResultModal existing={editResult} userId={userId} onSave={()=>{setEditResult(null);reload();}} onClose={()=>setEditResult(null)}/>}
+      {editSwim && <TrainingModal existing={editSwim} userId={userId} onSave={()=>{setEditSwim(null);reload();}} onClose={()=>setEditSwim(null)}/>}
     </div>
   );
 }
