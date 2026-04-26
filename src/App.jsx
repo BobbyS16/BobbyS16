@@ -607,6 +607,7 @@ function ResultModal({existing,userId,onSave,onClose}){
 // ── TRAINING MODAL ────────────────────────────────────────────────────────────
 function TrainingModal({existing,userId,onSave,onClose}){
   const [sport,setSport]=useState(existing?.sport||"Run");
+  const [title,setTitle]=useState(existing?.title||"");
   const [dist,setDist]=useState(existing?String(existing.distance||""):"");
   const [deniv,setDeniv]=useState("");
   const [duration,setDur]=useState(existing?fmtTime(existing.duration||0):"00:00:00");
@@ -618,7 +619,7 @@ function TrainingModal({existing,userId,onSave,onClose}){
     setLoading(true);setErr("");
     const durationSec=parseDurStr(duration);
     const pts=calcTrainingPts(parseFloat(dist)||0,sport,durationSec);
-    const payload={sport,distance:parseFloat(dist)||0,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts};
+    const payload={sport,title:title.trim()||null,distance:parseFloat(dist)||0,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts};
     let err;
     if(existing){({error:err}=await supabase.from("trainings").update(payload).eq("id",existing.id));}
     else{({error:err}=await supabase.from("trainings").insert({...payload,user_id:userId}));}
@@ -630,6 +631,7 @@ function TrainingModal({existing,userId,onSave,onClose}){
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>{existing?"Modifier":"Ajouter"} un entraînement</div>
       <Lbl c="Sport"/><Sel value={sport} onChange={setSport}>{TRAINING_SPORTS.filter(s=>s!=="All").map(s=><option key={s} value={s}>{s}</option>)}</Sel>
+      <Lbl c="Titre (optionnel)"/><Inp value={title} onChange={setTitle} placeholder="Ex: Bassin matinal, Sortie longue…"/>
       <Lbl c="Distance (km)"/><Inp value={dist} onChange={setDist} placeholder="Ex: 12.5" type="number"/>
       {sport==="Trail"&&<><Lbl c="Dénivelé (m)"/><Inp value={deniv} onChange={setDeniv} placeholder="Ex: 800" type="number"/></>}
       <Lbl c="Durée"/>
@@ -1668,10 +1670,10 @@ function TrainingTab({userId}){
       {filtered.slice(0,15).map((t,i)=>(
         <SwipeRow key={t.id||i} onDelete={()=>deleteTraining(t.id)} mb={0}>
           <ActivityCard myId={userId} activityType="training" activityId={t.id}>
-            <div onClick={()=>setEditTraining(t)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
-              <div>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
+            <div onClick={()=>setEditTraining(t)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",gap:10}}>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title?.trim()||`${t.sport} · ${t.distance} km`}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title?.trim()?`${t.sport} · ${t.distance} km · `:""}{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
               </div>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{t.points||calcTrainingPts(t.distance,t.sport,t.duration)}pts</div>
             </div>
@@ -2227,8 +2229,10 @@ function PerfTab({userId, refreshKey}) {
                   if (rec) {
                     prTime = rec.time;
                     isSwimProj = rec.isProjection;
-                    const baseLabel = isSwimProj ? `Projection ${(rec.source.distance||0)} km` : "Entraînement piscine";
-                    prSubtitle = `${baseLabel}${rec.source.date?` · ${fmtFrShortDate(rec.source.date)}`:""}`;
+                    const titleLabel = (rec.source.title && rec.source.title.trim())
+                      ? rec.source.title.trim()
+                      : (isSwimProj ? `Projection ${(rec.source.distance||0)} km` : "Entraînement piscine");
+                    prSubtitle = `${titleLabel}${rec.source.date?` · ${fmtFrShortDate(rec.source.date)}`:""}`;
                     onClickPr = () => setEditSwim(rec.source);
                   }
                 } else if (fmt.disc) {
@@ -2874,7 +2878,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         const key=`${date}|${sport}|${Math.round(distance*10)}`;
         if(seen.has(key))return;
         seen.add(key);
-        inserts.push({user_id:profile.id,sport,distance,duration,date,points:calcTrainingPts(distance,sport,duration)});
+        inserts.push({user_id:profile.id,sport,title:a.name||null,distance,duration,date,points:calcTrainingPts(distance,sport,duration)});
       });
       if(inserts.length===0){setStravaMsg("Aucune nouvelle activité à importer");return;}
       const{error}=await supabase.from("trainings").insert(inserts);
