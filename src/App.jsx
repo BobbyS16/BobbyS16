@@ -445,12 +445,12 @@ function LineChart({data,color="#E63946",title="",invert=false,formatY=null}) {
 function SwipeRow({children,onEdit,onDelete,actions,radius=12,mb=6}){
   const btns=actions||[
     ...(onEdit?[{icon:"✏️",bg:"rgba(255,255,255,0.12)",onClick:onEdit}]:[]),
-    ...(onDelete?[{icon:"🗑️",bg:"rgba(255,255,255,0.07)",onClick:onDelete}]:[]),
+    ...(onDelete?[{icon:"Supprimer",bg:"rgba(230,57,70,0.18)",color:"#E63946",fontSize:13,fontWeight:700,onClick:onDelete}]:[]),
   ];
   const [offset,setOffset]=useState(0);
   const startX=useRef(null);
   const dragging=useRef(false);
-  const W=btns.length===1?70:btns.length*60;
+  const W=btns.length===1?100:btns.length*60;
   const onTouchStart=e=>{startX.current=e.touches[0].clientX;dragging.current=true;};
   const onTouchMove=e=>{
     if(!dragging.current)return;
@@ -471,7 +471,7 @@ function SwipeRow({children,onEdit,onDelete,actions,radius=12,mb=6}){
         <div style={{position:"absolute",top:0,bottom:0,right:0,width:W,display:"flex",
           transform:`translateX(${W+offset}px)`,transition:tr}}>
           {btns.map((b,i)=>(
-            <button key={i} onClick={()=>{close();b.onClick();}} style={{flex:1,background:b.bg,border:"none",color:b.color||"#F0EDE8",fontSize:20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>{b.icon}</button>
+            <button key={i} onClick={()=>{close();b.onClick();}} style={{flex:1,background:b.bg,border:"none",color:b.color||"#F0EDE8",fontSize:b.fontSize||20,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:b.fontWeight||700,fontFamily:"'Barlow',sans-serif",letterSpacing:0.3}}>{b.icon}</button>
           ))}
         </div>
       </div>
