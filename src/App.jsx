@@ -45,10 +45,10 @@ const DISCIPLINES = {
   "tri-m":    { label:"Triathlon Olympique", icon:"🏊", category:"triathlon", refTime:1*3600+50*60, prestige:1.2, refDplus:400 },
   "tri-l":    { label:"Half Ironman",        icon:"🏊", category:"triathlon", refTime:2*3600+56*60, prestige:1.3, refDplus:1000 },
   "tri-xl":   { label:"Ironman",             icon:"🏊", category:"triathlon", refTime:5*3600+50*60, prestige:1.5, refDplus:2000 },
-  "hyrox-open":   { label:"Hyrox Open",      icon:"🔥", category:"hyrox",     refTime:54*60+24,     prestige:1.2 },
-  "hyrox-pro":    { label:"Hyrox Pro",       icon:"🔥", category:"hyrox",     refTime:54*60,        prestige:1.4 },
+  "hyrox-open":   { label:"Hyrox Open",      icon:"🔥", category:"hyrox",     refTime:50*60+38,     prestige:1.2 },
+  "hyrox-pro":    { label:"Hyrox Pro",       icon:"🔥", category:"hyrox",     refTime:51*60+59,     prestige:1.4 },
   "hyrox-double": { label:"Hyrox Doubles",   icon:"🔥", category:"hyrox",     refTime:47*60+57,     prestige:1.1 },
-  "hyrox-relay":  { label:"Hyrox Relay",     icon:"🔥", category:"hyrox",     refTime:38*60,        prestige:1.0 },
+  "hyrox-relay":  { label:"Hyrox Relay",     icon:"🔥", category:"hyrox",     refTime:45*60+43,     prestige:1.0 },
 };
 
 const TRAINING_SPORTS = ["All","Run","Vélo","Natation","Trail"];
