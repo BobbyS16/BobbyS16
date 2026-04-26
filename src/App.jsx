@@ -2214,8 +2214,8 @@ function PerfTab({userId, refreshKey}) {
             </div>
             <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:6,marginBottom:14,scrollbarWidth:"none"}}>
               {PR_DISCIPLINES.map(d => (
-                <button key={d.key} onClick={()=>setActiveDisc(d.key)} style={{flexShrink:0,padding:"5px 11px",borderRadius:14,border:"none",cursor:"pointer",background:activeDisc===d.key?"#E63946":"rgba(255,255,255,0.06)",color:activeDisc===d.key?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap",letterSpacing:0.2}}>
-                  {d.icon} {d.label}
+                <button key={d.key} onClick={()=>setActiveDisc(d.key)} style={{flexShrink:0,padding:"6px 12px",borderRadius:14,border:"none",cursor:"pointer",background:activeDisc===d.key?"#E63946":"rgba(255,255,255,0.06)",color:activeDisc===d.key?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap",letterSpacing:0.2}}>
+                  {`${d.icon} ${d.label}`}
                 </button>
               ))}
             </div>
@@ -2276,8 +2276,8 @@ function PerfTab({userId, refreshKey}) {
             <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,padding:14,marginBottom:24}}>
               <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:6,marginBottom:8,scrollbarWidth:"none"}}>
                 {DISCIPLINE_TABS.map(t => (
-                  <button key={t.key} onClick={()=>onSelectProgDisc(t.key)} style={{flexShrink:0,padding:"5px 11px",borderRadius:14,border:"none",cursor:"pointer",background:progDisc===t.key?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:progDisc===t.key?"#E63946":"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,letterSpacing:0.2,whiteSpace:"nowrap"}}>
-                    {t.icon?`${t.icon} `:""}{t.label}
+                  <button key={t.key} onClick={()=>onSelectProgDisc(t.key)} style={{flexShrink:0,padding:"6px 12px",borderRadius:14,border:"none",cursor:"pointer",background:progDisc===t.key?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:progDisc===t.key?"#E63946":"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,letterSpacing:0.2,whiteSpace:"nowrap"}}>
+                    {t.icon?`${t.icon} ${t.label}`:t.label}
                   </button>
                 ))}
               </div>
