@@ -480,7 +480,7 @@ function SwipeRow({children,onEdit,onDelete,actions,radius=12,mb=6}){
 }
 
 // ── UI PRIMITIVES ─────────────────────────────────────────────────────────────
-function Modal({onClose,children}) {
+function Modal({onClose,children,fullScreen=false}) {
   const [dy,setDy]=useState(0);
   const startY=useRef(null);
   const dragging=useRef(false);
@@ -500,12 +500,13 @@ function Modal({onClose,children}) {
   };
   const onHandleEnd=()=>{dragging.current=false;if(dy>80)onClose();else setDy(0);};
   return (
-    <div ref={overlayRef} onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:300}}>
+    <div ref={overlayRef} onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:fullScreen?"stretch":"flex-end",justifyContent:"center",zIndex:300}}>
       <div onClick={e=>e.stopPropagation()}
-        style={{background:"#161616",border:"1px solid rgba(255,255,255,0.09)",borderRadius:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:"92dvh",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease"}}>
+        style={{background:"#161616",border:fullScreen?"none":"1px solid rgba(255,255,255,0.09)",borderRadius:fullScreen?0:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:fullScreen?"100dvh":"92dvh",height:fullScreen?"100dvh":"auto",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease",paddingTop:fullScreen?"env(safe-area-inset-top)":0}}>
         <div onTouchStart={onHandleTouch} onTouchMove={onHandleMove} onTouchEnd={onHandleEnd}
-          style={{padding:"18px 20px 18px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none"}}>
+          style={{padding:"18px 20px 18px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none",position:"relative"}}>
           <div style={{width:48,height:5,background:"rgba(255,255,255,0.3)",borderRadius:3,margin:"0 auto"}}/>
+          {fullScreen&&<button onClick={onClose} aria-label="Fermer" style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.7)",fontSize:16,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
         </div>
         <div ref={scrollRef} style={{overflowY:"auto",padding:"0 20px",paddingBottom:"calc(44px + env(safe-area-inset-bottom))",flex:1,WebkitOverflowScrolling:"touch"}}>
           {children}
@@ -2700,7 +2701,7 @@ function FriendProfileModal({friend,myId,onClose}){
     .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
 
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} fullScreen>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
         <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color}/></div>
         <div style={{flex:1,minWidth:0}}>
