@@ -2671,6 +2671,7 @@ function FriendProfileModal({friend,myId,onClose}){
   const [fullProfile,setFullProfile]=useState(friend);
   const [friendCount,setFriendCount]=useState(0);
   const [friendsList,setFriendsList]=useState([]);
+  const [myFriendIds,setMyFriendIds]=useState(new Set());
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [season,setSeason]=useState(CY);
   const [tab,setTab]=useState("races");
@@ -2681,6 +2682,19 @@ function FriendProfileModal({friend,myId,onClose}){
   const seasonsRef=useRef(null);
 
   useEffect(()=>{loadAll();},[friend.id]);
+  useEffect(()=>{
+    if(!myId)return;
+    supabase.from("friendships").select("friend_id").eq("user_id",myId).eq("status","accepted")
+      .then(({data})=>setMyFriendIds(new Set((data||[]).map(f=>f.friend_id))));
+  },[myId]);
+  const handleAddMyFriend=async(p)=>{
+    setMyFriendIds(s=>{const n=new Set(s);n.add(p.id);return n;});
+    const{error}=await supabase.rpc("add_friend",{p_friend_id:p.id});
+    if(error){
+      console.error("[add_friend]",error);
+      setMyFriendIds(s=>{const n=new Set(s);n.delete(p.id);return n;});
+    }
+  };
   useEffect(()=>{setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);},[]);
 
   const loadAll=async()=>{
@@ -2843,16 +2857,22 @@ function FriendProfileModal({friend,myId,onClose}){
             <div style={{fontSize:32,marginBottom:8}}>👥</div>
             <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.55)"}}>Aucun ami pour le moment</div>
           </div>
-        :friendsList.map(p=>(
-          <div key={p.id} onClick={()=>setNestedFriend(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 4px",borderBottom:"1px solid rgba(255,255,255,0.04)",cursor:"pointer"}}>
-            <Avatar profile={p} size={32}/>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
-              <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
+        :friendsList.filter(p=>p.id!==myId).map(p=>{
+          const isMine=myFriendIds.has(p.id);
+          return (
+            <div key={p.id} onClick={()=>setNestedFriend(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 4px",borderBottom:"1px solid rgba(255,255,255,0.04)",cursor:"pointer"}}>
+              <Avatar profile={p} size={32}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
+              </div>
+              {isMine
+                ?<div style={{fontSize:10,color:"rgba(39,174,96,0.85)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,padding:"4px 8px",background:"rgba(39,174,96,0.1)",border:"1px solid rgba(39,174,96,0.25)",borderRadius:8,flexShrink:0}}>✓ Ami</div>
+                :<button onClick={e=>{e.stopPropagation();handleAddMyFriend(p);}} style={{padding:"5px 10px",borderRadius:8,background:"rgba(230,57,70,0.15)",border:"1px solid rgba(230,57,70,0.35)",color:"#E63946",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,letterSpacing:0.3,flexShrink:0}}>+ Ajouter</button>
+              }
             </div>
-            <div style={{color:"rgba(240,237,232,0.3)",fontSize:16,flexShrink:0}}>›</div>
-          </div>
-        ))
+          );
+        })
       )}
       {nestedFriend&&<FriendProfileModal friend={nestedFriend} myId={myId} onClose={()=>setNestedFriend(null)}/>}
       {showPhoto&&fullProfile?.avatar&&<PhotoViewer src={fullProfile.avatar} onClose={()=>setShowPhoto(false)}/>}
