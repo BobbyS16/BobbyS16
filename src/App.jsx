@@ -1993,13 +1993,26 @@ const DISC_DIST_KM = {
   "hyrox-open":8, "hyrox-pro":8, "hyrox-double":8, "hyrox-relay":8,
 };
 
-const PROG_TABS = [
+const DISCIPLINE_TABS = [
   {key:"points", label:"Points"},
-  {key:"marathon", label:"Marathon"},
-  {key:"semi", label:"Semi"},
-  {key:"10km", label:"10K"},
-  {key:"trail", label:"Trail"},
+  ...PR_DISCIPLINES.map(d => ({key:d.key, label:d.label, icon:d.icon})),
 ];
+
+function formatLabelFromDisc(discKey) {
+  for (const d of PR_DISCIPLINES) {
+    for (const f of d.formats) {
+      if (f.disc === discKey) return f.label;
+    }
+  }
+  return DISCIPLINES[discKey]?.label || discKey;
+}
+
+function pluralFormat(label, count) {
+  const lower = label.toLowerCase();
+  if (/\d/.test(lower) || count <= 1) return lower;
+  if (lower.endsWith("s") || lower.endsWith("x")) return lower;
+  return lower + "s";
+}
 
 const monthLabel = i => MONTHS_FR[i].normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase();
 
@@ -2061,8 +2074,14 @@ function PerfTab({userId, refreshKey}) {
   const [results, setResults] = useState([]);
   const [editResult, setEditResult] = useState(null);
   const [activeDisc, setActiveDisc] = useState("course");
-  const [progTab, setProgTab] = useState("points");
+  const [progDisc, setProgDisc] = useState("points");
+  const [progFormat, setProgFormat] = useState("all");
   const season = CY;
+
+  const onSelectProgDisc = (key) => {
+    setProgDisc(key);
+    setProgFormat("all");
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -2102,32 +2121,24 @@ function PerfTab({userId, refreshKey}) {
   const yoyDelta = prev12Total > 0 ? ((last12Total / prev12Total - 1) * 100) : null;
   const bestMonth = useMemo(() => monthlyData.reduce((b,m) => m.value > (b?.value||0) ? m : b, null), [monthlyData]);
 
-  const formatRaces = useMemo(() => {
-    if (progTab === "points") return [];
-    if (progTab === "trail") {
-      return results
-        .filter(r => DISCIPLINES[r.discipline]?.category === "trail")
-        .filter(r => DISC_DIST_KM[r.discipline])
-        .map(r => ({
-          ...r,
-          _date: r.race_date || (r.year ? `${r.year}-06-15` : null),
-          _pace: r.time / DISC_DIST_KM[r.discipline],
-        }))
-        .filter(r => r._date)
-        .sort((a, b) => a._date.localeCompare(b._date));
-    }
+  const availableFormats = useMemo(() => {
+    if (progDisc === "points") return [];
+    const disc = PR_DISCIPLINES.find(d => d.key === progDisc);
+    if (!disc) return [];
+    return disc.formats.filter(fmt => fmt.disc && results.some(r => r.discipline === fmt.disc));
+  }, [progDisc, results]);
+
+  const progRaces = useMemo(() => {
+    if (progDisc === "points") return [];
+    const disc = PR_DISCIPLINES.find(d => d.key === progDisc);
+    if (!disc) return [];
+    const allKeys = disc.formats.map(f => f.disc).filter(Boolean);
     return results
-      .filter(r => r.discipline === progTab)
+      .filter(r => progFormat === "all" ? allKeys.includes(r.discipline) : r.discipline === progFormat)
       .map(r => ({...r, _date: r.race_date || (r.year ? `${r.year}-06-15` : null)}))
       .filter(r => r._date)
       .sort((a, b) => a._date.localeCompare(b._date));
-  }, [progTab, results]);
-
-  const formatPR = useMemo(() => {
-    if (progTab === "points" || formatRaces.length === 0) return null;
-    if (progTab === "trail") return [...formatRaces].sort((a,b) => a._pace - b._pace)[0];
-    return [...formatRaces].sort((a,b) => a.time - b.time)[0];
-  }, [progTab, formatRaces]);
+  }, [progDisc, progFormat, results]);
 
   const noRaces = results.length === 0;
   const activeDiscObj = PR_DISCIPLINES.find(d => d.key === activeDisc) || PR_DISCIPLINES[0];
@@ -2196,15 +2207,23 @@ function PerfTab({userId, refreshKey}) {
             <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>📈 Progression</div>
             <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,padding:14,marginBottom:24}}>
               <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:8,marginBottom:10,scrollbarWidth:"none"}}>
-                {PROG_TABS.map(t => (
-                  <button key={t.key} onClick={()=>setProgTab(t.key)} style={{flexShrink:0,padding:"6px 12px",borderRadius:18,border:"none",cursor:"pointer",background:progTab===t.key?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:progTab===t.key?"#E63946":"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,letterSpacing:0.3}}>
-                    {t.label}
+                {DISCIPLINE_TABS.map(t => (
+                  <button key={t.key} onClick={()=>onSelectProgDisc(t.key)} style={{flexShrink:0,padding:"6px 12px",borderRadius:18,border:"none",cursor:"pointer",background:progDisc===t.key?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:progDisc===t.key?"#E63946":"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,letterSpacing:0.3,whiteSpace:"nowrap"}}>
+                    {t.icon?`${t.icon} `:""}{t.label}
                   </button>
                 ))}
               </div>
-              {progTab === "points"
+              {progDisc !== "points" && availableFormats.length > 0 && (
+                <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:8,marginBottom:10,scrollbarWidth:"none"}}>
+                  <button onClick={()=>setProgFormat("all")} style={{flexShrink:0,padding:"5px 12px",borderRadius:16,border:"none",cursor:"pointer",background:progFormat==="all"?"#E63946":"rgba(255,255,255,0.05)",color:progFormat==="all"?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>Tous</button>
+                  {availableFormats.map(fmt => (
+                    <button key={fmt.disc} onClick={()=>setProgFormat(fmt.disc)} style={{flexShrink:0,padding:"5px 12px",borderRadius:16,border:"none",cursor:"pointer",background:progFormat===fmt.disc?"#E63946":"rgba(255,255,255,0.05)",color:progFormat===fmt.disc?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap"}}>{fmt.label}</button>
+                  ))}
+                </div>
+              )}
+              {progDisc === "points"
                 ? <PointsProgressionChart monthlyData={monthlyData} last12Total={last12Total} yoyDelta={yoyDelta} bestMonth={bestMonth}/>
-                : <FormatProgressionChart progTab={progTab} races={formatRaces} pr={formatPR}/>}
+                : <DisciplineProgressionChart progDisc={progDisc} progFormat={progFormat} races={progRaces}/>}
             </div>
 
             <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>📊 Saison en chiffres</div>
@@ -2303,43 +2322,59 @@ function PointsProgressionChart({monthlyData, last12Total, yoyDelta, bestMonth})
   );
 }
 
-function FormatProgressionChart({progTab, races, pr}) {
-  const labelMap={marathon:"marathons", semi:"semis", "10km":"10 km", trail:"trails"};
-  const formatLabel=labelMap[progTab]||progTab;
-  const singularLabel=formatLabel.replace(/s$/,"");
+function DisciplineProgressionChart({progDisc, progFormat, races}) {
+  const discObj = PR_DISCIPLINES.find(d => d.key === progDisc);
+  const discLabel = discObj?.label || progDisc;
+  const isAll = progFormat === "all";
+  const formatObj = !isAll ? discObj?.formats.find(f => f.disc === progFormat) : null;
+  const formatLabel = formatObj?.label || progFormat;
 
-  if (races.length===0) {
+  if (races.length === 0) {
     return (
-      <div>
-        <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:10}}>Aucun {singularLabel} pour l'instant</div>
-        <div style={{textAlign:"center",padding:"40px 12px",color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun {singularLabel} pour l'instant. Lance-toi !</div>
+      <div style={{textAlign:"center",padding:"40px 12px",color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontSize:13}}>
+        Aucune course de ce type. Lance-toi !
       </div>
     );
   }
 
-  const firstYear=rYear(races[0]);
-  const subTitle=`Tes ${races.length} ${formatLabel} depuis ${firstYear}`;
-  const isPace=progTab==="trail";
-  const yvalOf=r => isPace?r._pace:r.time;
-  const labelOf=r => isPace?fmtPace(r._pace):fmtTimeShort(r.time);
-  const prVal=pr?yvalOf(pr):null;
+  const firstYear = rYear(races[0]);
+  const subTitle = isAll
+    ? `Toutes tes courses ${discLabel} depuis ${firstYear}`
+    : `Tes ${races.length} ${pluralFormat(formatLabel, races.length)} depuis ${firstYear}`;
 
-  if (races.length===1) {
-    const r=races[0];
+  const ptsOf = r => calcPoints(r.discipline, r.time, r.elevation);
+  const yvalOf = r => isAll ? ptsOf(r) : r.time;
+  const labelOf = r => isAll ? `${ptsOf(r)}` : fmtTimeShort(r.time);
+
+  const prRace = isAll
+    ? [...races].sort((a,b) => ptsOf(b) - ptsOf(a))[0]
+    : [...races].sort((a,b) => a.time - b.time)[0];
+  const prVal = yvalOf(prRace);
+
+  if (races.length === 1) {
+    const r = races[0];
     return (
       <div>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:14}}>{subTitle}</div>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"22px 12px",gap:14}}>
           <div style={{width:14,height:14,borderRadius:"50%",background:"#FFD700",boxShadow:"0 0 0 6px rgba(255,215,0,0.25)"}}/>
           <div>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#FFD700",letterSpacing:1,lineHeight:1}}>{labelOf(r)}{isPace?"/km":""}</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#FFD700",letterSpacing:1,lineHeight:1}}>
+              {isAll ? `${labelOf(r)} pts` : labelOf(r)}
+            </div>
             <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:4}}>{rYear(r)}</div>
           </div>
         </div>
         <div style={{textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:6,marginBottom:8}}>Encore 1 course pour voir ta progression</div>
         <div style={{display:"flex",gap:8,marginTop:10}}>
-          <ChartStat label="Record actuel" value={isPace?`${fmtPace(prVal)}/km`:fmtTimeShort(prVal)} color="#FFD700"/>
-          <ChartStat label="Total" value={races.length}/>
+          {isAll ? <>
+            <ChartStat label="Total points" value={prVal}/>
+            <ChartStat label="Meilleure" value={`${formatLabelFromDisc(prRace.discipline)} · ${prVal} pts`} color="#FFD700"/>
+            <ChartStat label="Courses" value={races.length}/>
+          </> : <>
+            <ChartStat label="Record actuel" value={fmtTimeShort(prVal)} color="#FFD700"/>
+            <ChartStat label="Courses" value={races.length}/>
+          </>}
         </div>
       </div>
     );
@@ -2347,41 +2382,48 @@ function FormatProgressionChart({progTab, races, pr}) {
 
   const W=320, H=140, PL=14, PR_PAD=14, PT=26, PB=22;
   const chartW=W-PL-PR_PAD, chartH=H-PT-PB;
-  const vals=races.map(yvalOf);
-  const min=Math.min(...vals), max=Math.max(...vals), range=(max-min)||1;
-  const xOf=i => PL + (i/(races.length-1))*chartW;
-  const yOf=v => PT + ((v-min)/range)*chartH;
-  const pts=races.map((r,i)=>({x:xOf(i), y:yOf(yvalOf(r)), r, isPR:yvalOf(r)===prVal}));
-  const path=pts.map((p,i)=>`${i===0?"M":"L"}${p.x},${p.y}`).join(" ");
-  const years=[...new Set(races.map(r=>rYear(r)))].sort((a,b)=>a-b);
-  const yearXs=years.map(y => {
-    const idx=races.findIndex(r=>rYear(r)===y);
+  const vals = races.map(yvalOf);
+  const min = Math.min(...vals), max = Math.max(...vals), range = (max-min)||1;
+  const xOf = i => PL + (i/(races.length-1))*chartW;
+  const yOf = v => isAll
+    ? PT + (1 - (v-min)/range) * chartH
+    : PT + ((v-min)/range) * chartH;
+  const pts = races.map((r,i) => ({x:xOf(i), y:yOf(yvalOf(r)), r, isPR: yvalOf(r) === prVal}));
+  const path = pts.map((p,i) => `${i===0?"M":"L"}${p.x},${p.y}`).join(" ");
+  const years = [...new Set(races.map(r => rYear(r)))].sort((a,b) => a-b);
+  const yearXs = years.map(y => {
+    const idx = races.findIndex(r => rYear(r) === y);
     return {y, x:xOf(idx)};
   });
 
-  const firstVal=yvalOf(races[0]);
-  const diff=firstVal-prVal;
-  const diffStr=isPace
-    ? `-${fmtPace(diff)}/km`
-    : (() => { const m=Math.floor(diff/60), s=Math.round(diff%60); return m>0?`-${m}'${String(s).padStart(2,"0")}`:`-${s}s`; })();
+  const totalPts = races.reduce((s, r) => s + ptsOf(r), 0);
+  const bestRaceLabel = `${formatLabelFromDisc(prRace.discipline)} · ${ptsOf(prRace)} pts`;
+  const firstVal = yvalOf(races[0]);
+  const diff = firstVal - prVal;
+  const diffStr = (() => {
+    const m = Math.floor(diff/60), s = Math.round(diff%60);
+    return m > 0 ? `-${m}'${String(s).padStart(2,"0")}` : `-${s}s`;
+  })();
 
   return (
     <div>
       <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:10}}>{subTitle}</div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",overflow:"visible",marginBottom:10}}>
         <defs>
-          <linearGradient id="fmtGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="discGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#E63946" stopOpacity="0.4"/>
             <stop offset="100%" stopColor="#E63946" stopOpacity="0"/>
           </linearGradient>
         </defs>
-        <path d={`${path} L${pts[pts.length-1].x},${PT+chartH} L${pts[0].x},${PT+chartH} Z`} fill="url(#fmtGrad)"/>
+        <path d={`${path} L${pts[pts.length-1].x},${PT+chartH} L${pts[0].x},${PT+chartH} Z`} fill="url(#discGrad)"/>
         <path d={path} fill="none" stroke="#E63946" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        {pts.map((p,i)=> p.isPR ? (
+        {pts.map((p,i) => p.isPR ? (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r="11" fill="#FFD700" opacity="0.25"/>
             <circle cx={p.x} cy={p.y} r="6" fill="#FFD700"/>
-            <text x={p.x} y={p.y-14} textAnchor="middle" fill="#FFD700" fontSize="10" fontWeight="700" fontFamily="Bebas Neue" letterSpacing="0.5">{labelOf(p.r)} PR</text>
+            <text x={p.x} y={p.y-14} textAnchor="middle" fill="#FFD700" fontSize="10" fontWeight="700" fontFamily="Bebas Neue" letterSpacing="0.5">
+              {isAll ? `${labelOf(p.r)} pts PR` : `${labelOf(p.r)} PR`}
+            </text>
           </g>
         ) : (
           <g key={i}>
@@ -2394,9 +2436,15 @@ function FormatProgressionChart({progTab, races, pr}) {
         ))}
       </svg>
       <div style={{display:"flex",gap:8}}>
-        <ChartStat label="Record actuel" value={isPace?`${fmtPace(prVal)}/km`:fmtTimeShort(prVal)} color="#FFD700"/>
-        <ChartStat label={`Vs 1er ${singularLabel}`} value={diff>0?diffStr:"—"} color={diff>0?"#4ADE80":undefined}/>
-        <ChartStat label="Total" value={races.length}/>
+        {isAll ? <>
+          <ChartStat label="Total points" value={totalPts}/>
+          <ChartStat label="Meilleure course" value={bestRaceLabel} color="#FFD700"/>
+          <ChartStat label="Courses" value={races.length}/>
+        </> : <>
+          <ChartStat label="Record actuel" value={fmtTimeShort(prVal)} color="#FFD700"/>
+          <ChartStat label={`Vs 1er ${formatLabel.toLowerCase()}`} value={diff>0?diffStr:"—"} color={diff>0?"#4ADE80":undefined}/>
+          <ChartStat label="Courses" value={races.length}/>
+        </>}
       </div>
     </div>
   );
