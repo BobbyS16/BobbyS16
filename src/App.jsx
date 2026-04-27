@@ -4002,31 +4002,38 @@ function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose}){
       <div style={{paddingTop:10}}>
       <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:8}}>Connexions externes</div>
       <div style={{padding:"12px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,marginBottom:10}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:stravaTokens||!STRAVA_ENABLED?10:0}}>
-          <StravaLogoMark size={22}/>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>Strava</div>
-            <div style={{fontSize:11,color:stravaTokens?"#27AE60":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>
-              {stravaTokens?"● Connecté":(STRAVA_ENABLED?"Non connecté":"En attente de validation Strava")}
-            </div>
-          </div>
-        </div>
-        {stravaTokens?(
-          <>
-            <button onClick={importStrava} disabled={stravaBusy} style={{width:"100%",padding:"10px 0",borderRadius:10,background:"rgba(252,76,2,0.12)",border:"1px solid rgba(252,76,2,0.4)",color:"#FC4C02",cursor:stravaBusy?"wait":"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:8}}>{stravaBusy?"Import en cours…":"Importer mes activités"}</button>
-            {stravaMsg&&<div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",textAlign:"center",marginBottom:8}}>{stravaMsg}</div>}
-            <button onClick={()=>setShowDisconnectConfirm(true)} style={{width:"100%",padding:"10px 0",borderRadius:10,background:"transparent",border:"1px solid rgba(230,57,70,0.4)",color:"#E63946",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>Déconnecter Strava</button>
-          </>
-        ):(
-          <div style={{position:"relative"}}>
+        {!stravaTokens&&(
+          <div style={{position:"relative",marginBottom:8}}>
             <ConnectWithStravaButton onClick={connectStrava} disabled={!STRAVA_ENABLED}/>
             {!STRAVA_ENABLED&&(
-              <div onClick={connectStrava} style={{position:"absolute",inset:0,background:"rgba(14,14,14,0.55)",borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                <div style={{fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,background:"rgba(0,0,0,0.5)",padding:"4px 10px",borderRadius:6}}>🔒 En attente de validation Strava</div>
+              <div onClick={connectStrava} style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.5)",borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                <div style={{fontSize:12,color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.3,textShadow:"0 1px 2px rgba(0,0,0,0.6)"}}>🔒 En attente de validation Strava</div>
               </div>
             )}
           </div>
         )}
+        {stravaTokens&&(
+          <>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <StravaLogoMark size={22}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>Strava</div>
+                <div style={{fontSize:11,color:"#27AE60",fontFamily:"'Barlow',sans-serif",marginTop:1}}>● Connecté</div>
+              </div>
+            </div>
+            <button onClick={importStrava} disabled={stravaBusy} style={{width:"100%",padding:"10px 0",borderRadius:10,background:"rgba(252,76,2,0.12)",border:"1px solid rgba(252,76,2,0.4)",color:"#FC4C02",cursor:stravaBusy?"wait":"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:8}}>{stravaBusy?"Import en cours…":"Importer mes activités"}</button>
+            {stravaMsg&&<div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",textAlign:"center",marginBottom:8}}>{stravaMsg}</div>}
+          </>
+        )}
+        <button
+          onClick={stravaTokens?()=>setShowDisconnectConfirm(true):undefined}
+          disabled={!stravaTokens}
+          title={stravaTokens?undefined:"Aucun compte Strava connecté"}
+          style={{width:"100%",padding:"10px 0",borderRadius:10,background:"transparent",border:`1px solid ${stravaTokens?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.08)"}`,color:stravaTokens?"#E63946":"rgba(240,237,232,0.35)",cursor:stravaTokens?"pointer":"not-allowed",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}
+        >
+          <span>🔌 Déconnecter Strava</span>
+          {!stravaTokens&&<span style={{fontSize:10,fontWeight:500,color:"rgba(240,237,232,0.35)",letterSpacing:0.3}}>Aucun compte Strava connecté</span>}
+        </button>
       </div>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <button onClick={()=>onShowPrivacy?.()} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🔒 Confidentialité</button>
