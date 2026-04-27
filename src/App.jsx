@@ -599,6 +599,167 @@ function Btn({children,onClick,variant="primary",mb=8,disabled=false,style={}}){
   const v={primary:{background:"#E63946",color:"#fff"},secondary:{background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)"},danger:{background:"rgba(230,57,70,0.15)",color:"#E63946"}};
   return <button onClick={onClick} disabled={disabled} style={{border:"none",borderRadius:14,cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,padding:"13px 0",width:"100%",transition:"opacity 0.2s",marginBottom:mb,...v[variant],...style,opacity:disabled?0.4:1}}>{children}</button>;
 }
+// ── PULL TO REFRESH ───────────────────────────────────────────────────────────
+function PullToRefresh({onRefresh, children, paddingTop=0, paddingBottom="calc(110px + env(safe-area-inset-bottom))", paddingX="0 16px"}) {
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [toast, setToast] = useState(null);
+  const scrollRef = useRef(null);
+  const startY = useRef(null);
+  const isPulling = useRef(false);
+  const vibrated = useRef(false);
+  const isDragging = useRef(false);
+  const THRESHOLD = 80;
+  const MAX_PULL = 140;
+
+  const showToast = (text, type="success") => {
+    setToast({text, type});
+    setTimeout(() => setToast(null), 1500);
+  };
+
+  const handleStart = (e) => {
+    if (refreshing) return;
+    if (!scrollRef.current) return;
+    if (scrollRef.current.scrollTop > 0) return;
+    startY.current = e.touches[0].clientY;
+    isPulling.current = true;
+    isDragging.current = true;
+    vibrated.current = false;
+  };
+
+  const handleMove = (e) => {
+    if (!isPulling.current || refreshing) return;
+    if (scrollRef.current && scrollRef.current.scrollTop > 0) {
+      isPulling.current = false;
+      isDragging.current = false;
+      setPullDistance(0);
+      return;
+    }
+    const dy = e.touches[0].clientY - startY.current;
+    if (dy <= 0) {
+      setPullDistance(0);
+      return;
+    }
+    const resisted = Math.min(MAX_PULL, dy * 0.55);
+    setPullDistance(resisted);
+    if (resisted >= THRESHOLD && !vibrated.current) {
+      vibrated.current = true;
+      try { navigator.vibrate?.(10); } catch {}
+    }
+    if (resisted < THRESHOLD - 10) vibrated.current = false;
+  };
+
+  const handleEnd = async () => {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+    isDragging.current = false;
+    const distAtRelease = pullDistance;
+    if (distAtRelease < THRESHOLD || refreshing) {
+      setPullDistance(0);
+      return;
+    }
+    setRefreshing(true);
+    setPullDistance(60);
+    try {
+      const result = await onRefresh();
+      showToast(result === "uptodate" ? "À jour ✓" : "Actualisé ✓", "success");
+    } catch (err) {
+      console.error("[ptr] refresh error", err);
+      showToast("Erreur, réessaie", "error");
+    } finally {
+      setRefreshing(false);
+      setPullDistance(0);
+    }
+  };
+
+  const reached = pullDistance >= THRESHOLD;
+  const runnerScale = 1 + Math.min(0.25, pullDistance / 640);
+  const showLabel = pullDistance > 16 || refreshing;
+
+  return (
+    <div style={{flex:1, minHeight:0, position:"relative", overflow:"hidden"}}>
+      <div aria-hidden="true" style={{
+        position:"absolute",
+        top:0, left:0, right:0,
+        height: pullDistance,
+        display:"flex",
+        flexDirection:"column",
+        alignItems:"center",
+        justifyContent:"flex-end",
+        pointerEvents:"none",
+        overflow:"hidden",
+        zIndex:5,
+        transition: isDragging.current ? "none" : "height 0.25s ease",
+      }}>
+        <div style={{
+          fontSize: 32,
+          lineHeight: 1,
+          transform: refreshing ? "none" : `scale(${runnerScale})`,
+          animation: refreshing ? "ptr-runner-bounce 0.5s ease-in-out infinite" : "none",
+          transition: refreshing ? "none" : "transform 0.12s ease",
+          filter: reached ? "drop-shadow(0 0 8px rgba(230,57,70,0.4))" : "none",
+        }}>🏃</div>
+        {showLabel && (
+          <div style={{
+            fontSize: 11,
+            color: "rgba(240,237,232,0.6)",
+            fontFamily: "'Barlow',sans-serif",
+            fontWeight: 600,
+            marginTop: 6,
+            marginBottom: 6,
+            letterSpacing: 0.3,
+            whiteSpace: "nowrap",
+          }}>
+            {refreshing ? "En route..." : reached ? "Relâche pour partir 🏁" : "Tire pour actualiser"}
+          </div>
+        )}
+      </div>
+      <div
+        ref={scrollRef}
+        onTouchStart={handleStart}
+        onTouchMove={handleMove}
+        onTouchEnd={handleEnd}
+        onTouchCancel={handleEnd}
+        style={{
+          height: "100%",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehavior: "contain",
+          padding: paddingX,
+          paddingTop,
+          paddingBottom,
+          boxSizing: "border-box",
+          transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : "none",
+          transition: isDragging.current ? "none" : "transform 0.25s ease",
+          willChange: "transform",
+        }}
+      >
+        {children}
+      </div>
+      {toast && (
+        <div style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top, 0px) + 14px)",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: toast.type === "error" ? "#E63946" : "rgba(22,22,22,0.96)",
+          border: `1px solid ${toast.type === "error" ? "#E63946" : "rgba(74,222,128,0.4)"}`,
+          color: toast.type === "error" ? "#fff" : "#4ADE80",
+          fontFamily: "'Barlow',sans-serif",
+          fontWeight: 700,
+          fontSize: 13,
+          padding: "9px 18px",
+          borderRadius: 12,
+          zIndex: 250,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+          pointerEvents: "none",
+          animation: "ptr-toast-in 0.18s ease",
+        }}>{toast.text}</div>
+      )}
+    </div>
+  );
+}
+
 function PhotoViewer({src,onClose}){
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.96)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:500,cursor:"pointer",padding:20}}>
@@ -1488,6 +1649,18 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       .then(({data})=>setFriendIds(new Set((data||[]).map(f=>f.friend_id))));
   },[userId]);
 
+  const refreshHome = async () => {
+    if (!userId) return;
+    const [r1, t1] = await Promise.all([
+      supabase.from("results").select("*").eq("user_id",userId),
+      supabase.from("trainings").select("*").eq("user_id",userId),
+    ]);
+    if (!r1.error) setResults(r1.data||[]);
+    if (!t1.error) setTrainings(t1.data||[]);
+    await loadPendingClassif();
+    await loadRanking();
+  };
+
   const handleAddFriend=async id=>{
     setFriendIds(s=>{const n=new Set(s);n.add(id);return n;});
     const{error}=await supabase.rpc("add_friend",{p_friend_id:id});
@@ -1634,7 +1807,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       </div>
       </div>
 
-      <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(110px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch"}}>
+      <PullToRefresh onRefresh={refreshHome} paddingBottom="calc(110px + env(safe-area-inset-bottom))">
       {pendingClassif.length>0 && (
         <div style={{background:"linear-gradient(135deg, rgba(230,57,70,0.12), rgba(230,57,70,0.04))",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,padding:"12px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
           <div style={{fontSize:22,flexShrink:0}}>🏁</div>
@@ -1740,7 +1913,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
               ?<SwipeRow key={p.id} radius={14} mb={8} actions={rowActions}>{row}</SwipeRow>
               :<div key={p.id} style={{marginBottom:8}}>{row}</div>;
           })}
-      </div>
+      </PullToRefresh>
       <button onClick={()=>setShowPicker(true)} style={{position:"fixed",bottom:"clamp(74px, 11dvh, 90px)",right:"clamp(14px, 4vw, 20px)",zIndex:99,width:"clamp(44px, 7vw, 56px)",height:"clamp(44px, 7vw, 56px)",borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:"clamp(22px, 5vw, 28px)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)"}}>+</button>
       {showPicker&&<AddPickerModal onPickTraining={onAddTraining} onPickRace={onAddRace} onClose={()=>setShowPicker(false)}/>}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
@@ -1830,7 +2003,7 @@ function RankingTab({myProfile}){
       <div style={{padding:"0 16px",flexShrink:0}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Rank</div>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch"}}>
+      <PullToRefresh onRefresh={async()=>{await loadPlayers();await loadMyGroups();}} paddingBottom="calc(100px + env(safe-area-inset-bottom))">
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:12}}>
         {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"7px 4px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.l}</button>)}
       </div>
@@ -1884,7 +2057,7 @@ function RankingTab({myProfile}){
           </div>
         </div>
       );})}
-      </div>
+      </PullToRefresh>
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myProfile?.id} onClose={()=>setOpenFriend(null)}/>}
     </div>
   );
@@ -1924,7 +2097,7 @@ function TrainingTab({userId}){
           <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8"}}>Training</div>
         </div>
       </div>
-      <div style={{flex:1,minHeight:0,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))"}}>
+      <PullToRefresh onRefresh={loadTrainings} paddingBottom="calc(100px + env(safe-area-inset-bottom))">
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
         <button onClick={()=>setPlanView(plan?"detail":"setup")} style={{background:"#F0EDE8",border:"none",borderRadius:10,padding:"9px 14px",color:"#1a1a1a",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.5}}>📋 {plan?"Mon plan d'entraînement":"Générer plan d'entraînement"}</button>
       </div>
@@ -1976,7 +2149,7 @@ function TrainingTab({userId}){
         </SwipeRow>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
-      </div>
+      </PullToRefresh>
       {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();}} onClose={()=>setEditTraining(null)} onConvertToRace={(t)=>setConvertTraining(t)}/>}
       {convertTraining&&<RaceClassificationModal pending={[convertTraining]} userId={userId} singleMode={true} onClose={()=>{setConvertTraining(null);loadTrainings();}} onDone={()=>{setConvertTraining(null);loadTrainings();}}/>}
       {planView==="detail"&&plan&&<TrainingPlanDetailModal plan={plan} onEdit={()=>setPlanView("setup")} onClose={()=>setPlanView(null)}/>}
@@ -2497,7 +2670,7 @@ function PerfTab({userId, refreshKey}) {
       <div style={{flexShrink:0,padding:"0 16px"}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Perfs</div>
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
+      <PullToRefresh onRefresh={reload} paddingBottom="calc(100px + env(safe-area-inset-bottom))">
         {noRaces ? (
           <div style={{textAlign:"center",padding:"60px 20px",color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif"}}>
             <div style={{fontSize:48,marginBottom:16}}>🏁</div>
@@ -2620,7 +2793,7 @@ function PerfTab({userId, refreshKey}) {
             </div>
           </>
         )}
-      </div>
+      </PullToRefresh>
       {editResult && <ResultModal existing={editResult} userId={userId} onSave={()=>{setEditResult(null);reload();}} onClose={()=>setEditResult(null)}/>}
       {editSwim && <TrainingModal existing={editSwim} userId={userId} onSave={()=>{setEditSwim(null);reload();}} onClose={()=>setEditSwim(null)}/>}
     </div>

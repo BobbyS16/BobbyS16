@@ -117,3 +117,13 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Pull-to-refresh runner animation */
+@keyframes ptr-runner-bounce {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50%      { transform: translateY(-5px) rotate(3deg); }
+}
+@keyframes ptr-toast-in {
+  0%   { transform: translate(-50%, -10px); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
