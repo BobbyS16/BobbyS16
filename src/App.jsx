@@ -367,7 +367,7 @@ function computeBadges(ctx={}) {
 
 // ── DRUM PICKER ───────────────────────────────────────────────────────────────
 function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
-  const ref=useRef(null), IH=40;
+  const ref=useRef(null), IH=34;
   const N=values.length;
   const COPIES=loop?21:1;
   const MIDDLE=Math.floor(COPIES/2);
@@ -581,7 +581,7 @@ function Modal({onClose,children,fullScreen=false}) {
       <div onClick={e=>e.stopPropagation()}
         style={{background:"#161616",border:fullScreen?"none":"1px solid rgba(255,255,255,0.09)",borderRadius:fullScreen?0:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:fullScreen?"100dvh":"92dvh",height:fullScreen?"100dvh":"auto",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease",paddingTop:fullScreen?"env(safe-area-inset-top)":0}}>
         <div onTouchStart={onHandleTouch} onTouchMove={onHandleMove} onTouchEnd={onHandleEnd}
-          style={{padding:"18px 20px 18px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none",position:"relative"}}>
+          style={{padding:"10px 20px 10px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none",position:"relative"}}>
           <div style={{width:48,height:5,background:"rgba(255,255,255,0.3)",borderRadius:3,margin:"0 auto"}}/>
           {fullScreen&&<button onClick={onClose} aria-label="Fermer" style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.7)",fontSize:16,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
         </div>
@@ -592,12 +592,12 @@ function Modal({onClose,children,fullScreen=false}) {
     </div>
   );
 }
-function Lbl({c}){return <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:6}}>{c}</div>;}
-function Inp({value,onChange,placeholder,type="text"}){return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type={type} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:16}}/>;}
-function Sel({value,onChange,children}){return <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",background:"#1e1e1e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:16,appearance:"none"}}>{children}</select>;}
-function Btn({children,onClick,variant="primary",mb=8,disabled=false,style={}}){
+function Lbl({c}){return <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:4}}>{c}</div>;}
+function Inp({value,onChange,placeholder,type="text"}){return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type={type} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:15,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10}}/>;}
+function Sel({value,onChange,children}){return <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",background:"#1e1e1e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10,appearance:"none"}}>{children}</select>;}
+function Btn({children,onClick,variant="primary",mb=6,disabled=false,style={}}){
   const v={primary:{background:"#E63946",color:"#fff"},secondary:{background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)"},danger:{background:"rgba(230,57,70,0.15)",color:"#E63946"}};
-  return <button onClick={onClick} disabled={disabled} style={{border:"none",borderRadius:14,cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,padding:"13px 0",width:"100%",transition:"opacity 0.2s",marginBottom:mb,...v[variant],...style,opacity:disabled?0.4:1}}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} style={{border:"none",borderRadius:14,cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,padding:"11px 0",width:"100%",transition:"opacity 0.2s",marginBottom:mb,...v[variant],...style,opacity:disabled?0.4:1}}>{children}</button>;
 }
 // ── PULL TO REFRESH ───────────────────────────────────────────────────────────
 function PullToRefresh({onRefresh, children, paddingTop=0, paddingBottom="calc(110px + env(safe-area-inset-bottom))", paddingX="0 16px"}) {
@@ -835,22 +835,22 @@ function ResultModal({existing,userId,onSave,onClose}){
   };
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>{existing?"Modifier":"Ajouter"} un résultat</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1,marginBottom:8}}>{existing?"Modifier":"Ajouter"} un résultat</div>
       <Lbl c="Discipline"/><Sel value={discipline} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>
       <Lbl c="Temps"/>
-      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><TimePicker value={timeStr} onChange={setTime}/></div>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><TimePicker value={timeStr} onChange={setTime}/></div>
       <Lbl c="Nom de la course (optionnel)"/><Inp value={raceName} onChange={setRace} placeholder="Ex: Marathon de Paris"/>
       {hasElevation&&(<>
-        <Lbl c={`Dénivelé positif (m) — référence ${DISCIPLINES[discipline]?.refDplus}m`}/>
+        <Lbl c={`Dénivelé+ (m) — réf ${DISCIPLINES[discipline]?.refDplus}m`}/>
         <Inp value={elevation} onChange={setElevation} placeholder={`Ex: ${DISCIPLINES[discipline]?.refDplus}`} type="number"/>
       </>)}
-      <Lbl c="Date de la course"/>
-      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={raceDate} onChange={setDate}/></div>
-      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
-      <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Valider"}</Btn>
-      <Btn onClick={onClose} variant="secondary" mb={linkedTraining?8:0}>Annuler</Btn>
+      <Lbl c="Date"/>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><DatePicker value={raceDate} onChange={setDate}/></div>
+      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
+      <Btn onClick={handleSave} mb={6}>{loading?"Enregistrement...":"Valider"}</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={linkedTraining?6:0}>Annuler</Btn>
       {linkedTraining && (
-        <button onClick={reclassifyAsTraining} disabled={loading} style={{width:"100%",background:"transparent",border:"1px solid rgba(240,237,232,0.15)",borderRadius:14,padding:"11px 0",color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.3,opacity:loading?0.5:1}}>↩ Reclasser en entraînement</button>
+        <button onClick={reclassifyAsTraining} disabled={loading} style={{width:"100%",background:"transparent",border:"1px solid rgba(240,237,232,0.15)",borderRadius:14,padding:"9px 0",color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3,opacity:loading?0.5:1}}>↩ Reclasser en entraînement</button>
       )}
     </Modal>
   );
@@ -886,20 +886,20 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
   };
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1,marginBottom:12}}>{existing?"Modifier":"Ajouter"} un entraînement</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1,marginBottom:8}}>{existing?"Modifier":"Ajouter"} un entraînement</div>
       <Lbl c="Sport"/><Sel value={sport} onChange={setSport}>{TRAINING_SPORTS.filter(s=>s!=="All").map(s=><option key={s} value={s}>{s}</option>)}</Sel>
       <Lbl c="Titre (optionnel)"/><Inp value={title} onChange={setTitle} placeholder="Ex: Bassin matinal, Sortie longue…"/>
       <Lbl c="Distance (km)"/><Inp value={dist} onChange={setDist} placeholder="Ex: 12.5" type="number"/>
       {sport==="Trail"&&<><Lbl c="Dénivelé (m)"/><Inp value={deniv} onChange={setDeniv} placeholder="Ex: 800" type="number"/></>}
       <Lbl c="Durée"/>
-      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><TimePicker value={duration} onChange={setDur}/></div>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><TimePicker value={duration} onChange={setDur}/></div>
       <Lbl c="Date"/>
-      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px",marginBottom:12}}><DatePicker value={date} onChange={setDate}/></div>
-      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
-      <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Valider"}</Btn>
-      <Btn onClick={onClose} variant="secondary" mb={existing&&onConvertToRace?8:0}>Annuler</Btn>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><DatePicker value={date} onChange={setDate}/></div>
+      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
+      <Btn onClick={handleSave} mb={6}>{loading?"Enregistrement...":"Valider"}</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={existing&&onConvertToRace?6:0}>Annuler</Btn>
       {existing && onConvertToRace && !existing.is_official_race && (
-        <button onClick={()=>{onClose();onConvertToRace(existing);}} style={{width:"100%",background:"transparent",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,padding:"11px 0",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.3}}>🏁 Convertir en course officielle</button>
+        <button onClick={()=>{onClose();onConvertToRace(existing);}} style={{width:"100%",background:"transparent",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,padding:"9px 0",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3}}>🏁 Convertir en course officielle</button>
       )}
     </Modal>
   );
