@@ -909,6 +909,49 @@ function SwipeRow({children,onEdit,onDelete,actions,radius=12,mb=6}){
 }
 
 // ── UI PRIMITIVES ─────────────────────────────────────────────────────────────
+// ── STRAVA BRAND ASSETS ───────────────────────────────────────────────────────
+// Conformité Brand Guidelines : https://developers.strava.com/guidelines/
+const STRAVA_ORANGE="#FC4C02";
+function StravaLogoMark({size=20,color="#fff"}){
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path fill={color} d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+    </svg>
+  );
+}
+function ConnectWithStravaButton({onClick,disabled=false}){
+  return (
+    <button onClick={onClick} type="button" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,width:"100%",padding:"12px 18px",background:STRAVA_ORANGE,border:"none",borderRadius:4,color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,letterSpacing:0.3,cursor:disabled?"default":"pointer",boxSizing:"border-box"}}>
+      <StravaLogoMark size={18} color="#fff"/>
+      <span>Connect with Strava</span>
+    </button>
+  );
+}
+function PoweredByStrava({align="center"}){
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:align==="center"?"center":"flex-start",gap:6,padding:"10px 0",opacity:0.55}}>
+      <span style={{fontSize:10,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",letterSpacing:1.5,textTransform:"uppercase"}}>Powered by</span>
+      <StravaLogoMark size={14} color="rgba(240,237,232,0.85)"/>
+      <span style={{fontSize:11,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>Strava</span>
+    </div>
+  );
+}
+function ActivitySourceBadge({source}){
+  if(source==="strava"){
+    return (
+      <span style={{display:"inline-flex",alignItems:"center",gap:3,padding:"2px 6px",background:"rgba(252,76,2,0.12)",border:"1px solid rgba(252,76,2,0.35)",borderRadius:4,fontSize:9,color:STRAVA_ORANGE,fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",flexShrink:0}}>
+        <StravaLogoMark size={9} color={STRAVA_ORANGE}/>via Strava
+      </span>
+    );
+  }
+  if(source==="garmin"){
+    return (
+      <span style={{display:"inline-flex",alignItems:"center",gap:3,padding:"2px 6px",background:"rgba(0,122,196,0.12)",border:"1px solid rgba(0,122,196,0.35)",borderRadius:4,fontSize:9,color:"#007AC4",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",flexShrink:0}}>via Garmin</span>
+    );
+  }
+  return null;
+}
+
 function Modal({onClose,children,fullScreen=false}) {
   const [dy,setDy]=useState(0);
   const startY=useRef(null);
@@ -2529,7 +2572,10 @@ function TrainingTab({userId, onActivityChange}){
           <ActivityCard myId={userId} activityType="training" activityId={t.id}>
             <div onClick={()=>setEditTraining(t)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",gap:10}}>
               <div style={{minWidth:0,flex:1}}>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title?.trim()||`${t.sport} · ${t.distance} km`}</div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,color:"#F0EDE8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0,flex:1}}>{t.title?.trim()||`${t.sport} · ${t.distance} km`}</div>
+                  <ActivitySourceBadge source={t.source}/>
+                </div>
                 <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title?.trim()?`${t.sport} · ${t.distance} km · `:""}{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
               </div>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{effectiveTrainingPts(t)}pts</div>
@@ -2538,6 +2584,7 @@ function TrainingTab({userId, onActivityChange}){
         </SwipeRow>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
+      {filtered.some(t=>t.source==="strava")&&<PoweredByStrava/>}
       </PullToRefresh>
       {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();onActivityChange?.();}} onClose={()=>setEditTraining(null)} onConvertToRace={(t)=>setConvertTraining(t)}/>}
       {convertTraining&&<RaceClassificationModal pending={[convertTraining]} userId={userId} singleMode={true} onClose={()=>{setConvertTraining(null);loadTrainings();onActivityChange?.();}} onDone={()=>{setConvertTraining(null);loadTrainings();onActivityChange?.();}}/>}
@@ -3668,7 +3715,7 @@ function BadgesByCategory({badges}){
 }
 
 // ── PROFILE MODAL ─────────────────────────────────────────────────────────────
-function ProfileModal({profile,results,onRefresh,onClose}){
+function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
@@ -3693,16 +3740,47 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [stravaTokens,setStravaTokens]=useState(null);
   const [stravaBusy,setStravaBusy]=useState(false);
   const [stravaMsg,setStravaMsg]=useState("");
+  const [showStravaPending,setShowStravaPending]=useState(false);
+  const [showDisconnectConfirm,setShowDisconnectConfirm]=useState(false);
+  const [disconnecting,setDisconnecting]=useState(false);
+  const [profileToast,setProfileToast]=useState("");
+  useEffect(()=>{
+    if(!profileToast)return;
+    const t=setTimeout(()=>setProfileToast(""),3500);
+    return()=>clearTimeout(t);
+  },[profileToast]);
   useEffect(()=>{
     try{const raw=localStorage.getItem(`strava_${profile.id}`);if(raw)setStravaTokens(JSON.parse(raw));}catch{}
   },[profile.id]);
+  // Strava est désactivé tant que la demande de quota n'est pas validée.
+  // Garder cette constante en haut pour pouvoir la flipper à `true` quand
+  // Strava aura validé — le reste de l'UI reste au format Brand Guidelines.
+  const STRAVA_ENABLED=false;
   const connectStrava=()=>{
+    if(!STRAVA_ENABLED){setShowStravaPending(true);return;}
     const url=`https://www.strava.com/oauth/authorize?client_id=230065&response_type=code&redirect_uri=${encodeURIComponent(window.location.origin)}&approval_prompt=auto&scope=read,activity:read&state=strava`;
     window.location.href=url;
   };
-  const disconnectStrava=()=>{
-    try{localStorage.removeItem(`strava_${profile.id}`);}catch{}
-    setStravaTokens(null);setStravaMsg("");
+  const performDisconnectStrava=async()=>{
+    setDisconnecting(true);
+    try{
+      const token=stravaTokens?.access_token;
+      if(token){
+        try{
+          await fetch("/api/strava/deauthorize",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({access_token:token})});
+        }catch(e){console.error("[Strava] deauthorize failed",e);}
+      }
+      const{error}=await supabase.from("trainings").delete().eq("user_id",profile.id).eq("source","strava");
+      if(error)console.error("[Strava] purge trainings failed",error);
+      try{localStorage.removeItem(`strava_${profile.id}`);}catch{}
+      setStravaTokens(null);
+      setStravaMsg("");
+      setShowDisconnectConfirm(false);
+      setProfileToast("✅ Strava déconnecté. Tes données importées seront purgées.");
+      onRefresh();
+    }finally{
+      setDisconnecting(false);
+    }
   };
   const ensureFreshToken=async()=>{
     let t=stravaTokens;
@@ -3736,7 +3814,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         const key=`${date}|${sport}|${Math.round(distance*10)}`;
         if(seen.has(key))return;
         seen.add(key);
-        inserts.push({user_id:profile.id,sport,title:a.name||null,distance,duration,date,points:calcTrainingPts(distance,sport,duration),auto_detected_official:detectOfficialRace(a.name||"")});
+        inserts.push({user_id:profile.id,sport,title:a.name||null,distance,duration,date,points:calcTrainingPts(distance,sport,duration),auto_detected_official:detectOfficialRace(a.name||""),source:"strava"});
       });
       if(inserts.length===0){setStravaMsg("Aucune nouvelle activité à importer");return;}
       const{error}=await supabase.from("trainings").insert(inserts);
@@ -3922,17 +4000,39 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       })()}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       <div style={{paddingTop:10}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(252,76,2,0.08)",border:"1px solid rgba(252,76,2,0.3)",borderRadius:14,marginBottom:10}}>
-        <div style={{fontSize:22,flexShrink:0}}>🏃‍♂️</div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FC4C02",letterSpacing:1}}>Synchronisation Strava bientôt disponible 🚀</div>
-          <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>En attente de validation Strava — disponible sous peu</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:8}}>Connexions externes</div>
+      <div style={{padding:"12px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:stravaTokens||!STRAVA_ENABLED?10:0}}>
+          <StravaLogoMark size={22}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>Strava</div>
+            <div style={{fontSize:11,color:stravaTokens?"#27AE60":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>
+              {stravaTokens?"● Connecté":(STRAVA_ENABLED?"Non connecté":"En attente de validation Strava")}
+            </div>
+          </div>
         </div>
-        <button disabled style={{padding:"7px 12px",borderRadius:10,background:"#FC4C02",border:"none",color:"#fff",cursor:"not-allowed",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,flexShrink:0,opacity:0.4}}>Connecter</button>
+        {stravaTokens?(
+          <>
+            <button onClick={importStrava} disabled={stravaBusy} style={{width:"100%",padding:"10px 0",borderRadius:10,background:"rgba(252,76,2,0.12)",border:"1px solid rgba(252,76,2,0.4)",color:"#FC4C02",cursor:stravaBusy?"wait":"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:8}}>{stravaBusy?"Import en cours…":"Importer mes activités"}</button>
+            {stravaMsg&&<div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",textAlign:"center",marginBottom:8}}>{stravaMsg}</div>}
+            <button onClick={()=>setShowDisconnectConfirm(true)} style={{width:"100%",padding:"10px 0",borderRadius:10,background:"transparent",border:"1px solid rgba(230,57,70,0.4)",color:"#E63946",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>Déconnecter Strava</button>
+          </>
+        ):(
+          <div style={{position:"relative"}}>
+            <ConnectWithStravaButton onClick={connectStrava} disabled={!STRAVA_ENABLED}/>
+            {!STRAVA_ENABLED&&(
+              <div onClick={connectStrava} style={{position:"absolute",inset:0,background:"rgba(14,14,14,0.55)",borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+                <div style={{fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,background:"rgba(0,0,0,0.5)",padding:"4px 10px",borderRadius:6}}>🔒 En attente de validation Strava</div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
+      <button onClick={()=>onShowPrivacy?.()} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🔒 Confidentialité</button>
       <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🚪 Se déconnecter</button>
-      <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13}}>Supprimer mon compte</button>
+      <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,marginBottom:14}}>Supprimer mon compte</button>
+      <PoweredByStrava/>
       </div>
       </div>
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
@@ -3940,6 +4040,27 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
       {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
       {editResult&&<ResultModal existing={editResult} userId={profile.id} onSave={()=>{setEditResult(null);onRefresh();}} onClose={()=>setEditResult(null)}/>}
+      {showStravaPending&&(
+        <Modal onClose={()=>setShowStravaPending(false)}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1.5,color:"#F0EDE8",marginBottom:8}}>Bientôt disponible</div>
+          <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",marginBottom:18,lineHeight:1.5}}>Synchronisation Strava bientôt disponible. En attente de validation par Strava.</div>
+          <Btn onClick={()=>setShowStravaPending(false)} mb={0}>OK</Btn>
+        </Modal>
+      )}
+      {showDisconnectConfirm&&(
+        <Modal onClose={()=>!disconnecting&&setShowDisconnectConfirm(false)}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+            <StravaLogoMark size={26}/>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1.5,color:"#F0EDE8"}}>Déconnecter Strava ?</div>
+          </div>
+          <div style={{fontSize:13,color:"rgba(240,237,232,0.75)",fontFamily:"'Barlow',sans-serif",marginBottom:18,lineHeight:1.55}}>Cette action supprimera immédiatement toutes tes activités importées de Strava et révoquera l'accès. Tu pourras reconnecter Strava plus tard si tu le souhaites.</div>
+          <Btn onClick={performDisconnectStrava} disabled={disconnecting} variant="danger" mb={8}>{disconnecting?"Déconnexion…":"Oui, déconnecter Strava"}</Btn>
+          <Btn onClick={()=>setShowDisconnectConfirm(false)} disabled={disconnecting} variant="secondary" mb={0}>Annuler</Btn>
+        </Modal>
+      )}
+      {profileToast&&(
+        <div style={{position:"fixed",left:16,right:16,bottom:"calc(20px + env(safe-area-inset-bottom))",zIndex:500,background:"rgba(20,20,20,0.97)",backdropFilter:"blur(12px)",border:"1px solid rgba(39,174,96,0.4)",borderRadius:14,padding:"12px 14px",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:13,maxWidth:460,margin:"0 auto",boxShadow:"0 8px 24px rgba(0,0,0,0.45)",textAlign:"center"}}>{profileToast}</div>
+      )}
     </Modal>
   );
 }
@@ -4184,20 +4305,26 @@ function FriendProfileModal({friend,myId,onClose}){
         ):(
           seasonTrainings.length===0?
             <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun entraînement pour cette saison</div>
-          :seasonTrainings.map(t=>{
-            const pts=effectiveTrainingPts(t);
-            return (
-              <ActivityCard key={t.id} myId={myId} activityType="training" activityId={t.id}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{t.sport} · {t.distance} km</div>
-                    <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",marginTop:2,fontFamily:"'Barlow',sans-serif"}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
+          :<>
+            {seasonTrainings.map(t=>{
+              const pts=effectiveTrainingPts(t);
+              return (
+                <ActivityCard key={t.id} myId={myId} activityType="training" activityId={t.id}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",minWidth:0,flex:1}}>{t.sport} · {t.distance} km</div>
+                        <ActivitySourceBadge source={t.source}/>
+                      </div>
+                      <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",marginTop:2,fontFamily:"'Barlow',sans-serif"}}>{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
+                    </div>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:"#E63946",flexShrink:0}}>+{pts}pts</div>
                   </div>
-                  <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:"#E63946",flexShrink:0}}>+{pts}pts</div>
-                </div>
-              </ActivityCard>
-            );
-          })
+                </ActivityCard>
+              );
+            })}
+            {seasonTrainings.some(t=>t.source==="strava")&&<PoweredByStrava/>}
+          </>
         )}
       </>)}
 
@@ -4311,7 +4438,7 @@ function OnboardingScreen({profile,onDone}){
   );
 }
 
-function AuthScreen(){
+function AuthScreen({onShowPrivacy}){
   const signIn=async()=>{await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}});};
   return (
     <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
@@ -4321,6 +4448,173 @@ function AuthScreen(){
         <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.6 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.1-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.6 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.3 0-9.6-3-11.3-7.5l-6.6 5.1C9.5 39.5 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.5-2.5 4.6-4.6 6l6.2 5.2C41 35.6 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
         Continuer avec Google
       </button>
+      <div style={{marginTop:18,fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",textAlign:"center",lineHeight:1.5,maxWidth:320}}>
+        En créant un compte, j'accepte la{" "}
+        <button onClick={onShowPrivacy} style={{background:"none",border:"none",padding:0,color:"#E63946",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>Politique de confidentialité</button>
+      </div>
+    </div>
+  );
+}
+
+// ── PRIVACY PAGE ──────────────────────────────────────────────────────────────
+function PrivacyPage({onBack}){
+  useEffect(()=>{
+    const prev=document.body.style.overflow;
+    document.body.style.overflow="auto";
+    return()=>{document.body.style.overflow=prev;};
+  },[]);
+  const H1=({children})=><h1 style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:2,color:"#F0EDE8",margin:"0 0 6px"}}>{children}</h1>;
+  const H2=({children})=><h2 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1.5,color:"#E63946",margin:"28px 0 10px"}}>{children}</h2>;
+  const H3=({children})=><h3 style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:1.2,color:"#F0EDE8",margin:"18px 0 6px"}}>{children}</h3>;
+  const P=({children})=><p style={{fontFamily:"'Barlow',sans-serif",fontSize:14,lineHeight:1.6,color:"rgba(240,237,232,0.85)",margin:"0 0 12px"}}>{children}</p>;
+  const UL=({children})=><ul style={{fontFamily:"'Barlow',sans-serif",fontSize:14,lineHeight:1.7,color:"rgba(240,237,232,0.85)",margin:"0 0 12px",paddingLeft:20}}>{children}</ul>;
+  const A=({href,children})=><a href={href} target="_blank" rel="noopener noreferrer" style={{color:"#E63946",textDecoration:"underline"}}>{children}</a>;
+  const Strong=({children})=><strong style={{color:"#F0EDE8",fontWeight:700}}>{children}</strong>;
+  return (
+    <div style={{minHeight:"100vh",background:"#0e0e0e",color:"#F0EDE8",overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+      <div style={{position:"sticky",top:0,zIndex:5,background:"rgba(14,14,14,0.95)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.06)",padding:"calc(env(safe-area-inset-top) + 12px) 16px 12px"}}>
+        <div style={{maxWidth:720,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={onBack} aria-label="Retour" style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"7px 12px",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>← Retour</button>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8"}}>Confidentialité</div>
+        </div>
+      </div>
+      <div style={{maxWidth:720,margin:"0 auto",padding:"16px 16px calc(40px + env(safe-area-inset-bottom))"}}>
+        <H1>Politique de Confidentialité — PaceRank</H1>
+        <P><Strong>Dernière mise à jour : 27 avril 2026</Strong></P>
+
+        <H2>1. Introduction</H2>
+        <P>PaceRank est une application de classement communautaire pour athlètes d'endurance (course à pied, trail, triathlon, Hyrox, cyclisme, natation). Cette politique de confidentialité explique quelles données nous collectons, comment nous les utilisons et quels sont vos droits.</P>
+        <P>PaceRank est édité par Philippe Sallenave, particulier.<br/>Contact : <A href="mailto:sallenave.philippe@gmail.com">sallenave.philippe@gmail.com</A></P>
+        <P>En utilisant PaceRank, vous acceptez les pratiques décrites dans cette politique.</P>
+
+        <H2>2. Données que nous collectons</H2>
+        <H3>2.1 Données de compte</H3>
+        <UL>
+          <li>Adresse email</li>
+          <li>Mot de passe (chiffré, jamais accessible en clair)</li>
+          <li>Prénom, nom</li>
+          <li>Date de naissance</li>
+          <li>Sexe (Homme / Femme / Préfère ne pas répondre)</li>
+          <li>Ville et région</li>
+          <li>Photo de profil (optionnelle, uploadée par vous)</li>
+        </UL>
+        <H3>2.2 Données sportives</H3>
+        <UL>
+          <li>Activités sportives saisies manuellement (course, trail, triathlon, Hyrox, cyclisme, natation)</li>
+          <li>Activités sportives importées depuis Strava (si vous connectez votre compte Strava)</li>
+          <li>Photos liées à vos courses (optionnelles)</li>
+        </UL>
+        <H3>2.3 Données dérivées (calculées par PaceRank)</H3>
+        <UL>
+          <li>Points de performance par discipline</li>
+          <li>Records personnels</li>
+          <li>Classements et positions dans les ligues</li>
+          <li>Niveaux, streaks, statistiques agrégées</li>
+        </UL>
+        <H3>2.4 Données techniques</H3>
+        <UL>
+          <li>Adresse IP (collectée par notre hébergeur Vercel pour des raisons de sécurité et de logs)</li>
+          <li>Date et heure de connexion</li>
+        </UL>
+        <P>PaceRank ne collecte <Strong>AUCUNE</Strong> donnée de localisation en temps réel, <Strong>AUCUNE</Strong> donnée biométrique (fréquence cardiaque, etc.), et n'utilise <Strong>AUCUN</Strong> outil d'analytics ou de tracking publicitaire.</P>
+
+        <H2>3. Comment nous collectons ces données</H2>
+        <UL>
+          <li><Strong>Saisie directe</Strong> : vous renseignez votre profil et vos activités via l'app</li>
+          <li><Strong>Connexion Google</Strong> : si vous choisissez de vous connecter avec Google, nous recevons votre email et votre nom via Google OAuth</li>
+          <li><Strong>Connexion Strava</Strong> : si vous connectez votre compte Strava, nous importons vos activités sportives via l'API Strava (OAuth, lecture seule, scope <code style={{background:"rgba(255,255,255,0.06)",padding:"1px 6px",borderRadius:4,fontFamily:"monospace",fontSize:12}}>activity:read</code>)</li>
+        </UL>
+
+        <H2>4. Pourquoi nous collectons ces données</H2>
+        <UL>
+          <li>Faire fonctionner l'application (afficher votre profil, vos courses, vos statistiques)</li>
+          <li>Calculer vos points de performance et vous classer dans les ligues</li>
+          <li>Permettre les classements entre amis</li>
+          <li>Comparer vos performances aux temps de référence par discipline</li>
+        </UL>
+        <P>Nous ne vendons jamais vos données. Nous ne les utilisons jamais à des fins publicitaires. Nous ne les transmettons à aucun tiers en dehors des prestataires techniques listés ci-dessous.</P>
+
+        <H2>5. Avec qui nous partageons vos données</H2>
+        <P>PaceRank utilise les prestataires techniques suivants pour faire fonctionner l'application :</P>
+        <H3>5.1 Supabase (Europe)</H3>
+        <P>Hébergement de la base de données, authentification, stockage des photos de profil. Vos données sont stockées en Europe.<br/>Site : <A href="https://supabase.com">https://supabase.com</A></P>
+        <H3>5.2 Vercel (États-Unis)</H3>
+        <P>Hébergement de l'application web et des fonctions serverless. Reçoit votre adresse IP et les logs techniques.<br/>Site : <A href="https://vercel.com">https://vercel.com</A></P>
+        <H3>5.3 Google (États-Unis)</H3>
+        <UL>
+          <li>Google OAuth si vous choisissez de vous connecter avec votre compte Google</li>
+          <li>Google Fonts pour le chargement des polices d'écriture (Google reçoit votre adresse IP lors du chargement de l'app)</li>
+        </UL>
+        <P>Site : <A href="https://policies.google.com/privacy">https://policies.google.com/privacy</A></P>
+        <H3>5.4 Strava (États-Unis)</H3>
+        <P>Si vous connectez votre compte Strava, vos activités sportives sont importées via l'API Strava. Strava reçoit nos requêtes (avec votre token d'autorisation) pour nous fournir vos activités.<br/>Site : <A href="https://www.strava.com/legal/privacy">https://www.strava.com/legal/privacy</A></P>
+        <P>Aucune autre donnée n'est partagée avec ces prestataires en dehors de ce qui est nécessaire à leur fonctionnement.</P>
+
+        <H2>6. Données Strava : règles spécifiques</H2>
+        <P>Si vous connectez votre compte Strava, voici les règles que nous appliquons strictement, conformément aux conditions de l'API Strava :</P>
+        <UL>
+          <li>Nous accédons uniquement à vos activités, en lecture seule</li>
+          <li>Vos activités Strava ne sont jamais partagées avec d'autres utilisateurs sans votre consentement</li>
+          <li>Les données brutes Strava (titre, distance exacte, temps, date, lieu) ne sont stockées que 7 jours maximum dans notre cache. Au-delà, nous conservons uniquement les données dérivées que nous avons calculées (points, records, classements)</li>
+          <li>Si vous supprimez une activité sur Strava, nous la supprimons également chez nous sous 48 heures</li>
+          <li>Si vous déconnectez votre compte Strava, nous supprimons immédiatement toutes les données Strava associées</li>
+          <li>Nous n'utilisons jamais les données Strava pour entraîner une intelligence artificielle ou faire de la publicité ciblée</li>
+        </UL>
+
+        <H2>7. Combien de temps nous gardons vos données</H2>
+        <UL>
+          <li><Strong>Compte utilisateur</Strong> : tant que votre compte existe</li>
+          <li><Strong>Profil</Strong> : tant que votre compte existe</li>
+          <li><Strong>Activités saisies manuellement</Strong> : tant que votre compte existe</li>
+          <li><Strong>Activités Strava (données brutes)</Strong> : 7 jours maximum</li>
+          <li><Strong>Données dérivées (points, records, classements)</Strong> : tant que votre compte existe</li>
+          <li><Strong>Logs techniques</Strong> : 30 jours maximum</li>
+        </UL>
+        <P>Si vous supprimez votre compte, toutes vos données sont supprimées sous 30 jours, à l'exception des données que la loi nous oblige éventuellement à conserver.</P>
+
+        <H2>8. Vos droits (RGPD)</H2>
+        <P>Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez des droits suivants :</P>
+        <UL>
+          <li><Strong>Droit d'accès</Strong> : obtenir une copie de toutes vos données que nous détenons</li>
+          <li><Strong>Droit de rectification</Strong> : corriger toute donnée inexacte vous concernant</li>
+          <li><Strong>Droit à l'effacement</Strong> : demander la suppression de toutes vos données ("droit à l'oubli")</li>
+          <li><Strong>Droit à la portabilité</Strong> : recevoir vos données dans un format structuré et lisible par machine</li>
+          <li><Strong>Droit d'opposition</Strong> : vous opposer à certains traitements</li>
+          <li><Strong>Droit de retrait du consentement</Strong> : retirer à tout moment votre consentement à la connexion Strava ou Google</li>
+          <li><Strong>Droit d'introduire une réclamation</Strong> auprès de la CNIL (<A href="https://www.cnil.fr">https://www.cnil.fr</A>)</li>
+        </UL>
+        <P>Pour exercer ces droits, écrivez-nous à : <A href="mailto:sallenave.philippe@gmail.com">sallenave.philippe@gmail.com</A></P>
+        <P>Nous nous engageons à répondre sous 30 jours.</P>
+
+        <H2>9. Sécurité</H2>
+        <P>Nous prenons la sécurité de vos données au sérieux :</P>
+        <UL>
+          <li>Toutes les communications avec l'application se font via HTTPS (chiffré)</li>
+          <li>Les mots de passe sont chiffrés (jamais stockés en clair)</li>
+          <li>Les tokens d'accès Strava sont stockés de manière sécurisée et ne sont jamais exposés au navigateur</li>
+          <li>L'accès à la base de données est protégé par des règles d'accès strictes (Row Level Security via Supabase)</li>
+        </UL>
+        <P>En cas de violation de données affectant vos données personnelles, nous vous en informerons sans délai conformément aux obligations du RGPD.</P>
+
+        <H2>10. Cookies et tracking</H2>
+        <P>PaceRank n'utilise <Strong>PAS</Strong> de cookies de tracking, ni de cookies publicitaires, ni d'outils d'analytics tiers (pas de Google Analytics, pas de Facebook Pixel, etc.).</P>
+        <P>Les seuls cookies utilisés sont des cookies techniques strictement nécessaires au fonctionnement de l'authentification (session utilisateur).</P>
+
+        <H2>11. Mineurs</H2>
+        <P>PaceRank n'est pas destiné aux personnes de moins de 16 ans. Si vous êtes un parent ou tuteur légal et constatez qu'un mineur de moins de 16 ans nous a fourni ses données, contactez-nous pour que nous les supprimions.</P>
+
+        <H2>12. Transferts internationaux de données</H2>
+        <P>Certains de nos prestataires (Vercel, Google, Strava) sont situés aux États-Unis. Lorsque vos données sont transférées hors de l'Union Européenne, nous nous assurons que ces prestataires offrent un niveau de protection conforme au RGPD (notamment via les clauses contractuelles types de la Commission Européenne).</P>
+
+        <H2>13. Modifications de cette politique</H2>
+        <P>Nous pouvons modifier cette politique de confidentialité de temps à autre. La date de "Dernière mise à jour" en haut du document sera modifiée en conséquence. Pour les modifications substantielles, nous vous en informerons par email ou via une notification dans l'application.</P>
+
+        <H2>14. Contact</H2>
+        <P>Pour toute question concernant cette politique de confidentialité ou vos données personnelles :</P>
+        <P>Email : <A href="mailto:sallenave.philippe@gmail.com">sallenave.philippe@gmail.com</A></P>
+        <P>Nous nous engageons à répondre sous un délai raisonnable, généralement sous 7 jours.</P>
+      </div>
     </div>
   );
 }
@@ -4411,6 +4705,24 @@ export default function App(){
   const [loading,setLoading]=useState(true);
   const [resultsKey,setResultsKey]=useState(0);
   const [showProfile,setShowProfile]=useState(false);
+  const [showPrivacy,setShowPrivacy]=useState(()=>{
+    try{return window.location.pathname==="/privacy";}catch{return false;}
+  });
+  const openPrivacy=useCallback(()=>{
+    try{window.history.pushState({},"","/privacy");}catch{}
+    setShowPrivacy(true);
+  },[]);
+  const closePrivacy=useCallback(()=>{
+    try{window.history.pushState({},"","/");}catch{}
+    setShowPrivacy(false);
+  },[]);
+  useEffect(()=>{
+    const onPop=()=>{
+      try{setShowPrivacy(window.location.pathname==="/privacy");}catch{}
+    };
+    window.addEventListener("popstate",onPop);
+    return()=>window.removeEventListener("popstate",onPop);
+  },[]);
   const [addMode,setAddMode]=useState(null); // null | "result" | "training"
   const [notifCount,setNotifCount]=useState(0);
   const [celebQueue,setCelebQueue]=useState([]);
@@ -4581,8 +4893,9 @@ export default function App(){
     setNotifCount(count||0);
   };
 
+  if(showPrivacy) return <PrivacyPage onBack={closePrivacy}/>;
   if(loading) return <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",alignItems:"center",justifyContent:"center"}}><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><div style={{fontFamily:"'Bebas Neue'",fontSize:40,letterSpacing:4}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div></div>;
-  if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen/></>;
+  if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen onShowPrivacy={openPrivacy}/></>;
   if(profile&&!(profile.name&&profile.city&&profile.birth_year&&profile.gender&&profile.nationality)) return <OnboardingScreen profile={profile} onDone={loadProfile}/>;
 
   return (
@@ -4596,7 +4909,7 @@ export default function App(){
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
       {addMode==="result"&&<ResultModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
-      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
+      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onShowPrivacy={()=>{setShowProfile(false);openPrivacy();}} onClose={()=>setShowProfile(false)}/>}
       <CelebrationQueueRenderer queue={celebQueue} paused={celebPaused} onClose={closeCurrentCelebration} onViewRanking={()=>setTab("ranking")}/>
       {overtakenDetail && overtakenBanner && <OvertakenDetailModal overtakes={overtakenBanner.overtakes} profiles={overtakenBanner.profiles} onClose={()=>setOvertakenDetail(false)} onAddActivity={()=>{setOvertakenDetail(false);setAddMode("training");}}/>}
       <InstallPrompt/>
