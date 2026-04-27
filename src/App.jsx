@@ -4204,8 +4204,6 @@ function FriendProfileModal({friend,myId,onClose}){
   const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
   const lv=getSeasonLevel(seasonPts);
   const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
-  const bests=Object.values(results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
-    .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
 
   return (
     <Modal onClose={onClose} fullScreen>
@@ -4237,41 +4235,6 @@ function FriendProfileModal({friend,myId,onClose}){
           <div style={{fontSize:10,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400}}>Badges</div>
         </div>
       </div>
-
-      {(()=>{
-        const bestsByDisc=results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{});
-        const CATS=[["running","🏃 Running"],["trail","⛰️ Trail"],["triathlon","🏊 Triathlon"],["hyrox","🔥 Hyrox"]];
-        const rows=CATS.map(([cat,lbl])=>{
-          const discs=Object.entries(DISCIPLINES).filter(([,d])=>d.category===cat).map(([k])=>k).filter(d=>bestsByDisc[d]);
-          return {cat,lbl,discs};
-        }).filter(r=>r.discs.length>0);
-        if(rows.length===0)return null;
-        return (
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Records</div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {rows.map(({cat,discs})=>(
-                <div key={cat}>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"4px 6px"}}>
-                    {discs.map(d=>{
-                      const r=bestsByDisc[d];
-                      const pts=calcPoints(d,r.time,r.elevation);
-                      const ptsLv=getLevel(pts);
-                      return (
-                        <div key={d} style={{minWidth:0}}>
-                          <div style={{fontSize:8,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{DISCIPLINES[d]?.label}</div>
-                          <div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:"#F0EDE8",letterSpacing:0.3}}>{fmtTime(r.time)}</div>
-                          <div style={{fontSize:9,color:ptsLv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       {panel==="courses"&&(<>
         <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
