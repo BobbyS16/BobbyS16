@@ -1011,7 +1011,7 @@ function PullToRefresh({onRefresh, children, paddingTop=0, paddingBottom="calc(1
       return;
     }
     setRefreshing(true);
-    setPullDistance(60);
+    setPullDistance(90);
     const minDelay = new Promise(r => setTimeout(r, 1100));
     try {
       const [result] = await Promise.all([onRefresh(), minDelay]);
