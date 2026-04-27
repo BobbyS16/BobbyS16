@@ -4079,17 +4079,18 @@ function FriendProfileModal({friend,myId,onClose}){
 
   return (
     <Modal onClose={onClose} fullScreen>
-      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
+      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14}}>
         <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fullProfile?.name||friend.name||"Athlète"}</div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,getAgeCat(fullProfile?.birth_year),fullProfile?.gender,fullProfile?.nationality].filter(Boolean).join(" · ")}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
-        <div style={{textAlign:"right",flexShrink:0}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
-          <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginTop:3}}>pts saison</div>
-        </div>
+      </div>
+
+      <div style={{background:`${lv.color}10`,border:`1px solid ${lv.color}33`,borderRadius:14,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"baseline",justifyContent:"center",gap:10}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
+        <div style={{fontSize:10,color:"rgba(240,237,232,0.55)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>pts saison</div>
       </div>
 
       <div style={{display:"flex",gap:10,marginBottom:14}}>
