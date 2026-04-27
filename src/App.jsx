@@ -660,11 +660,13 @@ function PullToRefresh({onRefresh, children, paddingTop=0, paddingBottom="calc(1
     }
     setRefreshing(true);
     setPullDistance(60);
+    const minDelay = new Promise(r => setTimeout(r, 1100));
     try {
-      const result = await onRefresh();
+      const [result] = await Promise.all([onRefresh(), minDelay]);
       showToast(result === "uptodate" ? "À jour ✓" : "Actualisé ✓", "success");
     } catch (err) {
       console.error("[ptr] refresh error", err);
+      await minDelay;
       showToast("Erreur, réessaie", "error");
     } finally {
       setRefreshing(false);
