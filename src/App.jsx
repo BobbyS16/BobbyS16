@@ -331,6 +331,173 @@ function OvertakenDetailModal({ overtakes, profiles, onClose, onAddActivity }) {
   );
 }
 
+// ── LEAGUE PROMO + POINTS MILESTONES ──────────────────────────────────────────
+const LEAGUE_ORDER = ["bronze","silver","gold","diamond","elite"];
+const LEAGUE_PALETTES = {
+  bronze:  ["#CD7F32","#B87333","#F0EDE8"],
+  silver:  ["#C0C0C0","#A8A8A8","#F0EDE8"],
+  gold:    ["#FFD700","#FFC107","#F0EDE8"],
+  diamond: ["#00CED1","#40E0D0","#F0EDE8"],
+  elite:   ["#E63946","#FFD700","#F0EDE8"],
+};
+const LEAGUE_TAGLINES = {
+  bronze:  "C'est parti, le voyage commence 🔥",
+  silver:  "Tu progresses, continue comme ça 💪",
+  gold:    "Tu fais partie de l'élite 🥇",
+  diamond: "Tu joues dans la cour des grands 💎",
+  elite:   "Tu es au sommet 👑",
+};
+const POINTS_MILESTONES = [1000, 2000, 5000, 10000, 20000, 50000];
+const MILESTONE_TAGLINES = {
+  1000:  "Premier cap, t'es lancé 🔥",
+  2000:  "Tu prends le rythme 💪",
+  5000:  "Sérieusement bien joué ⚡",
+  10000: "Tu fais partie des dingues 🚀",
+  20000: "Machine de guerre 💀",
+  50000: "Tu es entré dans la légende 👑",
+};
+
+const CELEB_ENABLED_KEY = "celebrations_enabled";
+function celebrationsEnabled() {
+  try { return localStorage.getItem(CELEB_ENABLED_KEY) !== "false"; } catch { return true; }
+}
+function setCelebrationsEnabledLocal(v) {
+  try { localStorage.setItem(CELEB_ENABLED_KEY, String(!!v)); } catch {}
+}
+
+function fireLeagueCelebration(leagueId) {
+  const colors = LEAGUE_PALETTES[leagueId] || PACERANK_COLORS;
+  const end = Date.now() + 3000;
+  (function frame(){
+    try {
+      confetti({ particleCount:5, angle:60, spread:60, origin:{x:0,y:0.7}, colors });
+      confetti({ particleCount:5, angle:120, spread:60, origin:{x:1,y:0.7}, colors });
+    } catch {}
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
+async function detectLeaguePromotion(userId, lastLeagueSeen) {
+  if (!userId) return null;
+  try {
+    const {data:row} = await supabase.from("user_leagues").select("current_league").eq("user_id", userId).maybeSingle();
+    const currentLeague = row?.current_league || "bronze";
+    const lastIdx = LEAGUE_ORDER.indexOf(lastLeagueSeen || "bronze");
+    const curIdx = LEAGUE_ORDER.indexOf(currentLeague);
+    if (curIdx > lastIdx) return currentLeague;
+    return null;
+  } catch (e) {
+    console.error("[league-promo] detection failed", e);
+    return null;
+  }
+}
+
+function detectPointsMilestone(currentPoints, lastMilestone) {
+  const last = lastMilestone || 0;
+  let highestCrossed = null;
+  for (const m of POINTS_MILESTONES) {
+    if (m > last && currentPoints >= m) highestCrossed = m;
+  }
+  return highestCrossed;
+}
+
+function LeaguePromotionModal({ leagueId, onClose, onViewRanking }) {
+  const league = LEAGUES.find(l => l.id === leagueId) || LEAGUES[0];
+  useEffect(() => {
+    if (!celebrationsEnabled()) return;
+    fireLeagueCelebration(leagueId);
+    try { navigator.vibrate?.([50,30,50,30,100]); } catch {}
+  }, [leagueId]);
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.94)",backdropFilter:"blur(20px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:24}}>
+      <div onClick={e=>e.stopPropagation()} style={{textAlign:"center",maxWidth:420,width:"100%"}}>
+        <div style={{display:"inline-block",animation:"celeb-bounce 0.9s cubic-bezier(.34,1.56,.64,1)"}}>
+          <div style={{width:120,height:120,borderRadius:"50%",background:league.bg,border:`4px solid ${league.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:64,marginBottom:18,boxShadow:`0 0 40px ${league.color}66`}}>
+            {league.icon}
+          </div>
+        </div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:32,letterSpacing:2,color:league.color,lineHeight:1,marginBottom:6}}>PROMOTION !</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:1,color:"#F0EDE8",marginBottom:8}}>Bienvenue en Ligue {league.label} 🏆</div>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.7)",marginBottom:26,padding:"0 12px",lineHeight:1.4}}>
+          {LEAGUE_TAGLINES[leagueId]}
+        </div>
+        <button onClick={()=>{onClose();onViewRanking?.();}} style={{background:league.color,border:"none",borderRadius:14,padding:"12px 24px",color:"#1a1a1a",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",letterSpacing:0.5,marginRight:8}}>
+          Voir mon classement
+        </button>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:14,padding:"12px 24px",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",letterSpacing:0.5}}>
+          Continuer 🚀
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CelebrationToast({ item, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 2800);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  let label = "";
+  if (item.type === "league") label = `🏆 Promotion en Ligue ${LEAGUES.find(l=>l.id===item.leagueId)?.label||item.leagueId}`;
+  else if (item.type === "milestone") label = `🎯 Cap des ${item.milestone.toLocaleString("fr-FR")} pts franchi`;
+  else if (item.type === "overtake") {
+    const names = item.overtakes.slice(0,2).map(o => (item.profiles.find(p=>p.id===o.friendId)?.name||"un ami").split(" ")[0]).join(", ");
+    label = `🔥 Tu as dépassé ${names}${item.overtakes.length>2?` +${item.overtakes.length-2}`:""}`;
+  }
+  return (
+    <div onClick={onClose} style={{position:"fixed",top:"calc(env(safe-area-inset-top, 0px) + 14px)",left:"50%",transform:"translateX(-50%)",background:"rgba(22,22,22,0.96)",border:"1px solid rgba(74,222,128,0.4)",color:"#4ADE80",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,padding:"9px 18px",borderRadius:12,zIndex:600,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",cursor:"pointer",animation:"ptr-toast-in 0.18s ease",maxWidth:"calc(100% - 32px)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</div>
+  );
+}
+
+function CelebrationQueueRenderer({ queue, paused, onClose, onViewRanking }) {
+  if (paused || queue.length === 0) return null;
+  const item = queue[0];
+  if (!celebrationsEnabled()) {
+    return <CelebrationToast item={item} onClose={onClose}/>;
+  }
+  if (item.type === "league") return <LeaguePromotionModal leagueId={item.leagueId} onClose={onClose} onViewRanking={onViewRanking}/>;
+  if (item.type === "milestone") return <PointsMilestoneModal milestone={item.milestone} prevPoints={item.prevPoints} newPoints={item.newPoints} onClose={onClose}/>;
+  if (item.type === "overtake") return <OvertakeCelebrationModal overtakes={item.overtakes} profiles={item.profiles} onClose={onClose}/>;
+  return null;
+}
+
+function PointsMilestoneModal({ milestone, prevPoints, newPoints, onClose }) {
+  const [displayPts, setDisplayPts] = useState(prevPoints || 0);
+  useEffect(() => {
+    if (!celebrationsEnabled()) return;
+    fireCelebration(2500);
+    try { navigator.vibrate?.([30,50,30]); } catch {}
+    const start = Date.now();
+    const duration = 1400;
+    const from = prevPoints || 0;
+    const to = newPoints || milestone;
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const t = Math.min(1, elapsed/duration);
+      const eased = 1 - Math.pow(1-t, 3);
+      setDisplayPts(Math.round(from + (to - from) * eased));
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [milestone, prevPoints, newPoints]);
+
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",backdropFilter:"blur(20px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:24}}>
+      <div onClick={e=>e.stopPropagation()} style={{textAlign:"center",maxWidth:420,width:"100%"}}>
+        <div style={{fontSize:64,marginBottom:8,animation:"celeb-bounce 0.8s cubic-bezier(.34,1.56,.64,1)"}}>🏆</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:46,letterSpacing:2,color:"#FFD700",lineHeight:1,marginBottom:6,textShadow:"0 0 20px rgba(255,215,0,0.5)"}}>{displayPts.toLocaleString("fr-FR")}</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>POINTS !</div>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.7)",marginBottom:26,padding:"0 12px",lineHeight:1.4}}>
+          {MILESTONE_TAGLINES[milestone] || `Cap des ${milestone.toLocaleString("fr-FR")} points franchi !`}
+        </div>
+        <button onClick={onClose} style={{background:"#E63946",border:"none",borderRadius:14,padding:"13px 28px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:"pointer",letterSpacing:0.5}}>
+          On continue 🔥
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function trainingBonusPts(seasonTrainings) {
   if(!seasonTrainings||seasonTrainings.length===0) return 0;
   let bonus=0;
@@ -1020,7 +1187,7 @@ function ResultModal({existing,userId,onSave,onClose}){
     if(existing&&(!data||data.length===0)){setError("Aucune ligne modifiée — RLS Supabase bloque peut-être l'UPDATE pour cet utilisateur");return;}
     if (!existing) {
       const isPR = await isNewPR(userId, discipline, t);
-      if (isPR) {
+      if (isPR && celebrationsEnabled()) {
         fireCelebration(2200);
         try { navigator.vibrate?.([30,40,30]); } catch {}
       }
@@ -1240,6 +1407,7 @@ function EditProfileModal({profile,onSave,onClose}){
   const [birthYear,setBirth]=useState(profile.birth_year||"");
   const [gender,setGender]=useState(profile.gender||"");
   const [nat,setNat]=useState(profile.nationality||"");
+  const [celebOn,setCelebOn]=useState(profile.celebrations_enabled !== false);
   const [avFile,setAvFile]=useState(null);
   const [avPreview,setAvPreview]=useState(null);
   const [loading,setLoading]=useState(false);
@@ -1265,9 +1433,10 @@ function EditProfileModal({profile,onSave,onClose}){
       const{data}=supabase.storage.from("avatars").getPublicUrl(path);
       avatar_url=data.publicUrl+"?t="+Date.now();
     }
-    const{error:updErr}=await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url}).eq("id",profile.id);
+    const{error:updErr}=await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url,celebrations_enabled:celebOn}).eq("id",profile.id);
     setLoading(false);
     if(updErr){setError("Sauvegarde échouée : "+updErr.message);return;}
+    setCelebrationsEnabledLocal(celebOn);
     onSave();
   };
   return (
@@ -1298,6 +1467,15 @@ function EditProfileModal({profile,onSave,onClose}){
         <option value="">— Choisir —</option>
         {NATIONALITIES.map(n=><option key={n} value={n}>{n}</option>)}
       </Sel>
+      <div onClick={()=>setCelebOn(!celebOn)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,marginBottom:16,cursor:"pointer"}}>
+        <div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,color:"#F0EDE8"}}>Animations de célébration</div>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>Confetti, modales et vibrations sur PR / promo / paliers</div>
+        </div>
+        <div style={{width:42,height:24,borderRadius:14,background:celebOn?"#E63946":"rgba(255,255,255,0.15)",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+          <div style={{position:"absolute",top:2,left:celebOn?20:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+        </div>
+      </div>
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Sauvegarder"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
     </Modal>
@@ -4234,9 +4412,22 @@ export default function App(){
   const [showProfile,setShowProfile]=useState(false);
   const [addMode,setAddMode]=useState(null); // null | "result" | "training"
   const [notifCount,setNotifCount]=useState(0);
-  const [overtakeCelebration,setOvertakeCelebration]=useState(null);
+  const [celebQueue,setCelebQueue]=useState([]);
+  const [celebPaused,setCelebPaused]=useState(false);
   const [overtakenBanner,setOvertakenBanner]=useState(null);
   const [overtakenDetail,setOvertakenDetail]=useState(false);
+
+  const enqueueCelebration = useCallback((item) => {
+    setCelebQueue(q => {
+      const priority = { league: 1, milestone: 2, overtake: 3 };
+      return [...q, item].sort((a,b) => (priority[a.type]||99) - (priority[b.type]||99));
+    });
+  }, []);
+  const closeCurrentCelebration = useCallback(() => {
+    setCelebQueue(q => q.slice(1));
+    setCelebPaused(true);
+    setTimeout(() => setCelebPaused(false), 300);
+  }, []);
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);if(!session)setLoading(false);});
@@ -4248,14 +4439,20 @@ export default function App(){
 
   useEffect(() => {
     if (!profile?.id) return;
+    if (typeof profile.celebrations_enabled === "boolean") setCelebrationsEnabledLocal(profile.celebrations_enabled);
     (async () => {
       const overtakes = await detectOvertakes(profile.id, "onLoad");
       if (overtakes.length > 0) {
         const profs = await fetchProfilesByIds(overtakes.map(o => o.friendId));
         setOvertakenBanner({overtakes, profiles: profs});
       }
+      const newLeague = await detectLeaguePromotion(profile.id, profile.last_league_seen);
+      if (newLeague) {
+        enqueueCelebration({type:"league", leagueId: newLeague});
+        await supabase.from("profiles").update({last_league_seen: newLeague}).eq("id", profile.id);
+      }
     })();
-  }, [profile?.id]);
+  }, [profile?.id, profile?.last_league_seen, profile?.celebrations_enabled, enqueueCelebration]);
 
   useEffect(()=>{
     if(!profile?.id)return;
@@ -4348,11 +4545,32 @@ export default function App(){
     setResultsKey(k=>k+1);
     if (profile?.id) {
       checkAndNotifyOvertake(profile.id);
+      // Détection dépassement (cas A)
       const overtakes = await detectOvertakes(profile.id, "afterSave");
       if (overtakes.length > 0) {
         const profs = await fetchProfilesByIds(overtakes.map(o => o.friendId));
-        setOvertakeCelebration({overtakes, profiles: profs});
+        enqueueCelebration({type:"overtake", overtakes, profiles: profs});
       }
+      // Détection palier de points
+      try {
+        const [{data:fresh}] = await Promise.all([
+          supabase.from("profiles").select("last_points_milestone").eq("id", profile.id).maybeSingle(),
+        ]);
+        const lastMilestone = fresh?.last_points_milestone || 0;
+        const [resR, trR] = await Promise.all([
+          supabase.from("results").select("*").eq("user_id", profile.id),
+          supabase.from("trainings").select("*").eq("user_id", profile.id),
+        ]);
+        const seasonRes = (resR.data||[]).filter(r => rYear(r) === CY);
+        const seasonTr = (trR.data||[]).filter(t => new Date(t.date).getFullYear() === CY);
+        const allRes = resR.data || [];
+        const newPts = sumBestPts(seasonRes) + seasonTr.reduce((s,t) => s + effectiveTrainingPts(t), 0) + raceBonusPts(seasonRes, allRes) + trainingBonusPts(seasonTr);
+        const milestone = detectPointsMilestone(newPts, lastMilestone);
+        if (milestone) {
+          enqueueCelebration({type:"milestone", milestone, prevPoints: lastMilestone, newPoints: newPts});
+          await supabase.from("profiles").update({last_points_milestone: milestone}).eq("id", profile.id);
+        }
+      } catch (e) { console.error("[milestone] detection failed", e); }
     }
   };
   const loadNotifCount=async()=>{
@@ -4378,7 +4596,7 @@ export default function App(){
       {addMode==="result"&&<ResultModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
-      {overtakeCelebration && <OvertakeCelebrationModal overtakes={overtakeCelebration.overtakes} profiles={overtakeCelebration.profiles} onClose={()=>setOvertakeCelebration(null)}/>}
+      <CelebrationQueueRenderer queue={celebQueue} paused={celebPaused} onClose={closeCurrentCelebration} onViewRanking={()=>setTab("ranking")}/>
       {overtakenDetail && overtakenBanner && <OvertakenDetailModal overtakes={overtakenBanner.overtakes} profiles={overtakenBanner.profiles} onClose={()=>setOvertakenDetail(false)} onAddActivity={()=>{setOvertakenDetail(false);setAddMode("training");}}/>}
       <InstallPrompt/>
     </div>
