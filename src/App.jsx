@@ -4087,8 +4087,8 @@ function FriendProfileModal({friend,myId,onClose}){
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
         <div style={{textAlign:"right",flexShrink:0}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
-          <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison</div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
+          <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginTop:3}}>pts saison</div>
         </div>
       </div>
 
