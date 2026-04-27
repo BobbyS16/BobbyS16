@@ -1602,8 +1602,10 @@ function HowItWorksModal({onClose}){
         <RefRow label="🏊 Triathlon Olympique"  time="1h50"  prestige="1.2" color="#9B59B6"/>
         <RefRow label="🏊 Half Ironman"         time="2h56"  prestige="1.3" color="#9B59B6"/>
         <RefRow label="🏊 Ironman"              time="5h50"  prestige="1.5" color="#9B59B6"/>
-        <RefRow label="🔥 Hyrox Solo"           time="54:24" prestige="1.2" color="#E63946"/>
-        <RefRow label="🔥 Hyrox Double"         time="47:57" prestige="1.1" color="#E63946"/>
+        <RefRow label="🔥 Hyrox Open"           time="50:38" prestige="1.2" color="#E63946"/>
+        <RefRow label="🔥 Hyrox Pro"            time="51:59" prestige="1.4" color="#E63946"/>
+        <RefRow label="🔥 Hyrox Doubles"        time="47:57" prestige="1.1" color="#E63946"/>
+        <RefRow label="🔥 Hyrox Relay"          time="45:43" prestige="1.0" color="#E63946"/>
       </Section>
 
       <Section title="2 · Niveaux par course">
