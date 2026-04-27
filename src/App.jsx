@@ -4003,12 +4003,14 @@ function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose}){
       <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:8}}>Connexions externes</div>
       <div style={{padding:"12px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,marginBottom:10}}>
         {!stravaTokens&&(
-          <div style={{position:"relative",marginBottom:8}}>
-            <ConnectWithStravaButton onClick={connectStrava} disabled={!STRAVA_ENABLED}/>
-            {!STRAVA_ENABLED&&(
-              <div onClick={connectStrava} style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.5)",borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                <div style={{fontSize:12,color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.3,textShadow:"0 1px 2px rgba(0,0,0,0.6)"}}>🔒 En attente de validation Strava</div>
+          <div style={{position:"relative",marginBottom:14,marginTop:6}}>
+            <div onClick={connectStrava} style={{cursor:STRAVA_ENABLED?"pointer":"not-allowed",opacity:STRAVA_ENABLED?1:0.85}}>
+              <div style={{pointerEvents:"none"}}>
+                <ConnectWithStravaButton onClick={undefined} disabled={!STRAVA_ENABLED}/>
               </div>
+            </div>
+            {!STRAVA_ENABLED&&(
+              <div style={{position:"absolute",top:-6,right:-6,background:"rgba(0,0,0,0.7)",color:"#fff",fontSize:11,fontFamily:"'Barlow',sans-serif",fontWeight:700,padding:"4px 8px",borderRadius:8,letterSpacing:0.3,pointerEvents:"none"}}>🔒 Bientôt</div>
             )}
           </div>
         )}
