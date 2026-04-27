@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
+import confetti from "canvas-confetti";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -144,6 +145,190 @@ async function checkAndNotifyOvertake(userId){
     }
     try{localStorage.setItem(lsKey,String(myNew));}catch{}
   }catch(e){console.error("[overtake] check failed",e);}
+}
+
+// ── CELEBRATION + OVERTAKES ───────────────────────────────────────────────────
+const PACERANK_COLORS = ["#E63946","#FFD700","#F0EDE8","#4ADE80","#FF6B35"];
+function fireBurst(opts={}) {
+  try { confetti({ particleCount:80, spread:70, origin:{y:0.6}, colors:PACERANK_COLORS, ...opts }); } catch {}
+}
+function fireCelebration(durationMs=2500) {
+  const end = Date.now() + durationMs;
+  (function frame(){
+    try {
+      confetti({ particleCount:4, angle:60, spread:55, origin:{x:0,y:0.7}, colors:PACERANK_COLORS });
+      confetti({ particleCount:4, angle:120, spread:55, origin:{x:1,y:0.7}, colors:PACERANK_COLORS });
+    } catch {}
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
+const OVERTAKE_CACHE_KEY = (uid) => `overtake_state_${uid}`;
+const OVERTAKE_NOTIF_KEY = (uid, fid, dir) => `overtake_notif_${uid}_${fid}_${dir}`;
+const OVERTAKE_THROTTLE_MS = 24 * 3600 * 1000;
+const OVERTAKE_INACTIVE_DAYS = 30;
+
+async function fetchProfilesByIds(ids) {
+  if (!ids || ids.length === 0) return [];
+  const {data} = await supabase.from("profiles").select("id,name,avatar").in("id", ids);
+  return data || [];
+}
+
+async function getActiveFriendIds(userId) {
+  const {data:fs} = await supabase.from("friendships").select("friend_id").eq("user_id", userId).eq("status","accepted");
+  const ids = (fs||[]).map(f=>f.friend_id);
+  if (ids.length === 0) return [];
+  const cutoff = new Date(Date.now() - OVERTAKE_INACTIVE_DAYS*86400000).toISOString().slice(0,10);
+  const [recentTr, recentRes] = await Promise.all([
+    supabase.from("trainings").select("user_id").in("user_id", ids).gte("date", cutoff),
+    supabase.from("results").select("user_id").in("user_id", ids).gte("race_date", cutoff),
+  ]);
+  const active = new Set([
+    ...(recentTr.data||[]).map(r=>r.user_id),
+    ...(recentRes.data||[]).map(r=>r.user_id),
+  ]);
+  return ids.filter(id => active.has(id));
+}
+
+async function computeSeasonPtsMap(userIds, season) {
+  if (userIds.length === 0) return {};
+  const [resR, trR] = await Promise.all([
+    supabase.from("results").select("*").in("user_id", userIds),
+    supabase.from("trainings").select("*").in("user_id", userIds),
+  ]);
+  const allRes = resR.data || [];
+  const allTr = trR.data || [];
+  const map = {};
+  for (const uid of userIds) {
+    const userAllRes = allRes.filter(r => r.user_id === uid);
+    const userAllTr = allTr.filter(t => t.user_id === uid);
+    const seasonRes = userAllRes.filter(r => rYear(r) === season);
+    const seasonTr = userAllTr.filter(t => new Date(t.date).getFullYear() === season);
+    const racePts = sumBestPts(seasonRes);
+    const trainPts = seasonTr.reduce((s,t) => s + effectiveTrainingPts(t), 0);
+    const bonusPts = raceBonusPts(seasonRes, userAllRes) + trainingBonusPts(seasonTr);
+    map[uid] = racePts + trainPts + bonusPts;
+  }
+  return map;
+}
+
+async function detectOvertakes(userId, mode="afterSave") {
+  if (!userId) return [];
+  try {
+    const friendIds = await getActiveFriendIds(userId);
+    if (friendIds.length === 0) return [];
+    const ptsMap = await computeSeasonPtsMap([userId, ...friendIds], CY);
+    const myPts = ptsMap[userId] || 0;
+    let cache = {};
+    try { cache = JSON.parse(localStorage.getItem(OVERTAKE_CACHE_KEY(userId))) || {}; } catch {}
+    const oldMyPts = (typeof cache.myPts === "number") ? cache.myPts : myPts;
+    const oldFriends = cache.friendsPts || {};
+    const overtakes = [];
+    const now = Date.now();
+    for (const fid of friendIds) {
+      const fPts = ptsMap[fid] || 0;
+      const oldFPts = (typeof oldFriends[fid] === "number") ? oldFriends[fid] : fPts;
+      const condA = mode === "afterSave" && oldFPts > oldMyPts && fPts < myPts;
+      const condB = mode === "onLoad" && oldFPts < oldMyPts && fPts > myPts;
+      if (!condA && !condB) continue;
+      const dir = condA ? "a" : "b";
+      const k = OVERTAKE_NOTIF_KEY(userId, fid, dir);
+      const last = parseInt(localStorage.getItem(k) || "0");
+      if (now - last < OVERTAKE_THROTTLE_MS) continue;
+      overtakes.push({ friendId:fid, gap: condA ? (myPts - fPts) : (fPts - myPts), dir });
+      try { localStorage.setItem(k, String(now)); } catch {}
+    }
+    try { localStorage.setItem(OVERTAKE_CACHE_KEY(userId), JSON.stringify({ myPts, friendsPts: ptsMap })); } catch {}
+    return overtakes;
+  } catch (e) {
+    console.error("[overtake] detection failed", e);
+    return [];
+  }
+}
+
+// New PR detection: returns true if the just-saved race is the user's best time on this discipline.
+async function isNewPR(userId, discipline, time) {
+  if (!userId || !discipline || !time) return false;
+  try {
+    const {data} = await supabase.from("results").select("time").eq("user_id", userId).eq("discipline", discipline);
+    if (!data || data.length === 0) return false;
+    const previousBest = Math.min(...data.filter(r => r.time !== time).map(r => r.time));
+    return !isFinite(previousBest) ? true : time <= previousBest;
+  } catch { return false; }
+}
+
+function OvertakeCelebrationModal({ overtakes, profiles, onClose }) {
+  useEffect(() => {
+    fireCelebration(2500);
+    try { navigator.vibrate?.(50); } catch {}
+  }, []);
+  if (!overtakes || overtakes.length === 0) return null;
+  const friendNames = overtakes.map(o => {
+    const p = profiles.find(p => p.id === o.friendId);
+    return (p?.name || "un ami").split(" ")[0];
+  });
+  const totalGap = overtakes.reduce((s,o)=>s+o.gap, 0);
+  const friendList = friendNames.length === 1
+    ? friendNames[0]
+    : friendNames.length === 2
+      ? `${friendNames[0]} et ${friendNames[1]}`
+      : `${friendNames.slice(0,-1).join(", ")} et ${friendNames[friendNames.length-1]}`;
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",backdropFilter:"blur(20px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:24}}>
+      <div onClick={e=>e.stopPropagation()} style={{textAlign:"center",maxWidth:420,width:"100%"}}>
+        <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:18}}>
+          {overtakes.slice(0,4).map(o => {
+            const p = profiles.find(pp => pp.id === o.friendId);
+            return (
+              <div key={o.friendId} style={{position:"relative"}}>
+                <Avatar profile={p} size={42}/>
+                <div style={{position:"absolute",bottom:-6,right:-6,fontSize:18}}>↘️</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{fontSize:74,marginBottom:6,animation:"celeb-bounce 0.9s cubic-bezier(.34,1.56,.64,1)"}}>🔥</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:1.5,color:"#F0EDE8",lineHeight:1.05,marginBottom:10,padding:"0 8px"}}>
+          TU AS DÉPASSÉ {friendList.toUpperCase()} !
+        </div>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.7)",marginBottom:26}}>
+          +{totalGap} pts d'avance désormais
+        </div>
+        <button onClick={onClose} style={{background:"#E63946",border:"none",borderRadius:14,padding:"13px 28px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:"pointer",letterSpacing:0.5}}>
+          On continue 🔥
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OvertakenDetailModal({ overtakes, profiles, onClose, onAddActivity }) {
+  if (!overtakes || overtakes.length === 0) return null;
+  const top = overtakes[0];
+  const profile = profiles.find(p => p.id === top.friendId);
+  const firstName = (profile?.name || "Ton ami").split(" ")[0];
+  const sessionsToCatchUp = Math.max(1, Math.ceil(top.gap / 25));
+  return (
+    <Modal onClose={onClose}>
+      <div style={{textAlign:"center",paddingTop:8}}>
+        <Avatar profile={profile} size={72}/>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1.2,marginTop:14,lineHeight:1.1}}>
+          {firstName.toUpperCase()} T'A DOUBLÉ
+        </div>
+        <div style={{fontSize:13,color:"rgba(240,237,232,0.65)",fontFamily:"'Barlow',sans-serif",marginTop:6,marginBottom:18}}>
+          de <span style={{color:"#FC4C02",fontWeight:700}}>{top.gap} pts</span> cette saison
+        </div>
+        <div style={{background:"rgba(252,76,2,0.08)",border:"1px solid rgba(252,76,2,0.2)",borderRadius:12,padding:"12px 14px",marginBottom:16,textAlign:"left"}}>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Comment repasser devant</div>
+          <div style={{fontSize:14,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",lineHeight:1.4}}>
+            ≈ <span style={{color:"#FFD700",fontWeight:700}}>{sessionsToCatchUp} séance{sessionsToCatchUp>1?"s":""}</span> de footing 30 min ou une bonne course officielle.
+          </div>
+        </div>
+        <Btn onClick={()=>{onClose();onAddActivity?.();}} mb={6}>+ Ajouter une activité</Btn>
+        <Btn onClick={onClose} variant="secondary" mb={0}>Plus tard</Btn>
+      </div>
+    </Modal>
+  );
 }
 
 function trainingBonusPts(seasonTrainings) {
@@ -833,6 +1018,13 @@ function ResultModal({existing,userId,onSave,onClose}){
     console.log("[result-save] résultat",{err,data});
     if(err){setError("Erreur : "+(err.message||err.details||JSON.stringify(err)));return;}
     if(existing&&(!data||data.length===0)){setError("Aucune ligne modifiée — RLS Supabase bloque peut-être l'UPDATE pour cet utilisateur");return;}
+    if (!existing) {
+      const isPR = await isNewPR(userId, discipline, t);
+      if (isPR) {
+        fireCelebration(2200);
+        try { navigator.vibrate?.([30,40,30]); } catch {}
+      }
+    }
     onSave();
   };
   return (
@@ -1580,7 +1772,7 @@ function AddPickerModal({onPickTraining,onPickRace,onClose}){
   );
 }
 
-function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange}){
+function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
@@ -1810,6 +2002,23 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       </div>
 
       <PullToRefresh onRefresh={refreshHome} paddingBottom="calc(110px + env(safe-area-inset-bottom))">
+      {overtakenBanner && overtakenBanner.overtakes.length > 0 && (() => {
+        const top = overtakenBanner.overtakes[0];
+        const fp = overtakenBanner.profiles.find(p => p.id === top.friendId);
+        const firstName = (fp?.name || "Ton ami").split(" ")[0];
+        const others = overtakenBanner.overtakes.length - 1;
+        return (
+          <div style={{background:"linear-gradient(135deg, rgba(252,76,2,0.12), rgba(230,57,70,0.04))",border:"1px solid rgba(252,76,2,0.3)",borderRadius:14,padding:"12px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+            <Avatar profile={fp} size={38}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:0.8,color:"#FC4C02",lineHeight:1.1}}>👀 {firstName.toUpperCase()} VIENT DE TE PASSER {others>0?`(+${others})`:""}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:3,lineHeight:1.3}}>{top.gap} pts d'avance · Reprends ta place 🔥</div>
+            </div>
+            <button onClick={onOpenOvertakenDetail} style={{flexShrink:0,background:"rgba(252,76,2,0.2)",border:"1px solid rgba(252,76,2,0.4)",borderRadius:10,padding:"7px 12px",color:"#FC4C02",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,cursor:"pointer",letterSpacing:0.3}}>Voir</button>
+            <button onClick={onDismissOvertakenBanner} aria-label="Fermer" style={{flexShrink:0,background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",fontSize:18,cursor:"pointer",padding:4,lineHeight:1}}>✕</button>
+          </div>
+        );
+      })()}
       {pendingClassif.length>0 && (
         <div style={{background:"linear-gradient(135deg, rgba(230,57,70,0.12), rgba(230,57,70,0.04))",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,padding:"12px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
           <div style={{fontSize:22,flexShrink:0}}>🏁</div>
@@ -2066,7 +2275,7 @@ function RankingTab({myProfile}){
 }
 
 // ── TRAINING TAB ──────────────────────────────────────────────────────────────
-function TrainingTab({userId}){
+function TrainingTab({userId, onActivityChange}){
   const [trainings,setTrainings]=useState([]);
   const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
@@ -2152,8 +2361,8 @@ function TrainingTab({userId}){
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
       </PullToRefresh>
-      {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();}} onClose={()=>setEditTraining(null)} onConvertToRace={(t)=>setConvertTraining(t)}/>}
-      {convertTraining&&<RaceClassificationModal pending={[convertTraining]} userId={userId} singleMode={true} onClose={()=>{setConvertTraining(null);loadTrainings();}} onDone={()=>{setConvertTraining(null);loadTrainings();}}/>}
+      {editTraining&&<TrainingModal existing={editTraining} userId={userId} onSave={()=>{setEditTraining(null);loadTrainings();onActivityChange?.();}} onClose={()=>setEditTraining(null)} onConvertToRace={(t)=>setConvertTraining(t)}/>}
+      {convertTraining&&<RaceClassificationModal pending={[convertTraining]} userId={userId} singleMode={true} onClose={()=>{setConvertTraining(null);loadTrainings();onActivityChange?.();}} onDone={()=>{setConvertTraining(null);loadTrainings();onActivityChange?.();}}/>}
       {planView==="detail"&&plan&&<TrainingPlanDetailModal plan={plan} onEdit={()=>setPlanView("setup")} onClose={()=>setPlanView(null)}/>}
       {planView==="setup"&&<TrainingPlanModal userId={userId} existing={plan} onSave={p=>{setPlan(p);setPlanView("detail");}} onDelete={()=>{setPlan(null);setPlanView(null);}} onClose={()=>setPlanView(plan?"detail":null)}/>}
     </div>
@@ -2565,7 +2774,7 @@ function buildPrev12Total(results) {
   return total;
 }
 
-function PerfTab({userId, refreshKey}) {
+function PerfTab({userId, refreshKey, onActivityChange}) {
   const [results, setResults] = useState([]);
   const [swimTrainings, setSwimTrainings] = useState([]);
   const [editResult, setEditResult] = useState(null);
@@ -2796,8 +3005,8 @@ function PerfTab({userId, refreshKey}) {
           </>
         )}
       </PullToRefresh>
-      {editResult && <ResultModal existing={editResult} userId={userId} onSave={()=>{setEditResult(null);reload();}} onClose={()=>setEditResult(null)}/>}
-      {editSwim && <TrainingModal existing={editSwim} userId={userId} onSave={()=>{setEditSwim(null);reload();}} onClose={()=>setEditSwim(null)}/>}
+      {editResult && <ResultModal existing={editResult} userId={userId} onSave={()=>{setEditResult(null);reload();onActivityChange?.();}} onClose={()=>setEditResult(null)}/>}
+      {editSwim && <TrainingModal existing={editSwim} userId={userId} onSave={()=>{setEditSwim(null);reload();onActivityChange?.();}} onClose={()=>setEditSwim(null)}/>}
     </div>
   );
 }
@@ -4025,6 +4234,9 @@ export default function App(){
   const [showProfile,setShowProfile]=useState(false);
   const [addMode,setAddMode]=useState(null); // null | "result" | "training"
   const [notifCount,setNotifCount]=useState(0);
+  const [overtakeCelebration,setOvertakeCelebration]=useState(null);
+  const [overtakenBanner,setOvertakenBanner]=useState(null);
+  const [overtakenDetail,setOvertakenDetail]=useState(false);
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);if(!session)setLoading(false);});
@@ -4033,6 +4245,17 @@ export default function App(){
   },[]);
 
   useEffect(()=>{if(session){loadProfile();loadResults();loadNotifCount();}},[session]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    (async () => {
+      const overtakes = await detectOvertakes(profile.id, "onLoad");
+      if (overtakes.length > 0) {
+        const profs = await fetchProfilesByIds(overtakes.map(o => o.friendId));
+        setOvertakenBanner({overtakes, profiles: profs});
+      }
+    })();
+  }, [profile?.id]);
 
   useEffect(()=>{
     if(!profile?.id)return;
@@ -4119,7 +4342,19 @@ export default function App(){
     const{data}=await supabase.from("results").select("*").eq("user_id",user.id).order("year",{ascending:false});
     setResults(data||[]);
   };
-  const refresh=()=>{loadProfile();loadResults();setResultsKey(k=>k+1);if(profile?.id)checkAndNotifyOvertake(profile.id);};
+  const refresh=async()=>{
+    loadProfile();
+    loadResults();
+    setResultsKey(k=>k+1);
+    if (profile?.id) {
+      checkAndNotifyOvertake(profile.id);
+      const overtakes = await detectOvertakes(profile.id, "afterSave");
+      if (overtakes.length > 0) {
+        const profs = await fetchProfilesByIds(overtakes.map(o => o.friendId));
+        setOvertakeCelebration({overtakes, profiles: profs});
+      }
+    }
+  };
   const loadNotifCount=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
     if(!user)return;
@@ -4134,15 +4369,17 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
-      {tab==="training"&&<TrainingTab userId={profile?.id}/>}
-      {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey}/>}
+      {tab==="training"&&<TrainingTab userId={profile?.id} onActivityChange={refresh}/>}
+      {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
       {tab==="social"  &&<SocialTab  myProfile={profile} onNotifsChange={loadNotifCount}/>}
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
       {addMode==="result"&&<ResultModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
+      {overtakeCelebration && <OvertakeCelebrationModal overtakes={overtakeCelebration.overtakes} profiles={overtakeCelebration.profiles} onClose={()=>setOvertakeCelebration(null)}/>}
+      {overtakenDetail && overtakenBanner && <OvertakenDetailModal overtakes={overtakenBanner.overtakes} profiles={overtakenBanner.profiles} onClose={()=>setOvertakenDetail(false)} onAddActivity={()=>{setOvertakenDetail(false);setAddMode("training");}}/>}
       <InstallPrompt/>
     </div>
   );
