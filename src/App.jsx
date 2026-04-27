@@ -2668,7 +2668,7 @@ function PerfTab({userId, refreshKey}) {
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{flexShrink:0,padding:"0 16px"}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Perfs</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Stats</div>
       </div>
       <PullToRefresh onRefresh={reload} paddingBottom="calc(100px + env(safe-area-inset-bottom))">
         {noRaces ? (
