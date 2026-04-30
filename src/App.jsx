@@ -3001,11 +3001,61 @@ function buildPrev12Total(results) {
   return total;
 }
 
+// ── PREDICTIONS DE COURSE (Riegel) ────────────────────────────────────────────
+// T2 = T1 × (D2/D1)^1.06 — extrapolation classique des temps de course.
+const PREDICT_TARGETS = [
+  {disc:"5km",      label:"5 km",          km:5,    icon:"🏃"},
+  {disc:"10km",     label:"10 km",         km:10,   icon:"🏃"},
+  {disc:"semi",     label:"Semi-marathon", km:21.1, icon:"🏃"},
+  {disc:"marathon", label:"Marathon",      km:42.2, icon:"🏃"},
+];
+const PREDICT_WINDOW_DAYS = 90;
+const PREDICT_MIN_DIST_KM = 3;
+
+function riegelPredict(timeSec, fromKm, toKm) {
+  if (!timeSec || !fromKm || !toKm) return null;
+  return timeSec * Math.pow(toKm / fromKm, 1.06);
+}
+
+function buildRacePredictions(runTrainings) {
+  const now = Date.now();
+  const cutoff = now - PREDICT_WINDOW_DAYS * 86400 * 1000;
+  const eligible = (runTrainings || []).filter(t => {
+    const d = parseFloat(t.distance) || 0;
+    const dur = parseInt(t.duration) || 0;
+    if (d < PREDICT_MIN_DIST_KM || dur <= 0) return false;
+    const ts = t.date ? new Date(t.date).getTime() : 0;
+    return ts && ts >= cutoff;
+  });
+  const out = {};
+  PREDICT_TARGETS.forEach(t => {
+    const lo = t.km * 0.5, hi = t.km * 2;
+    const cands = eligible.filter(tr => {
+      const d = parseFloat(tr.distance) || 0;
+      return d >= lo && d <= hi;
+    });
+    if (cands.length === 0) { out[t.disc] = null; return; }
+    let best = null;
+    cands.forEach(tr => {
+      const d = parseFloat(tr.distance);
+      const dur = parseInt(tr.duration);
+      const proj = riegelPredict(dur, d, t.km);
+      if (proj != null && (!best || proj < best.time)) {
+        best = { time: proj, source: tr };
+      }
+    });
+    out[t.disc] = best;
+  });
+  return { predictions: out, sampleCount: eligible.length };
+}
+
 function PerfTab({userId, refreshKey, onActivityChange}) {
   const [results, setResults] = useState([]);
   const [swimTrainings, setSwimTrainings] = useState([]);
+  const [runTrainings, setRunTrainings] = useState([]);
   const [editResult, setEditResult] = useState(null);
   const [editSwim, setEditSwim] = useState(null);
+  const [editRun, setEditRun] = useState(null);
   const [activeDisc, setActiveDisc] = useState("course");
   const [progDisc, setProgDisc] = useState("points");
   const [progFormat, setProgFormat] = useState("all");
@@ -3021,16 +3071,19 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
     Promise.all([
       supabase.from("results").select("*").eq("user_id", userId).order("race_date", {ascending:false}),
       supabase.from("trainings").select("*").eq("user_id", userId).eq("sport", "Natation").order("date", {ascending:false}),
-    ]).then(([{data:r},{data:t}]) => {
+      supabase.from("trainings").select("*").eq("user_id", userId).eq("sport", "Run").order("date", {ascending:false}),
+    ]).then(([{data:r},{data:t},{data:rt}]) => {
       setResults(r || []);
       setSwimTrainings(t || []);
+      setRunTrainings(rt || []);
     });
   }, [userId, refreshKey]);
 
   const reload = () => Promise.all([
     supabase.from("results").select("*").eq("user_id",userId).order("race_date",{ascending:false}),
     supabase.from("trainings").select("*").eq("user_id",userId).eq("sport","Natation").order("date",{ascending:false}),
-  ]).then(([{data:r},{data:t}]) => { setResults(r||[]); setSwimTrainings(t||[]); });
+    supabase.from("trainings").select("*").eq("user_id",userId).eq("sport","Run").order("date",{ascending:false}),
+  ]).then(([{data:r},{data:t},{data:rt}]) => { setResults(r||[]); setSwimTrainings(t||[]); setRunTrainings(rt||[]); });
 
   const swimRecords = useMemo(() => {
     const map = {};
@@ -3080,6 +3133,8 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
   const prev12Total = useMemo(() => buildPrev12Total(results), [results]);
   const yoyDelta = prev12Total > 0 ? ((last12Total / prev12Total - 1) * 100) : null;
   const bestMonth = useMemo(() => monthlyData.reduce((b,m) => m.value > (b?.value||0) ? m : b, null), [monthlyData]);
+
+  const racePred = useMemo(() => buildRacePredictions(runTrainings), [runTrainings]);
 
   const availableFormats = useMemo(() => {
     if (progDisc === "points") return [];
@@ -3183,6 +3238,66 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
               })}
             </div>
 
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8"}}>🔮 Prédictions de course</div>
+              <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>
+                {racePred.sampleCount > 0 ? `${racePred.sampleCount} run${racePred.sampleCount>1?"s":""} · ${PREDICT_WINDOW_DAYS}j` : `${PREDICT_WINDOW_DAYS} derniers jours`}
+              </div>
+            </div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:10,lineHeight:1.5}}>
+              Estimations basées sur tes entraînements <span style={{color:"#F0EDE8",fontWeight:700}}>Run</span> récents (formule de Riegel).
+            </div>
+            <div style={{marginBottom:24}}>
+              {racePred.sampleCount === 0 ? (
+                <div style={{padding:"18px 14px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(255,255,255,0.08)",borderRadius:14,textAlign:"center",fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.45)"}}>
+                  Pas assez d'entraînements Run récents (≥ {PREDICT_MIN_DIST_KM} km) pour estimer.
+                </div>
+              ) : PREDICT_TARGETS.map(t => {
+                const pred = racePred.predictions[t.disc];
+                const pr = bestByDisc[t.disc];
+                if (!pred) {
+                  return (
+                    <div key={t.disc} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:14,marginBottom:8,opacity:0.55}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.04)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{t.icon}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"rgba(240,237,232,0.6)",letterSpacing:0.5}}>{t.label}</div>
+                        <div style={{fontSize:11,color:"rgba(240,237,232,0.3)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>Pas d'entraînement assez proche de {t.km} km</div>
+                      </div>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"rgba(240,237,232,0.25)",letterSpacing:1}}>—</div>
+                    </div>
+                  );
+                }
+                const predTime = Math.round(pred.time);
+                let deltaTxt = "", deltaColor = "rgba(240,237,232,0.45)";
+                if (pr) {
+                  const diff = predTime - pr.time;
+                  if (Math.abs(diff) < 1) { deltaTxt = `= PR (${fmtTime(pr.time)})`; }
+                  else if (diff < 0) { deltaTxt = `↓ ${fmtTime(Math.abs(diff))} sous PR (${fmtTime(pr.time)})`; deltaColor = "#4ADE80"; }
+                  else { deltaTxt = `↑ ${fmtTime(diff)} au-dessus PR (${fmtTime(pr.time)})`; deltaColor = "#FF6B35"; }
+                }
+                const src = pred.source;
+                const srcLabel = `${(parseFloat(src.distance)||0).toFixed(1)} km en ${fmtTime(parseInt(src.duration)||0)}${src.date?` · ${fmtFrShortDate(src.date)}`:""}`;
+                return (
+                  <div key={t.disc} onClick={()=>setEditRun(src)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"linear-gradient(135deg, rgba(74,144,217,0.06), rgba(255,255,255,0.02))",border:"1px solid rgba(74,144,217,0.2)",borderRadius:14,marginBottom:8,cursor:"pointer"}}>
+                    <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(74,144,217,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{t.icon}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",letterSpacing:0.5}}>{t.label}</div>
+                      <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        {srcLabel}
+                      </div>
+                      {deltaTxt && (
+                        <div style={{fontSize:10,color:deltaColor,fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:3,letterSpacing:0.3}}>{deltaTxt}</div>
+                      )}
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#4A90D9",letterSpacing:1,lineHeight:1}}>{fmtTime(predTime)}</div>
+                      <div style={{fontSize:9,color:"#4A90D9",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginTop:3}}>PRÉDICTION</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>📈 Progression</div>
             <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,padding:14,marginBottom:24}}>
               <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
@@ -3234,6 +3349,7 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
       </PullToRefresh>
       {editResult && <ResultModal existing={editResult} userId={userId} onSave={()=>{setEditResult(null);reload();onActivityChange?.();}} onClose={()=>setEditResult(null)}/>}
       {editSwim && <TrainingModal existing={editSwim} userId={userId} onSave={()=>{setEditSwim(null);reload();onActivityChange?.();}} onClose={()=>setEditSwim(null)}/>}
+      {editRun && <TrainingModal existing={editRun} userId={userId} onSave={()=>{setEditRun(null);reload();onActivityChange?.();}} onClose={()=>setEditRun(null)}/>}
     </div>
   );
 }
