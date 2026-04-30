@@ -332,13 +332,17 @@ function OvertakenDetailModal({ overtakes, profiles, onClose, onAddActivity }) {
 }
 
 // ── LEAGUE PROMO + POINTS MILESTONES ──────────────────────────────────────────
+// NB: les `id` (bronze/silver/gold/diamond/elite) restent les valeurs stockées
+// en BDD (last_league_seen, user_leagues.current_league). Seuls les labels
+// affichés sont renommés (Rookie/Pro/Elite/Legend/Mythic). Une migration SQL
+// pourra renommer les ids plus tard si besoin.
 const LEAGUE_ORDER = ["bronze","silver","gold","diamond","elite"];
 const LEAGUE_PALETTES = {
-  bronze:  ["#CD7F32","#B87333","#F0EDE8"],
-  silver:  ["#C0C0C0","#A8A8A8","#F0EDE8"],
-  gold:    ["#FFD700","#FFC107","#F0EDE8"],
-  diamond: ["#00CED1","#40E0D0","#F0EDE8"],
-  elite:   ["#E63946","#FFD700","#F0EDE8"],
+  bronze:  ["#27AE60","#1FA053","#F0EDE8"],
+  silver:  ["#4A90D9","#3A80C9","#F0EDE8"],
+  gold:    ["#9B59B6","#8B49A6","#F0EDE8"],
+  diamond: ["#FF6B35","#EF5B25","#F0EDE8"],
+  elite:   ["#FF073A","#E60030","#F0EDE8"],
 };
 const LEAGUE_TAGLINES = {
   bronze:  "C'est parti, le voyage commence 🔥",
@@ -618,12 +622,12 @@ const RACE_FORMAT_OPTIONS = [
   {value:"hyrox-relay", label:"Hyrox · Relay"},
 ];
 function getLevel(pts) {
-  if (pts >= 900) return {label:"Élite",       color:"#FFD700"};
-  if (pts >= 700) return {label:"Expert",      color:"#C0C0C0"};
-  if (pts >= 500) return {label:"Avancé",      color:"#CD7F32"};
-  if (pts >= 350) return {label:"Confirmé",    color:"#9B59B6"};
-  if (pts >= 200) return {label:"Interméd.",   color:"#4A90D9"};
-  return                 {label:"Débutant",    color:"#27AE60"};
+  if (pts >= 900) return {label:"Master",  color:"#E63946"};
+  if (pts >= 700) return {label:"Diamant", color:"#00D4FF"};
+  if (pts >= 500) return {label:"Platine", color:"#5DADE2"};
+  if (pts >= 350) return {label:"Or",      color:"#FFD700"};
+  if (pts >= 200) return {label:"Argent",  color:"#C0C0C0"};
+  return                 {label:"Bronze",  color:"#CD7F32"};
 }
 function getSeasonLevel(pts) {
   if (pts >= 9000) return {label:"UltraStar", color:"#FF1493"};
@@ -1573,12 +1577,12 @@ function HowItWorksModal({onClose}){
     </div>
   );
   const LEVELS=[
-    {label:"Débutant",min:0,color:"#27AE60"},
-    {label:"Intermédiaire",min:200,color:"#4A90D9"},
-    {label:"Confirmé",min:350,color:"#9B59B6"},
-    {label:"Avancé",min:500,color:"#CD7F32"},
-    {label:"Expert",min:700,color:"#C0C0C0"},
-    {label:"Élite",min:900,color:"#FFD700"},
+    {label:"Bronze", min:0,  color:"#CD7F32"},
+    {label:"Argent", min:200,color:"#C0C0C0"},
+    {label:"Or",     min:350,color:"#FFD700"},
+    {label:"Platine",min:500,color:"#5DADE2"},
+    {label:"Diamant",min:700,color:"#00D4FF"},
+    {label:"Master", min:900,color:"#E63946"},
   ];
   return (
     <Modal onClose={onClose}>
@@ -1663,11 +1667,11 @@ function HowItWorksModal({onClose}){
         <P>Chaque semaine, tu affrontes <span style={{color:"#F0EDE8",fontWeight:700}}>20 athlètes</span> de ton niveau dans une ligue. Le classement est basé uniquement sur tes <span style={{color:"#F0EDE8",fontWeight:700}}>points d'entraînement de la semaine</span> (les courses officielles ne comptent pas).</P>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginTop:10,marginBottom:10}}>
           {[
-            {label:"Bronze",icon:"🥉",color:"#CD7F32"},
-            {label:"Argent",icon:"🥈",color:"#C0C0C0"},
-            {label:"Or",icon:"🥇",color:"#FFD700"},
-            {label:"Platine",icon:"💎",color:"#4A90D9"},
-            {label:"Élite",icon:"🔥",color:"#E63946"},
+            {label:"Rookie",icon:"🌱",color:"#27AE60"},
+            {label:"Pro",   icon:"🎯",color:"#4A90D9"},
+            {label:"Elite", icon:"🏆",color:"#9B59B6"},
+            {label:"Legend",icon:"⚡",color:"#FF6B35"},
+            {label:"Mythic",icon:"💎",color:"#FF073A"},
           ].map(l=>(
             <div key={l.label} style={{padding:"10px 4px",background:`${l.color}15`,border:`1px solid ${l.color}50`,borderRadius:10,textAlign:"center"}}>
               <div style={{fontSize:18}}>{l.icon}</div>
@@ -1675,7 +1679,7 @@ function HowItWorksModal({onClose}){
             </div>
           ))}
         </div>
-        <P>Les nouveaux athlètes démarrent en <span style={{color:"#CD7F32",fontWeight:700}}>Bronze</span> et progressent jusqu'à <span style={{color:"#E63946",fontWeight:700}}>Élite</span>.</P>
+        <P>Les nouveaux athlètes démarrent en <span style={{color:"#27AE60",fontWeight:700}}>Rookie</span> et progressent jusqu'à <span style={{color:"#FF073A",fontWeight:700}}>Mythic</span>.</P>
         <Bullet emoji="🏆" bold="TOP 5 ">→ promotion à la ligue supérieure le lundi suivant</Bullet>
         <Bullet emoji="🛡️" bold="Du 6e au 15e ">→ maintien dans la ligue actuelle</Bullet>
         <Bullet emoji="⚠️" bold="BOTTOM 5 ">→ relégation à la ligue inférieure</Bullet>
@@ -1760,12 +1764,14 @@ function NotificationsModal({onClose,onNotifsChange}){
   );
 }
 
+// `id` = clé stockée en BDD (user_leagues.current_league, last_league_seen).
+// `label` = nom affiché — découplé pour permettre un renommage UI sans migration BDD.
 const LEAGUES=[
-  {id:"bronze", label:"Bronze", icon:"🥉",color:"#CD7F32",bg:"rgba(205,127,50,0.1)", border:"rgba(205,127,50,0.3)"},
-  {id:"silver", label:"Argent", icon:"🥈",color:"#C0C0C0",bg:"rgba(192,192,192,0.1)",border:"rgba(192,192,192,0.3)"},
-  {id:"gold",   label:"Or",     icon:"🥇",color:"#FFD700",bg:"rgba(255,215,0,0.1)",  border:"rgba(255,215,0,0.3)"},
-  {id:"diamond",label:"Platine",icon:"💎",color:"#4A90D9",bg:"rgba(74,144,217,0.1)", border:"rgba(74,144,217,0.3)"},
-  {id:"elite",  label:"Élite",  icon:"🔥",color:"#E63946",bg:"rgba(230,57,70,0.1)",  border:"rgba(230,57,70,0.3)"},
+  {id:"bronze", label:"Rookie", icon:"🌱",color:"#27AE60",bg:"rgba(39,174,96,0.1)", border:"rgba(39,174,96,0.3)"},
+  {id:"silver", label:"Pro",    icon:"🎯",color:"#4A90D9",bg:"rgba(74,144,217,0.1)",border:"rgba(74,144,217,0.3)"},
+  {id:"gold",   label:"Elite",  icon:"🏆",color:"#9B59B6",bg:"rgba(155,89,182,0.1)",border:"rgba(155,89,182,0.3)"},
+  {id:"diamond",label:"Legend", icon:"⚡",color:"#FF6B35",bg:"rgba(255,107,53,0.1)",border:"rgba(255,107,53,0.3)"},
+  {id:"elite",  label:"Mythic", icon:"💎",color:"#FF073A",bg:"rgba(255,7,58,0.1)",  border:"rgba(255,7,58,0.3)"},
 ];
 const SPORT_EMOJI={Run:"🏃","Vélo":"🚴",Natation:"🏊",Trail:"⛰️"};
 const DAY_FR=["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
