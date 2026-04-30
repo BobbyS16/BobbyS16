@@ -1181,8 +1181,8 @@ function Avatar({profile,size=48,highlight=false}){
 }
 
 // ── RESULT MODAL ──────────────────────────────────────────────────────────────
-function ResultModal({existing,userId,onSave,onClose}){
-  const [discipline,setDisc]=useState(existing?.discipline||"10km");
+function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
+  const [discipline,setDisc]=useState(existing?.discipline||initialDiscipline||"10km");
   const [timeStr,setTime]=useState(existing?fmtTime(existing.time):"00:00:00");
   const [raceName,setRace]=useState(existing?.race||"");
   const [elevation,setElevation]=useState(existing?.elevation?String(existing.elevation):"");
@@ -4559,6 +4559,292 @@ function OnboardingScreen({profile,onDone}){
   );
 }
 
+// ── ONBOARDING TOUR (5 écrans, 1ère connexion uniquement) ────────────────────
+function OnboardingTour({profile, results, onComplete, onAddRace}) {
+  const [screen, setScreen] = useState(1);
+  const [toast, setToast] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const PR_RED = "#ED2A37";
+  const PR_GOLD = "#FFB800";
+  const BG = "#0a0a0a";
+  const TEXT = "#F0EDE8";
+  const DIM = "rgba(240,237,232,0.5)";
+  const BORDER = "rgba(240,237,232,0.08)";
+
+  const best10K = useMemo(() => {
+    const tens = (results||[]).filter(r => r.discipline === "10km" && r.time);
+    if (tens.length === 0) return null;
+    return tens.reduce((a,b) => a.time < b.time ? a : b);
+  }, [results]);
+  const userTimeSec = best10K ? best10K.time : 39*60+34;
+  const userTimeStr = best10K ? fmtTime(best10K.time).replace(/^00:/,"") : "39:34";
+  const userPts = calcPoints("10km", userTimeSec);
+
+  const finish = useCallback(async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await supabase.from("profiles").update({onboarding_completed: true}).eq("id", profile.id);
+    } catch (e) {
+      console.error("[onboarding-tour] save failed", e);
+    }
+    onComplete();
+  }, [saving, profile?.id, onComplete]);
+
+  const next = () => setScreen(s => Math.min(s+1, 5));
+  const skip = () => finish();
+
+  const handleInvite = async () => {
+    const url = `${window.location.origin}/?ref=${profile.id}`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+        setToast("Lien copié 📋");
+      } else {
+        setToast(url);
+      }
+    } catch {
+      setToast("Échec de la copie");
+    }
+    setTimeout(() => setToast(""), 2500);
+  };
+
+  const handleAddRace = (disc) => {
+    finish().then(() => onAddRace?.(disc));
+  };
+
+  const ProgressDots = ({active}) => (
+    <div style={{display:"flex",gap:6,justifyContent:"center",marginTop:24,marginBottom:14}}>
+      {[1,2,3,4].map(i => (
+        <div key={i} style={{width:24,height:3,borderRadius:2,background:i<=active?PR_RED:"rgba(240,237,232,0.15)",transition:"background 0.3s"}}/>
+      ))}
+    </div>
+  );
+
+  const SkipBtn = () => (
+    <button onClick={skip} style={{position:"absolute",top:"calc(8px + env(safe-area-inset-top))",right:12,padding:"8px 14px",background:"transparent",border:"none",color:DIM,fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600,cursor:"pointer",letterSpacing:0.5,zIndex:5}}>
+      Passer
+    </button>
+  );
+
+  const PrimaryBtn = ({children, onClick, color=PR_RED}) => (
+    <button onClick={onClick} disabled={saving} style={{width:"100%",padding:"14px 0",background:color,color:"#fff",border:"none",borderRadius:12,fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:saving?"default":"pointer",letterSpacing:0.3,opacity:saving?0.6:1}}>
+      {children}
+    </button>
+  );
+
+  const SecondaryBtn = ({children, onClick}) => (
+    <button onClick={onClick} disabled={saving} style={{width:"100%",padding:"14px 0",background:"transparent",border:`1px solid ${BORDER}`,color:DIM,borderRadius:12,fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,cursor:saving?"default":"pointer",marginTop:10}}>
+      {children}
+    </button>
+  );
+
+  const screenWrap = (children, withSkip=true) => (
+    <div style={{position:"relative",minHeight:"100dvh",background:BG,color:TEXT,display:"flex",flexDirection:"column",padding:"24px 22px calc(28px + env(safe-area-inset-bottom))",boxSizing:"border-box",animation:"onb-fade 0.32s ease",paddingTop:"calc(24px + env(safe-area-inset-top))"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+      <style>{`@keyframes onb-fade{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:translateX(0);}}`}</style>
+      {withSkip && <SkipBtn/>}
+      {children}
+      {toast && (
+        <div style={{position:"fixed",top:80,left:"50%",transform:"translateX(-50%)",background:"rgba(255,255,255,0.95)",color:"#0a0a0a",padding:"10px 18px",borderRadius:12,fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,zIndex:1000,boxShadow:"0 6px 24px rgba(0,0,0,0.3)"}}>{toast}</div>
+      )}
+    </div>
+  );
+
+  // ─── SCREEN 1 ────────────────────────────────────────────────────────────
+  if (screen === 1) return screenWrap(
+    <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",textAlign:"center"}}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:72,lineHeight:1,letterSpacing:6,marginBottom:8}}>
+        <span style={{color:TEXT}}>PACE</span><span style={{color:PR_RED}}>RANK</span>
+      </div>
+      <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",letterSpacing:4,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:80}}>
+        Run · Triathlon · Trail · Hyrox
+      </div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:38,letterSpacing:1.5,lineHeight:1.05,marginBottom:14,maxWidth:360}}>
+        Bienvenue dans le club.
+      </div>
+      <div style={{fontSize:15,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.5,maxWidth:340,marginBottom:60}}>
+        Compare tes perfs avec tes amis, peu importe la discipline.
+      </div>
+      <div style={{width:"100%",maxWidth:380}}>
+        <PrimaryBtn onClick={next}>C'est parti</PrimaryBtn>
+      </div>
+    </div>,
+    false
+  );
+
+  // ─── SCREEN 2 ────────────────────────────────────────────────────────────
+  if (screen === 2) return screenWrap(
+    <>
+      <ProgressDots active={1}/>
+      <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",maxWidth:420,margin:"0 auto",width:"100%"}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:1.2,lineHeight:1.1,marginBottom:14}}>
+          Comment tu marques <span style={{color:PR_RED}}>des points</span>.
+        </div>
+        <div style={{fontSize:14,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.55,marginBottom:24}}>
+          Ton temps est comparé à celui d'un athlète <span style={{color:TEXT,fontWeight:700}}>élite mondial</span> sur la même distance. Plus tu t'en approches, plus tu marques.
+        </div>
+        <div style={{background:"rgba(255,255,255,0.02)",border:`1px solid ${BORDER}`,borderRadius:16,padding:18,marginBottom:18}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0"}}>
+            <div style={{fontSize:12,color:DIM,fontFamily:"'Barlow',sans-serif",letterSpacing:0.5,textTransform:"uppercase",fontWeight:700}}>Élite — 10 km</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:PR_GOLD,letterSpacing:1}}>27:00</div>
+          </div>
+          <div style={{height:1,background:BORDER,margin:"4px 0"}}/>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0"}}>
+            <div style={{fontSize:12,color:DIM,fontFamily:"'Barlow',sans-serif",letterSpacing:0.5,textTransform:"uppercase",fontWeight:700}}>Toi — 10 km</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:PR_RED,letterSpacing:1}}>{userTimeStr}</div>
+          </div>
+          <div style={{textAlign:"center",fontSize:18,color:DIM,margin:"4px 0"}}>↓</div>
+          <div style={{textAlign:"center",padding:"12px 0",background:`rgba(237,42,55,0.1)`,border:`1px solid rgba(237,42,55,0.4)`,borderRadius:12,marginBottom:14}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:30,color:PR_RED,letterSpacing:2,lineHeight:1}}>{userPts} PTS</div>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"center"}}>
+            {[
+              {l:"10K",mult:"×1.0"},
+              {l:"Marathon",mult:"×1.2"},
+              {l:"Ironman",mult:"×1.5"},
+            ].map(p => (
+              <div key={p.l} style={{padding:"6px 12px",background:`rgba(255,184,0,0.12)`,border:`1px solid rgba(255,184,0,0.4)`,borderRadius:20,fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,color:PR_GOLD,letterSpacing:0.5}}>
+                {p.l} {p.mult}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{maxWidth:420,margin:"0 auto",width:"100%"}}>
+        <PrimaryBtn onClick={next}>Suivant</PrimaryBtn>
+      </div>
+    </>
+  );
+
+  // ─── SCREEN 3 ────────────────────────────────────────────────────────────
+  if (screen === 3) {
+    const levels = [
+      {label:"Bronze", color:"#CD7F32"},
+      {label:"Argent", color:"#C0C0C0"},
+      {label:"Or",     color:"#FFD700"},
+      {label:"Platine",color:"#E5E4E2"},
+      {label:"Diamant",color:"#B9F2FF"},
+      {label:"Master", color:PR_RED},
+    ];
+    const leagues = [
+      {icon:"🌱",label:"Rookie",color:"#27AE60"},
+      {icon:"🎯",label:"Pro",   color:"#4A90D9"},
+      {icon:"🏆",label:"Elite", color:"#9B59B6"},
+      {icon:"⚡",label:"Legend",color:"#FF6B35"},
+      {icon:"💎",label:"Mythic",color:"#FF073A"},
+    ];
+    return screenWrap(
+      <>
+        <ProgressDots active={2}/>
+        <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",maxWidth:420,margin:"0 auto",width:"100%"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:1.2,lineHeight:1.1,marginBottom:14}}>
+            Niveaux <span style={{color:PR_RED}}>& ligues</span>.
+          </div>
+          <div style={{fontSize:14,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.55,marginBottom:22}}>
+            Chaque course te donne un <span style={{color:TEXT,fontWeight:700}}>niveau</span>. Tes points cumulés te placent dans une <span style={{color:TEXT,fontWeight:700}}>ligue</span> hebdo contre 20 athlètes.
+          </div>
+          <div style={{fontSize:11,color:DIM,fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>Niveaux par course</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:22}}>
+            {levels.map(l => (
+              <div key={l.label} style={{padding:"10px 8px",background:`${l.color}18`,border:`1px solid ${l.color}55`,borderRadius:10,textAlign:"center",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,color:l.color,letterSpacing:0.5}}>
+                {l.label}
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:11,color:DIM,fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>Ligues hebdo</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {leagues.map(l => (
+              <div key={l.label} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:`${l.color}10`,border:`1px solid ${l.color}40`,borderRadius:10}}>
+                <div style={{fontSize:18}}>{l.icon}</div>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,color:l.color,letterSpacing:0.5}}>{l.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{maxWidth:420,margin:"20px auto 0",width:"100%"}}>
+          <PrimaryBtn onClick={next}>Suivant</PrimaryBtn>
+        </div>
+      </>
+    );
+  }
+
+  // ─── SCREEN 4 ────────────────────────────────────────────────────────────
+  if (screen === 4) {
+    const peers = [
+      {x:"50%",y:"6%",   color:"#CD7F32",init:"JD"},
+      {x:"96%",y:"42%",  color:"#C0C0C0",init:"MA"},
+      {x:"4%", y:"42%",  color:"#FFD700",init:"SL"},
+      {x:"50%",y:"94%",  color:"#5DADE2",init:"AT"},
+    ];
+    return screenWrap(
+      <>
+        <ProgressDots active={3}/>
+        <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",maxWidth:420,margin:"0 auto",width:"100%"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:1.2,lineHeight:1.1,marginBottom:14}}>
+            PaceRank, c'est mieux <span style={{color:PR_RED}}>à plusieurs</span>.
+          </div>
+          <div style={{fontSize:14,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.55,marginBottom:24}}>
+            Invite tes potes runners, triathlètes ou trailers. Le vrai jeu commence quand vous comparez vos perfs.
+          </div>
+          <div style={{position:"relative",width:240,height:240,margin:"10px auto 30px"}}>
+            {peers.map((p,i) => (
+              <div key={i} style={{position:"absolute",left:p.x,top:p.y,transform:"translate(-50%,-50%)",width:54,height:54,borderRadius:"50%",background:`${p.color}1A`,border:`2px solid ${p.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:18,color:p.color,letterSpacing:1}}>
+                {p.init}
+              </div>
+            ))}
+            <div style={{position:"absolute",left:"50%",top:"50%",transform:"translate(-50%,-50%)",width:80,height:80,borderRadius:"50%",background:`linear-gradient(135deg, ${PR_RED}, #B0212C)`,border:`2px solid ${PR_RED}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:36,color:"#fff",letterSpacing:1,boxShadow:`0 0 32px rgba(237,42,55,0.4)`}}>
+              P
+            </div>
+          </div>
+        </div>
+        <div style={{maxWidth:420,margin:"0 auto",width:"100%"}}>
+          <PrimaryBtn onClick={handleInvite}>Inviter par lien</PrimaryBtn>
+          <SecondaryBtn onClick={next}>Plus tard</SecondaryBtn>
+        </div>
+      </>
+    );
+  }
+
+  // ─── SCREEN 5 ────────────────────────────────────────────────────────────
+  const shortcuts = [
+    {label:"🏃 10 km",        disc:"10km"},
+    {label:"🏃 Semi-marathon",disc:"semi"},
+    {label:"🏃 Marathon",     disc:"marathon"},
+    {label:"⛰️ Trail",         disc:"trail-s"},
+  ];
+  return screenWrap(
+    <>
+      <ProgressDots active={4}/>
+      <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",maxWidth:420,margin:"0 auto",width:"100%"}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:1.2,lineHeight:1.1,marginBottom:14}}>
+          Ajoute ta meilleure <span style={{color:PR_RED}}>perf récente</span>.
+        </div>
+        <div style={{fontSize:14,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.55,marginBottom:22}}>
+          Une course ou un PR pour démarrer. Tes points, ton niveau et ton statut s'activeront aussitôt.
+        </div>
+        <div style={{display:"flex",justifyContent:"center",marginBottom:22}}>
+          <div style={{width:90,height:90,borderRadius:"50%",background:`linear-gradient(135deg, ${PR_RED}, #B0212C)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,boxShadow:`0 0 36px rgba(237,42,55,0.35)`}}>
+            🏁
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:6}}>
+          {shortcuts.map(s => (
+            <button key={s.disc} onClick={()=>handleAddRace(s.disc)} disabled={saving} style={{padding:"12px 10px",background:"rgba(255,255,255,0.03)",border:`1px solid ${BORDER}`,borderRadius:12,color:TEXT,fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:saving?"default":"pointer",letterSpacing:0.3,textAlign:"left"}}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{maxWidth:420,margin:"22px auto 0",width:"100%"}}>
+        <PrimaryBtn onClick={()=>handleAddRace()}>Ajouter une course</PrimaryBtn>
+        <SecondaryBtn onClick={finish}>Plus tard</SecondaryBtn>
+      </div>
+    </>
+  );
+}
+
 function AuthScreen({onShowPrivacy}){
   const signIn=async()=>{await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}});};
   return (
@@ -4845,6 +5131,7 @@ export default function App(){
     return()=>window.removeEventListener("popstate",onPop);
   },[]);
   const [addMode,setAddMode]=useState(null); // null | "result" | "training"
+  const [pendingResultDisc,setPendingResultDisc]=useState(null); // pré-sélection discipline (onboarding)
   const [notifCount,setNotifCount]=useState(0);
   const [celebQueue,setCelebQueue]=useState([]);
   const [celebPaused,setCelebPaused]=useState(false);
@@ -5018,6 +5305,7 @@ export default function App(){
   if(loading) return <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",alignItems:"center",justifyContent:"center"}}><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><div style={{fontFamily:"'Bebas Neue'",fontSize:40,letterSpacing:4}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div></div>;
   if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen onShowPrivacy={openPrivacy}/></>;
   if(profile&&!(profile.name&&profile.city&&profile.birth_year&&profile.gender&&profile.nationality)) return <OnboardingScreen profile={profile} onDone={loadProfile}/>;
+  if(profile&&profile.onboarding_completed===false) return <OnboardingTour profile={profile} results={results} onComplete={loadProfile} onAddRace={(disc)=>{setPendingResultDisc(disc||null);setAddMode("result");}}/>;
 
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
@@ -5028,7 +5316,7 @@ export default function App(){
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
       {tab==="social"  &&<SocialTab  myProfile={profile} onNotifsChange={loadNotifCount}/>}
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
-      {addMode==="result"&&<ResultModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
+      {addMode==="result"&&<ResultModal userId={profile?.id} initialDiscipline={pendingResultDisc} onSave={()=>{setAddMode(null);setPendingResultDisc(null);refresh();}} onClose={()=>{setAddMode(null);setPendingResultDisc(null);}}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onShowPrivacy={()=>{setShowProfile(false);openPrivacy();}} onClose={()=>setShowProfile(false)}/>}
       <CelebrationQueueRenderer queue={celebQueue} paused={celebPaused} onClose={closeCurrentCelebration} onViewRanking={()=>setTab("ranking")}/>
