@@ -3001,8 +3001,8 @@ function buildPrev12Total(results) {
   return total;
 }
 
-// ── PREDICTIONS DE COURSE (Riegel) ────────────────────────────────────────────
-// T2 = T1 × (D2/D1)^1.06 — extrapolation classique des temps de course.
+// ── PREDICTIONS DE COURSE (Riegel adaptatif) ──────────────────────────────────
+// T2 = T1 × (D2/D1)^k — exposant ajusté au volume hebdo (k bas = endurance ++).
 const PREDICT_TARGETS = [
   {disc:"5km",      label:"5 km",          km:5,    icon:"🏃"},
   {disc:"10km",     label:"10 km",         km:10,   icon:"🏃"},
@@ -3010,11 +3010,30 @@ const PREDICT_TARGETS = [
   {disc:"marathon", label:"Marathon",      km:42.2, icon:"🏃"},
 ];
 const PREDICT_WINDOW_DAYS = 90;
+const PREDICT_VOLUME_WINDOW_DAYS = 28;
 const PREDICT_MIN_DIST_KM = 3;
 
-function riegelPredict(timeSec, fromKm, toKm) {
-  if (!timeSec || !fromKm || !toKm) return null;
-  return timeSec * Math.pow(toKm / fromKm, 1.06);
+function riegelExponent(weeklyVolumeKm) {
+  if (weeklyVolumeKm < 30) return 1.08;
+  if (weeklyVolumeKm < 50) return 1.06;
+  if (weeklyVolumeKm < 70) return 1.05;
+  return 1.04;
+}
+
+function predictRaceTime(refDistanceKm, refTimeSeconds, targetDistanceKm, weeklyVolumeKm = 0) {
+  if (!refTimeSeconds || !refDistanceKm || !targetDistanceKm) return null;
+  const exponent = riegelExponent(weeklyVolumeKm);
+  return refTimeSeconds * Math.pow(targetDistanceKm / refDistanceKm, exponent);
+}
+
+function computeWeeklyVolumeKm(runTrainings) {
+  const cutoff = Date.now() - PREDICT_VOLUME_WINDOW_DAYS * 86400 * 1000;
+  const totalKm = (runTrainings || []).reduce((sum, t) => {
+    const ts = t.date ? new Date(t.date).getTime() : 0;
+    if (!ts || ts < cutoff) return sum;
+    return sum + (parseFloat(t.distance) || 0);
+  }, 0);
+  return totalKm / (PREDICT_VOLUME_WINDOW_DAYS / 7);
 }
 
 function buildRacePredictions(runTrainings) {
@@ -3027,6 +3046,7 @@ function buildRacePredictions(runTrainings) {
     const ts = t.date ? new Date(t.date).getTime() : 0;
     return ts && ts >= cutoff;
   });
+  const weeklyKm = computeWeeklyVolumeKm(runTrainings);
   const out = {};
   PREDICT_TARGETS.forEach(t => {
     const lo = t.km * 0.5, hi = t.km * 2;
@@ -3039,14 +3059,14 @@ function buildRacePredictions(runTrainings) {
     cands.forEach(tr => {
       const d = parseFloat(tr.distance);
       const dur = parseInt(tr.duration);
-      const proj = riegelPredict(dur, d, t.km);
+      const proj = predictRaceTime(d, dur, t.km, weeklyKm);
       if (proj != null && (!best || proj < best.time)) {
         best = { time: proj, source: tr };
       }
     });
     out[t.disc] = best;
   });
-  return { predictions: out, sampleCount: eligible.length };
+  return { predictions: out, sampleCount: eligible.length, weeklyKm, exponent: riegelExponent(weeklyKm) };
 }
 
 function PerfTab({userId, refreshKey, onActivityChange}) {
@@ -3245,7 +3265,7 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
               </div>
             </div>
             <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:10,lineHeight:1.5}}>
-              Estimations basées sur tes entraînements <span style={{color:"#F0EDE8",fontWeight:700}}>Run</span> récents (formule de Riegel).
+              Estimations basées sur tes entraînements <span style={{color:"#F0EDE8",fontWeight:700}}>Run</span> récents (Riegel, exposant {racePred.exponent.toFixed(2)} · volume {Math.round(racePred.weeklyKm)} km/sem).
             </div>
             <div style={{marginBottom:24}}>
               {racePred.sampleCount === 0 ? (
