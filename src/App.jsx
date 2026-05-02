@@ -1200,20 +1200,26 @@ const AVATAR_PALETTE=[
   ["#E91E63","#9C27B0"],["#FFC107","#FF9800"],["#1ABC9C","#27AE60"],
   ["#F39C12","#E67E22"],["#2980B9","#8E44AD"],["#C0392B","#E74C3C"],
 ];
-function avatarGradient(name){
+function avatarColors(name){
   const s=name||"?";
   let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;
-  const [c1,c2]=AVATAR_PALETTE[Math.abs(h)%AVATAR_PALETTE.length];
-  return `linear-gradient(135deg, ${c1}, ${c2})`;
+  return AVATAR_PALETTE[Math.abs(h)%AVATAR_PALETTE.length];
 }
 function Avatar({profile,size=48,highlight=false}){
+  const [imgError,setImgError]=useState(false);
+  useEffect(()=>{setImgError(false);},[profile?.avatar]);
   const initials=(profile?.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   const hc=typeof highlight==="string"?highlight:"#E63946";
-  const hasAvatar=!!profile?.avatar;
-  const bg=hasAvatar?(highlight?hc:"rgba(255,255,255,0.1)"):(highlight?hc:avatarGradient(profile?.name));
+  const showImg=!!profile?.avatar&&!imgError;
+  const [c1,c2]=avatarColors(profile?.name);
+  const bgStyle=showImg
+    ?{backgroundColor:highlight?hc:"rgba(255,255,255,0.1)"}
+    :(highlight
+      ?{backgroundColor:hc}
+      :{backgroundColor:c1,backgroundImage:`linear-gradient(135deg, ${c1}, ${c2})`});
   return (
-    <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:bg,border:highlight?`3px solid ${hc}`:"2px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:size*0.42,color:"#fff",letterSpacing:1,textShadow:hasAvatar?"none":"0 1px 2px rgba(0,0,0,0.25)"}}>
-      {hasAvatar?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>:initials}
+    <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,...bgStyle,border:highlight?`3px solid ${hc}`:"2px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:size*0.42,color:"#fff",letterSpacing:1,textShadow:showImg?"none":"0 1px 2px rgba(0,0,0,0.25)"}}>
+      {showImg?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setImgError(true)}/>:initials}
     </div>
   );
 }
