@@ -73,6 +73,29 @@ function getAgeCat(birthYear) {
   return AGE_CATEGORIES.find(c => age >= c.min && age <= c.max)?.label || null;
 }
 
+function CategoryTooltip({birthYear}){
+  const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!open) return;
+    const h=(e)=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener("click",h);
+    return ()=>document.removeEventListener("click",h);
+  },[open]);
+  if(!birthYear) return null;
+  const age=CY-parseInt(birthYear);
+  const cat=AGE_CATEGORIES.find(c=>age>=c.min&&age<=c.max);
+  if(!cat) return null;
+  return (
+    <span ref={ref} style={{position:"relative",display:"inline-block"}}>
+      <span onClick={(e)=>{e.stopPropagation();setOpen(o=>!o);}} onMouseEnter={()=>setOpen(true)} onMouseLeave={()=>setOpen(false)} style={{borderBottom:"1px dotted rgba(240,237,232,0.3)",cursor:"help",fontFamily:"'Barlow',sans-serif"}}>{cat.label}</span>
+      {open&&(
+        <span style={{position:"absolute",bottom:"calc(100% + 6px)",left:"50%",transform:"translateX(-50%)",background:"rgba(20,20,20,0.95)",border:"1px solid rgba(240,237,232,0.1)",padding:"6px 10px",borderRadius:6,fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",whiteSpace:"nowrap",zIndex:1000,pointerEvents:"none"}}>{cat.min}-{cat.max} ans</span>
+      )}
+    </span>
+  );
+}
+
 function calcPoints(discipline, timeSeconds, elevation) {
   const d = DISCIPLINES[discipline];
   if (!d || !timeSeconds) return 0;
@@ -3796,7 +3819,7 @@ function SocialTab({myProfile,onNotifsChange}){
               <Avatar profile={f.friend} size={36}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.friend?.name||"Anonyme"}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:1}}>{getAgeCat(f.friend?.birth_year)||""}{f.friend?.city?` · ${f.friend.city}`:""}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:1}}><CategoryTooltip birthYear={f.friend?.birth_year}/>{getAgeCat(f.friend?.birth_year)&&f.friend?.city?" · ":""}{f.friend?.city||""}</div>
               </div>
               <div style={{color:"rgba(240,237,232,0.3)",fontSize:18,flexShrink:0}}>›</div>
             </div>
@@ -4024,7 +4047,7 @@ function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose}){
         <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.name||"Athlète"}</div>
-          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[profile.city,getAgeCat(profile.birth_year),profile.gender,profile.nationality].filter(Boolean).join(" · ")}</div>
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[profile.city,profile.birth_year&&<CategoryTooltip key="cat" birthYear={profile.birth_year}/>,profile.gender,profile.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
         <div style={{textAlign:"right",flexShrink:0}}>
@@ -4068,7 +4091,7 @@ function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose}){
               <Avatar profile={p} size={32}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{(()=>{const parts=[p.city,p.birth_year&&getAgeCat(p.birth_year)&&<CategoryTooltip key="cat" birthYear={p.birth_year}/>].filter(Boolean);return parts.length?parts.map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>):"—";})()}</div>
               </div>
               <div style={{color:"rgba(240,237,232,0.3)",fontSize:16,flexShrink:0}}>›</div>
             </div>
@@ -4360,7 +4383,7 @@ function FriendProfileModal({friend,myId,onClose}){
         <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fullProfile?.name||friend.name||"Athlète"}</div>
-          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,getAgeCat(fullProfile?.birth_year),fullProfile?.gender,fullProfile?.nationality].filter(Boolean).join(" · ")}</div>
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,fullProfile?.birth_year&&<CategoryTooltip key="cat" birthYear={fullProfile.birth_year}/>,fullProfile?.gender,fullProfile?.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
       </div>
@@ -4465,7 +4488,7 @@ function FriendProfileModal({friend,myId,onClose}){
               <Avatar profile={p} size={32}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name||"Athlète"}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{[p.city,getAgeCat(p.birth_year)].filter(Boolean).join(" · ")||"—"}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>{(()=>{const parts=[p.city,p.birth_year&&getAgeCat(p.birth_year)&&<CategoryTooltip key="cat" birthYear={p.birth_year}/>].filter(Boolean);return parts.length?parts.map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>):"—";})()}</div>
               </div>
               {isMine
                 ?<div style={{fontSize:10,color:"rgba(39,174,96,0.85)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,padding:"4px 8px",background:"rgba(39,174,96,0.1)",border:"1px solid rgba(39,174,96,0.25)",borderRadius:8,flexShrink:0}}>✓ Ami</div>
