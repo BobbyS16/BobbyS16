@@ -1854,7 +1854,6 @@ function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
   const totalSessionPts=mySessions.reduce((s,m)=>s+m.pts,0);
   const myLeagueIdx=LEAGUES.findIndex(l=>l.id===myLeague.id);
   const nextLeague=LEAGUES[Math.min(myLeagueIdx+1,LEAGUES.length-1)];
-  const ptsToPromote=players.length>=5&&myPos>5?Math.max(1,players[4].trainPts-myPts+1):0;
 
   return (
     <div>
@@ -1970,32 +1969,37 @@ function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
             );
           })}
 
-          {/* CTA */}
-          {ptsToPromote>0?(
-            <div style={{marginTop:12,background:"linear-gradient(135deg,rgba(255,215,0,0.15),rgba(255,215,0,0.05))",
-              border:"1px solid rgba(255,215,0,0.25)",borderRadius:14,padding:"14px 16px",
-              display:"flex",alignItems:"center",gap:12}}>
-              <span style={{fontSize:24,flexShrink:0}}>{nextLeague.icon}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FFD700",letterSpacing:1}}>
-                  +{ptsToPromote} pts pour la {nextLeague.label} !
+          {/* Progress bar top 5 */}
+          {myIdx>=0&&(()=>{
+            const hasFullField=players.length>=5;
+            const fifthPts=hasFullField?(players[4]?.trainPts||0):0;
+            const target=hasFullField?fifthPts+1:Math.max(30,myPts+30);
+            const inTop5=myPos<=5;
+            const fillPct=target>0?Math.min(100,(myPts/target)*100):0;
+            let labelTop,labelBottom;
+            if(!hasFullField){
+              labelTop="La ligue se remplit";
+              labelBottom="Continue tes séances pour valider ta place dans le top 5";
+            }else if(inTop5){
+              labelTop="🏆 Tu es dans le top 5";
+              labelBottom=`Tiens jusqu'à lundi pour monter en ${nextLeague.label}`;
+            }else{
+              labelTop=`+${Math.max(1,target-myPts)} pts pour le top 5`;
+              labelBottom=`${myPts} / ${target} pts cette semaine`;
+            }
+            return (
+              <div style={{marginTop:12,background:"linear-gradient(135deg,rgba(255,215,0,0.12),rgba(255,215,0,0.04))",border:"1px solid rgba(255,215,0,0.22)",borderRadius:14,padding:"14px 16px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:10}}>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FFD700",letterSpacing:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{labelTop}</div>
+                  <button onClick={onAddTraining} style={{background:"#FFD700",border:"none",borderRadius:8,padding:"6px 10px",fontFamily:"'Bebas Neue'",fontSize:11,color:"#111",cursor:"pointer",letterSpacing:1,flexShrink:0}}>+ SÉANCE</button>
                 </div>
-                <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>
-                  Ajoute un entraînement pour grimper
+                <div style={{height:8,background:"rgba(0,0,0,0.3)",borderRadius:4,overflow:"hidden",marginBottom:6}}>
+                  <div style={{width:`${fillPct}%`,height:"100%",backgroundImage:"linear-gradient(90deg,#FFD700,#FFA500)",transition:"width 0.4s"}}/>
                 </div>
+                <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif"}}>{labelBottom}</div>
               </div>
-              <button onClick={onAddTraining} style={{background:"#FFD700",border:"none",borderRadius:10,
-                padding:"8px 12px",fontFamily:"'Bebas Neue'",fontSize:12,
-                color:"#111",cursor:"pointer",letterSpacing:1,flexShrink:0}}>
-                + SÉANCE
-              </button>
-            </div>
-          ):myIdx>=0&&myPos<=5?(
-            <div style={{marginTop:12,background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.25)",borderRadius:14,padding:"14px 16px",textAlign:"center"}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FFD700",letterSpacing:1}}>🔥 Tu es en zone promotion !</div>
-              <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>Tiens ta place jusqu'à lundi pour monter en {nextLeague.label}.</div>
-            </div>
-          ):null}
+            );
+          })()}
       </div>
 
       {/* Progression frize */}
