@@ -714,6 +714,7 @@ const BADGES = [
   {id:"twenty_friends",    cat:"Social",     emoji:"👨‍👩‍👧", label:"20 amis",         color:"#FFD700", check:({friendCount})=>friendCount>=20},
   {id:"fifty_friends",     cat:"Social",     emoji:"🎉", label:"50 amis",            color:"#FFD700", check:({friendCount})=>friendCount>=50},
   {id:"group_creator",     cat:"Social",     emoji:"🏠", label:"Créateur de groupe", color:"#3498DB", check:({groupsCreated})=>groupsCreated>=1},
+  {id:"profile_photo",     cat:"Social",     emoji:"📸", label:"Profil complet",     color:"#27AE60", check:({profile})=>!!profile?.avatar},
 
   // Fun
   {id:"comeback",          cat:"Fun",        emoji:"💪", label:"Comeback",           color:"#E63946", check:({trainings,results})=>{
@@ -1193,12 +1194,26 @@ function PhotoViewer({src,onClose}){
   );
 }
 
+const AVATAR_PALETTE=[
+  ["#E63946","#F77F00"],["#3498DB","#9B59B6"],["#27AE60","#16A085"],
+  ["#FF6B35","#FFD700"],["#9B59B6","#3498DB"],["#16A085","#3498DB"],
+  ["#E91E63","#9C27B0"],["#FFC107","#FF9800"],["#1ABC9C","#27AE60"],
+  ["#F39C12","#E67E22"],["#2980B9","#8E44AD"],["#C0392B","#E74C3C"],
+];
+function avatarGradient(name){
+  const s=name||"?";
+  let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;
+  const [c1,c2]=AVATAR_PALETTE[Math.abs(h)%AVATAR_PALETTE.length];
+  return `linear-gradient(135deg, ${c1}, ${c2})`;
+}
 function Avatar({profile,size=48,highlight=false}){
   const initials=(profile?.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
   const hc=typeof highlight==="string"?highlight:"#E63946";
+  const hasAvatar=!!profile?.avatar;
+  const bg=hasAvatar?(highlight?hc:"rgba(255,255,255,0.1)"):(highlight?hc:avatarGradient(profile?.name));
   return (
-    <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:highlight?hc:"rgba(255,255,255,0.1)",border:highlight?`3px solid ${hc}`:"2px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:size*0.35,color:"#fff",letterSpacing:1}}>
-      {profile?.avatar?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>:initials}
+    <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:bg,border:highlight?`3px solid ${hc}`:"2px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:size*0.42,color:"#fff",letterSpacing:1,textShadow:hasAvatar?"none":"0 1px 2px rgba(0,0,0,0.25)"}}>
+      {hasAvatar?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}}/>:initials}
     </div>
   );
 }
@@ -2219,7 +2234,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
   const totalPts=sumBestPts(seasonResults)+trainingPts+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
-  const myBadges=computeBadges({results});
+  const myBadges=computeBadges({results,profile});
   const myLv=getSeasonLevel(totalPts);
   const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"},{k:"hyrox",l:"🔥 Hyrox"}];
 
