@@ -5218,6 +5218,15 @@ export default function App(){
 
   useEffect(()=>{if(session){loadProfile();loadResults();loadNotifCount();}},[session]);
 
+  useEffect(()=>{
+    if(!profile?.id||profile.onboarding_completed!==true) return;
+    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
+    window.OneSignalDeferred.push(async(OneSignal)=>{
+      try{await OneSignal.login(profile.id);console.log("[OneSignal] login OK pour",profile.id);}
+      catch(e){console.error("[OneSignal] login échoué",e);}
+    });
+  },[profile?.id,profile?.onboarding_completed]);
+
   useEffect(() => {
     if (!profile?.id) return;
     if (typeof profile.celebrations_enabled === "boolean") setCelebrationsEnabledLocal(profile.celebrations_enabled);

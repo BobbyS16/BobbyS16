@@ -11,6 +11,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PaceRank" />
     <title>PaceRank</title>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "35485edf-128a-4346-b6f6-a21a84645f47",
+        });
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
