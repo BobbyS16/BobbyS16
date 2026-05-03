@@ -75,22 +75,34 @@ function getAgeCat(birthYear) {
 
 function CategoryTooltip({birthYear}){
   const [open,setOpen]=useState(false);
-  const ref=useRef(null);
+  const [pos,setPos]=useState(null);
+  const triggerRef=useRef(null);
   useEffect(()=>{
-    if(!open) return;
-    const h=(e)=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
-    document.addEventListener("click",h);
-    return ()=>document.removeEventListener("click",h);
+    if(!open){setPos(null);return;}
+    const rect=triggerRef.current?.getBoundingClientRect();
+    if(!rect) return;
+    const bubbleH=28;
+    const margin=8;
+    const above=rect.top-bubbleH-6;
+    const placement=above<margin?"below":"above";
+    setPos({
+      top: placement==="above"?rect.top-6:rect.bottom+6,
+      left: rect.left+rect.width/2,
+      placement,
+    });
+    const close=(e)=>{if(triggerRef.current&&!triggerRef.current.contains(e.target))setOpen(false);};
+    document.addEventListener("click",close);
+    return ()=>document.removeEventListener("click",close);
   },[open]);
   if(!birthYear) return null;
   const age=CY-parseInt(birthYear);
   const cat=AGE_CATEGORIES.find(c=>age>=c.min&&age<=c.max);
   if(!cat) return null;
   return (
-    <span ref={ref} style={{position:"relative",display:"inline-block"}}>
-      <span onClick={(e)=>{e.stopPropagation();setOpen(o=>!o);}} onMouseEnter={()=>setOpen(true)} onMouseLeave={()=>setOpen(false)} style={{borderBottom:"1px dotted rgba(240,237,232,0.3)",cursor:"help",fontFamily:"'Barlow',sans-serif"}}>{cat.label}</span>
-      {open&&(
-        <span style={{position:"absolute",bottom:"calc(100% + 6px)",left:"50%",transform:"translateX(-50%)",background:"rgba(20,20,20,0.95)",border:"1px solid rgba(240,237,232,0.1)",padding:"6px 10px",borderRadius:6,fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",whiteSpace:"nowrap",zIndex:1000,pointerEvents:"none"}}>{cat.min}-{cat.max} ans</span>
+    <span ref={triggerRef} onClick={(e)=>{e.stopPropagation();setOpen(o=>!o);}} style={{borderBottom:"1px dotted rgba(240,237,232,0.4)",cursor:"pointer",fontFamily:"'Barlow',sans-serif"}}>
+      {cat.label}
+      {open&&pos&&(
+        <span style={{position:"fixed",top:pos.top,left:pos.left,transform:pos.placement==="above"?"translate(-50%,-100%)":"translate(-50%,0)",background:"rgba(20,20,20,0.95)",border:"1px solid rgba(240,237,232,0.15)",padding:"6px 10px",borderRadius:6,fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",whiteSpace:"nowrap",zIndex:10000,pointerEvents:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.4)"}}>{cat.min}-{cat.max} ans</span>
       )}
     </span>
   );
