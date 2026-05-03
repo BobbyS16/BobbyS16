@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import confetti from "canvas-confetti";
+import { calculateTrainingPoints } from "./utils/trainingPoints.js";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -1321,22 +1322,47 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
 }
 
 // ── TRAINING MODAL ────────────────────────────────────────────────────────────
+const SPORT_TO_DISCIPLINE={Run:"running",Trail:"trail","Vélo":"cycling",Natation:"swimming"};
+function computePaceOrSpeed(discipline,distanceKm,durationSec){
+  if(!distanceKm||!durationSec) return 0;
+  if(discipline==="running"||discipline==="trail") return durationSec/distanceKm;
+  if(discipline==="cycling") return distanceKm/(durationSec/3600);
+  if(discipline==="swimming") return durationSec/(distanceKm*10);
+  return 0;
+}
 function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
   const [sport,setSport]=useState(existing?.sport||"Run");
   const [title,setTitle]=useState(existing?.title||"");
   const [dist,setDist]=useState(existing?String(existing.distance||""):"");
-  const [deniv,setDeniv]=useState("");
+  const [deniv,setDeniv]=useState(existing?.elevation_gain_m!=null?String(existing.elevation_gain_m):"");
   const [duration,setDur]=useState(existing?fmtTime(existing.duration||0):"00:00:00");
   const [date,setDate]=useState(existing?.date||"");
   const [loading,setLoading]=useState(false);
   const [error,setErr]=useState("");
+  const needsElevation=sport==="Trail"||sport==="Vélo";
+  useEffect(()=>{if(!needsElevation) setDeniv("");},[needsElevation]);
   const handleSave=async()=>{
-    if(!dist)return;
+    if(!dist){setErr("La distance est obligatoire");return;}
+    if(needsElevation&&deniv===""){setErr("Le dénivelé est obligatoire pour le trail et le vélo");return;}
     setLoading(true);setErr("");
     const durationSec=parseDurStr(duration);
-    const pts=calcTrainingPts(parseFloat(dist)||0,sport,durationSec);
+    const distanceKm=parseFloat(dist)||0;
+    const elevationGainM=needsElevation?(parseInt(deniv)||0):null;
+    const discipline=SPORT_TO_DISCIPLINE[sport];
+    let pts=0;
+    try{
+      pts=calculateTrainingPoints({
+        discipline,
+        duration_min:durationSec/60,
+        distance_km:distanceKm,
+        elevation_gain_m:elevationGainM,
+        pace_or_speed:computePaceOrSpeed(discipline,distanceKm,durationSec),
+      });
+    }catch(e){
+      setLoading(false);setErr(e.message||"Erreur de calcul des points");return;
+    }
     const trimmedTitle = title.trim();
-    const payload={sport,title:trimmedTitle||null,distance:parseFloat(dist)||0,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts};
+    const payload={sport,title:trimmedTitle||null,distance:distanceKm,elevation_gain_m:elevationGainM,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts};
     let err;
     if(existing){({error:err}=await supabase.from("trainings").update(payload).eq("id",existing.id));}
     else{
@@ -1354,7 +1380,7 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
       <Lbl c="Sport"/><Sel value={sport} onChange={setSport}>{TRAINING_SPORTS.filter(s=>s!=="All").map(s=><option key={s} value={s}>{s}</option>)}</Sel>
       <Lbl c="Titre (optionnel)"/><Inp value={title} onChange={setTitle} placeholder="Ex: Bassin matinal, Sortie longue…"/>
       <Lbl c="Distance (km)"/><Inp value={dist} onChange={setDist} placeholder="Ex: 12.5" type="number"/>
-      {sport==="Trail"&&<><Lbl c="Dénivelé (m)"/><Inp value={deniv} onChange={setDeniv} placeholder="Ex: 800" type="number"/></>}
+      {needsElevation&&<><Lbl c="Dénivelé positif (m)"/><Inp value={deniv} onChange={setDeniv} placeholder={sport==="Vélo"?"Ex: 1200":"Ex: 800"} type="number"/></>}
       <Lbl c="Durée"/>
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><TimePicker value={duration} onChange={setDur}/></div>
       <Lbl c="Date"/>
