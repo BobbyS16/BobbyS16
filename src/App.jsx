@@ -1669,9 +1669,9 @@ function HowItWorksModal({onClose}){
   return (
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,color:"#F0EDE8",letterSpacing:2,marginBottom:4}}>Comment ça marche</div>
-      <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:22}}>Le système PaceRank en 5 points</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:22}}>Le système PaceRank expliqué</div>
 
-      <Section title="1 · Calcul des points">
+      <Section title="1 · Points de course officielle">
         <P>Ton temps est comparé au temps de référence d'un athlète <span style={{color:"#FFD700",fontWeight:700}}>élite mondial</span> sur la même distance. Plus tu t'en approches, plus tu marques de points.</P>
         <P>Un coefficient <span style={{color:"#F0EDE8",fontWeight:700}}>prestige</span> est associé à chaque épreuve selon sa difficulté : plus la course est longue et exigeante, plus il est élevé (×1.0 sur un 10 km, jusqu'à ×1.5 sur un Ironman ou un Ultra Trail).</P>
         <P>Pour le <span style={{color:"#27AE60",fontWeight:700}}>trail</span> et le <span style={{color:"#9B59B6",fontWeight:700}}>triathlon</span>, le <span style={{color:"#F0EDE8",fontWeight:700}}>dénivelé positif</span> est aussi pris en compte : si tu cours sur une course plus pentue que la référence, ton temps est ajusté à la baisse (bonus) — et inversement (malus) si moins de D+. Compte ≈ 6 sec par mètre d'écart avec la référence.</P>
@@ -1694,7 +1694,29 @@ function HowItWorksModal({onClose}){
         <RefRow label="🔥 Hyrox Relay"          time="45:43" prestige="1.0" color="#E63946"/>
       </Section>
 
-      <Section title="2 · Niveaux par course">
+      <Section title="2 · Calcul des points d'entraînement">
+        <P>Les points d'entraînement sont basés sur la <span style={{color:"#F0EDE8",fontWeight:700}}>charge d'entraînement</span>, une approximation de l'effort que ton corps doit fournir pour récupérer après une activité (concept proche de l'EPOC mesuré par les montres connectées).</P>
+        <div style={{padding:"10px 14px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.2)",borderRadius:10,margin:"10px 0 12px",fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",textAlign:"center",lineHeight:1.5}}>
+          Points = Durée × Intensité<sup style={{fontSize:9}}>1.92</sup> × Coefficient × 0.02
+        </div>
+        <P><span style={{color:"#F0EDE8",fontWeight:700}}>Intensité (RPE 1-10)</span> : déterminée automatiquement à partir de ton allure (course/trail), de ta vitesse moyenne (vélo) ou de ton pace (natation). Plus c'est rapide, plus l'intensité est élevée.</P>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Coefficient par discipline</div>
+        <Bullet emoji="🏃" bold="Course / Trail ">→ ×1.0</Bullet>
+        <Bullet emoji="🚴" bold="Vélo ">→ ×0.75 (moins traumatisant)</Bullet>
+        <Bullet emoji="🏊" bold="Natation ">→ ×1.15 (coût énergétique élevé)</Bullet>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Bonus dénivelé (Trail et Vélo)</div>
+        <Bullet emoji="⛰️" bold="Trail ">: chaque 100 m de D+ par km augmente l'intensité</Bullet>
+        <Bullet emoji="🚴" bold="Vélo ">: chaque 1% de pente moyenne augmente l'intensité</Bullet>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Exemples</div>
+        <Bullet emoji="🏃" bold="Footing 10 km en 1h ">→ <span style={{color:"#E63946",fontWeight:700}}>~26 pts</span></Bullet>
+        <Bullet emoji="⚡" bold="10 km tempo en 45 min ">→ <span style={{color:"#E63946",fontWeight:700}}>~38 pts</span></Bullet>
+        <Bullet emoji="⛰️" bold="Trail 15 km / 1h45 / 1000 m D+ ">→ <span style={{color:"#E63946",fontWeight:700}}>~68 pts</span></Bullet>
+        <Bullet emoji="🚴" bold="Vélo 60 km / 2h / 1200 m D+ ">→ <span style={{color:"#E63946",fontWeight:700}}>~91 pts</span></Bullet>
+        <Bullet emoji="🏊" bold="Natation 1 km en 25 min ">→ <span style={{color:"#E63946",fontWeight:700}}>~13 pts</span></Bullet>
+        <P><span style={{color:"#F0EDE8",fontWeight:700,display:"block",marginTop:14,marginBottom:4}}>Pourquoi les entraînements rapportent moins que les courses ?</span>PaceRank valorise la compétition. Une course officielle peut rapporter <span style={{color:"#FFD700",fontWeight:700}}>5 à 10 fois plus</span> qu'un entraînement équivalent. L'entraînement régulier reste essentiel pour progresser et accumuler des points sur l'année, mais les courses restent les moments forts du classement.</P>
+      </Section>
+
+      <Section title="3 · Niveaux par course">
         <P>Chaque course te donne un niveau selon les points obtenus sur cette course-là. Plus tu approches du temps élite, plus le niveau monte.</P>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
           {LEVELS.map(l=>(
@@ -1706,7 +1728,7 @@ function HowItWorksModal({onClose}){
         </div>
       </Section>
 
-      <Section title="3 · Statut saison">
+      <Section title="4 · Statut saison">
         <P>Tes points de la saison (courses + entraînements + bonus) te placent sur une échelle de 9 paliers, du <span style={{color:"#27AE60",fontWeight:700}}>Débutant</span> à l'<span style={{color:"#FF1493",fontWeight:700}}>UltraStar</span>. Ton statut s'affiche à côté de tes points sur ta carte de profil.</P>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:10}}>
           {[
@@ -1728,7 +1750,7 @@ function HowItWorksModal({onClose}){
         </div>
       </Section>
 
-      <Section title="4 · Points bonus">
+      <Section title="5 · Points bonus">
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:8}}>Courses</div>
         <Bullet emoji="🏆" bold="Record personnel battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
         <Bullet emoji="🥇" bold="Top 3 de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+300 pts</span></Bullet>
@@ -1740,12 +1762,12 @@ function HowItWorksModal({onClose}){
         <Bullet emoji="📏" bold="100 km parcourus dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
       </Section>
 
-      <Section title="5 · Le Streak">
+      <Section title="6 · Le Streak">
         <P>Le streak compte le nombre de <span style={{color:"#F0EDE8",fontWeight:700}}>semaines consécutives</span> avec au moins une activité enregistrée (course ou entraînement).</P>
         <P>Tant que tu fais bouger la machine au moins une fois par semaine, ton streak grimpe. Si tu rates une semaine entière, il repart à zéro.</P>
       </Section>
 
-      <Section title="6 · Les Ligues">
+      <Section title="7 · Les Ligues">
         <P>Chaque semaine, tu affrontes <span style={{color:"#F0EDE8",fontWeight:700}}>20 athlètes</span> de ton niveau dans une ligue. Le classement est basé uniquement sur tes <span style={{color:"#F0EDE8",fontWeight:700}}>points d'entraînement de la semaine</span> (les courses officielles ne comptent pas).</P>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginTop:10,marginBottom:10}}>
           {[
@@ -1768,7 +1790,7 @@ function HowItWorksModal({onClose}){
         <P>Les points <span style={{color:"#F0EDE8",fontWeight:700}}>remettent à 0 chaque lundi à 00h</span> : nouvelle semaine, nouveau classement.</P>
       </Section>
 
-      <Section title="7 · Les disciplines">
+      <Section title="8 · Les disciplines">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[
             {icon:"🏃",label:"Course à pied",color:"#4A90D9",desc:"5 km · 10 km · semi · marathon"},
