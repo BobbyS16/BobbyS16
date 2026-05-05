@@ -2109,7 +2109,7 @@ function AddPickerModal({onPickTraining,onPickRace,onClose}){
   );
 }
 
-function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail}){
+function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,iosPushNeeded,onEnableIosPush}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
@@ -2339,6 +2339,16 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       </div>
 
       <PullToRefresh onRefresh={refreshHome} paddingBottom="calc(110px + env(safe-area-inset-bottom))">
+      {iosPushNeeded && (
+        <div style={{background:"linear-gradient(135deg, rgba(99,102,241,0.14), rgba(99,102,241,0.04))",border:"1px solid rgba(99,102,241,0.35)",borderRadius:14,padding:"12px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+          <div style={{fontSize:22,flexShrink:0}}>🔔</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,color:"#A5B4FC"}}>ACTIVE LES NOTIFS</div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.35}}>iOS exige un appui pour finaliser l'abonnement.</div>
+          </div>
+          <button onClick={onEnableIosPush} style={{flexShrink:0,background:"#6366F1",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3}}>Activer</button>
+        </div>
+      )}
       {overtakenBanner && overtakenBanner.overtakes.length > 0 && (() => {
         const top = overtakenBanner.overtakes[0];
         const fp = overtakenBanner.profiles.find(p => p.id === top.friendId);
@@ -5245,6 +5255,7 @@ export default function App(){
   const [celebPaused,setCelebPaused]=useState(false);
   const [overtakenBanner,setOvertakenBanner]=useState(null);
   const [overtakenDetail,setOvertakenDetail]=useState(false);
+  const [iosPushNeeded,setIosPushNeeded]=useState(false);
 
   const enqueueCelebration = useCallback((item) => {
     setCelebQueue(q => {
@@ -5274,6 +5285,39 @@ export default function App(){
       catch(e){console.error("[OneSignal] login échoué",e);}
     });
   },[profile?.id,profile?.onboarding_completed]);
+
+  useEffect(()=>{
+    if(!profile?.id||profile.onboarding_completed!==true) return;
+    if(typeof window==="undefined"||typeof navigator==="undefined") return;
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone=window.navigator.standalone===true||window.matchMedia?.("(display-mode: standalone)").matches===true;
+    if(!isIOS||!isStandalone) return;
+    let cancelled=false;
+    const check=async()=>{
+      try{
+        const reg=await navigator.serviceWorker?.ready;
+        const sub=await reg?.pushManager?.getSubscription();
+        if(!cancelled) setIosPushNeeded(!sub);
+      }catch{ if(!cancelled) setIosPushNeeded(true); }
+    };
+    check();
+    const onFocus=()=>check();
+    window.addEventListener("focus",onFocus);
+    return()=>{cancelled=true;window.removeEventListener("focus",onFocus);};
+  },[profile?.id,profile?.onboarding_completed]);
+
+  const enableIosPush=useCallback(async()=>{
+    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
+    window.OneSignalDeferred.push(async(OneSignal)=>{
+      try{
+        await OneSignal.User.PushSubscription.optIn();
+        const reg=await navigator.serviceWorker?.ready;
+        const sub=await reg?.pushManager?.getSubscription();
+        setIosPushNeeded(!sub);
+        console.log("[OneSignal] optIn OK, sub=",!!sub);
+      }catch(e){console.error("[OneSignal] optIn échoué",e);}
+    });
+  },[]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -5427,7 +5471,7 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} iosPushNeeded={iosPushNeeded} onEnableIosPush={enableIosPush}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id} onActivityChange={refresh}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
