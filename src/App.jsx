@@ -5298,54 +5298,55 @@ export default function App(){
   },[profile?.id,profile?.onboarding_completed]);
 
   const enableIosPush=useCallback(async()=>{
-    setIosPushStatus("1/ click OK");
-    if(typeof window==="undefined"){setIosPushStatus("KO: window undefined");return;}
-    if(!window.OneSignalDeferred){setIosPushStatus("KO: OneSignalDeferred absent");return;}
-    setIosPushStatus("2/ OneSignalDeferred.push…");
-    const withTimeout=(p,ms,label)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(label+" timeout "+ms+"ms")),ms))]);
-    window.OneSignalDeferred.push(async(OneSignal)=>{
-      try{
-        const permNow=OneSignal.Notifications.permission;
-        setIosPushStatus("3/ SDK chargé, perm initiale="+permNow);
-        if(permNow!==true){
-          setIosPushStatus("4/ requestPermission native…");
-          try{ await withTimeout(window.Notification.requestPermission(),8000,"Notification.requestPermission"); }
-          catch(e){ setIosPushStatus("native reqPerm err: "+(e?.message||e)); return; }
-        }
-        setIosPushStatus("5/ Slidedown.promptPush…");
-        let optInOk=false;
-        try{
-          await withTimeout(OneSignal.Slidedown.promptPush({force:true}),5000,"promptPush");
-          optInOk=true;
-        }catch(e){ setIosPushStatus("promptPush err: "+(e?.message||e)+" (fallback optIn)"); }
-        if(!optInOk){
-          try{ await withTimeout(OneSignal.User.PushSubscription.optIn(),5000,"optIn"); optInOk=true; }
-          catch(e){ setIosPushStatus("optIn err: "+(e?.message||e)+" (les 2 ont échoué, bypass natif requis)"); return; }
-        }
-        setIosPushStatus("6/ subscribe ok, attente sub native…");
-        let sub=null;
-        for(let i=0;i<10;i++){
-          await new Promise(r=>setTimeout(r,500));
-          const reg=await navigator.serviceWorker?.ready;
-          sub=await reg?.pushManager?.getSubscription();
-          if(sub) break;
-        }
-        const optedIn=OneSignal.User.PushSubscription.optedIn;
-        const permFinal=OneSignal.Notifications.permission;
-        const subId=OneSignal.User.PushSubscription.id;
-        console.log("[OneSignal] final state",{sub,optedIn,permFinal,subId});
-        if(sub){
-          setIosPushStatus("✅ Sub native créée ! id="+subId);
-          setTimeout(()=>{setIosPushNeeded(false);setIosPushStatus(null);},2500);
-        }else{
-          setIosPushStatus(`❌ sub=null | optedIn=${optedIn} perm=${permFinal} osId=${subId}`);
-        }
-      }catch(e){
-        console.error("[OneSignal] erreur globale",e);
-        setIosPushStatus("Catch global: "+(e?.message||String(e)));
+    setIosPushStatus("1/ click OK, demande permission…");
+    try{
+      if(window.Notification?.permission!=="granted"){
+        const p=await window.Notification.requestPermission();
+        if(p!=="granted"){setIosPushStatus("❌ permission refusée: "+p);return;}
       }
-    });
-  },[]);
+      setIosPushStatus("2/ permission OK, récup VAPID…");
+      const VAPID=window.OneSignal?.config?.vapidPublicKey;
+      if(!VAPID){setIosPushStatus("❌ VAPID introuvable dans OneSignal.config");return;}
+      const urlB64ToUint8Array=(b64)=>{
+        const padding="=".repeat((4-b64.length%4)%4);
+        const base64=(b64+padding).replace(/-/g,"+").replace(/_/g,"/");
+        const raw=atob(base64);
+        const arr=new Uint8Array(raw.length);
+        for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
+        return arr;
+      };
+      setIosPushStatus("3/ pushManager.subscribe natif…");
+      const reg=await navigator.serviceWorker.ready;
+      let sub=await reg.pushManager.getSubscription();
+      if(!sub){
+        sub=await reg.pushManager.subscribe({
+          userVisibleOnly:true,
+          applicationServerKey:urlB64ToUint8Array(VAPID),
+        });
+      }
+      setIosPushStatus("4/ sub native OK, save Supabase…");
+      const json=sub.toJSON();
+      const{error}=await supabase.from("push_subscriptions").upsert({
+        user_id:profile.id,
+        endpoint:json.endpoint,
+        p256dh:json.keys?.p256dh,
+        auth:json.keys?.auth,
+        subscription:json,
+      },{onConflict:"endpoint"});
+      if(error){setIosPushStatus("⚠️ sub OK mais Supabase err: "+error.message+"\nendpoint="+json.endpoint.slice(0,80));return;}
+      setIosPushStatus("5/ Supabase OK, retry OneSignal.login…");
+      try{
+        window.OneSignalDeferred?.push(async(OneSignal)=>{
+          try{ await OneSignal.login(profile.id); }catch{}
+        });
+      }catch{}
+      setIosPushStatus("✅ Tout est OK ! endpoint="+json.endpoint.slice(0,60)+"…");
+      setTimeout(()=>{setIosPushNeeded(false);setIosPushStatus(null);},3500);
+    }catch(e){
+      console.error("[push] bypass err",e);
+      setIosPushStatus("❌ "+(e?.name||"")+": "+(e?.message||String(e)));
+    }
+  },[profile?.id]);
 
   useEffect(() => {
     if (!profile?.id) return;
