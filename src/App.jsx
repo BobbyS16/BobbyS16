@@ -5288,8 +5288,22 @@ export default function App(){
       try{
         const reg=await navigator.serviceWorker?.ready;
         const sub=await reg?.pushManager?.getSubscription();
-        if(!cancelled) setIosPushNeeded(!sub);
-      }catch{ if(!cancelled) setIosPushNeeded(true); }
+        if(cancelled) return;
+        if(!sub){ setIosPushNeeded(true); return; }
+        setIosPushNeeded(false);
+        const json=sub.toJSON();
+        const{data:sessionData}=await supabase.auth.getSession();
+        const accessToken=sessionData?.session?.access_token;
+        if(!accessToken) return;
+        const r=await fetch("/api/onesignal/register-push-subscription",{
+          method:"POST",
+          headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`},
+          body:JSON.stringify({endpoint:json.endpoint,p256dh:json.keys?.p256dh,auth:json.keys?.auth}),
+        });
+        const body=await r.json().catch(()=>({}));
+        if(r.ok) console.log("[push] auto-register OK player_id=",body.player_id);
+        else console.warn("[push] auto-register err",r.status,body);
+      }catch(e){ if(!cancelled) setIosPushNeeded(true); console.warn("[push] check err",e); }
     };
     check();
     const onFocus=()=>check();
