@@ -5284,26 +5284,35 @@ export default function App(){
     const isStandalone=window.navigator.standalone===true||window.matchMedia?.("(display-mode: standalone)").matches===true;
     let cancelled=false;
     if(!isIOS||!isStandalone) return;
+    if(localStorage.getItem("ios_push_registered_v1")==="1"){ setIosPushNeeded(false); return; }
+    setIosPushNeeded(true);
     const check=async()=>{
       try{
+        setIosPushStatus("auto: lecture sub native…");
         const reg=await navigator.serviceWorker?.ready;
         const sub=await reg?.pushManager?.getSubscription();
         if(cancelled) return;
-        if(!sub){ setIosPushNeeded(true); return; }
-        setIosPushNeeded(false);
+        if(!sub){ setIosPushStatus("auto: pas de sub native, tape Activer ci-dessous"); return; }
+        setIosPushStatus("auto: sub trouvée, récup session Supabase…");
         const json=sub.toJSON();
         const{data:sessionData}=await supabase.auth.getSession();
         const accessToken=sessionData?.session?.access_token;
-        if(!accessToken) return;
+        if(!accessToken){ setIosPushStatus("auto: pas de session Supabase (re-login ?)"); return; }
+        setIosPushStatus("auto: POST /api/onesignal/register…");
         const r=await fetch("/api/onesignal/register-push-subscription",{
           method:"POST",
           headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`},
           body:JSON.stringify({endpoint:json.endpoint,p256dh:json.keys?.p256dh,auth:json.keys?.auth}),
         });
         const body=await r.json().catch(()=>({}));
-        if(r.ok) console.log("[push] auto-register OK player_id=",body.player_id);
-        else console.warn("[push] auto-register err",r.status,body);
-      }catch(e){ if(!cancelled) setIosPushNeeded(true); console.warn("[push] check err",e); }
+        if(r.ok){
+          setIosPushStatus("✅ Enregistré chez OneSignal ! player_id="+(body.player_id||"?"));
+          try{ localStorage.setItem("ios_push_registered_v1","1"); }catch{}
+          setTimeout(()=>{ if(!cancelled){ setIosPushNeeded(false); setIosPushStatus(null); } },4000);
+        }else{
+          setIosPushStatus("❌ register err "+r.status+": "+JSON.stringify(body).slice(0,400));
+        }
+      }catch(e){ if(!cancelled){ setIosPushStatus("auto err: "+(e?.message||String(e))); } }
     };
     check();
     const onFocus=()=>check();
