@@ -5320,7 +5320,10 @@ export default function App(){
     return()=>{cancelled=true;window.removeEventListener("focus",onFocus);};
   },[profile?.id,profile?.onboarding_completed]);
 
+  const iosPushBusyRef=useRef(false);
   const enableIosPush=useCallback(async()=>{
+    if(iosPushBusyRef.current){ setIosPushStatus("⏳ requête en cours, patiente…"); return; }
+    iosPushBusyRef.current=true;
     setIosPushStatus("1/ click OK, demande permission…");
     try{
       if(window.Notification?.permission!=="granted"){
@@ -5347,24 +5350,34 @@ export default function App(){
           applicationServerKey:urlB64ToUint8Array(VAPID),
         });
       }
-      setIosPushStatus("4/ sub native OK, register OneSignal…");
+      setIosPushStatus("4/ sub native OK, POST register (max 25s)…");
       const json=sub.toJSON();
       const{data:sessionData}=await supabase.auth.getSession();
       const accessToken=sessionData?.session?.access_token;
       if(!accessToken){setIosPushStatus("❌ pas de session Supabase");return;}
-      const r=await fetch("/api/onesignal/register-push-subscription",{
-        method:"POST",
-        headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`},
-        body:JSON.stringify({endpoint:json.endpoint,p256dh:json.keys?.p256dh,auth:json.keys?.auth}),
-      });
+      const ctl=new AbortController();
+      const tId=setTimeout(()=>ctl.abort(),25000);
+      let r;
+      try{
+        r=await fetch("/api/onesignal/register-push-subscription",{
+          method:"POST",
+          headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`},
+          body:JSON.stringify({endpoint:json.endpoint,p256dh:json.keys?.p256dh,auth:json.keys?.auth}),
+          signal:ctl.signal,
+        });
+      }catch(e){
+        if(e?.name==="AbortError"){ setIosPushStatus("❌ timeout 25s — retape Activer (cold start Vercel)"); return; }
+        throw e;
+      }finally{ clearTimeout(tId); }
       const body=await r.json().catch(()=>({}));
-      if(!r.ok){setIosPushStatus("❌ register err "+r.status+": "+JSON.stringify(body).slice(0,300));return;}
+      if(!r.ok){setIosPushStatus("❌ register err "+r.status+": "+JSON.stringify(body).slice(0,400));return;}
       setIosPushStatus("✅ Sub enregistrée ! player_id="+(body.player_id||"?"));
+      try{ localStorage.setItem("ios_push_registered_v1","1"); }catch{}
       setTimeout(()=>{setIosPushNeeded(false);setIosPushStatus(null);},3500);
     }catch(e){
       console.error("[push] bypass err",e);
       setIosPushStatus("❌ "+(e?.name||"")+": "+(e?.message||String(e)));
-    }
+    }finally{ iosPushBusyRef.current=false; }
   },[profile?.id]);
 
   useEffect(() => {
