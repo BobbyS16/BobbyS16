@@ -5330,7 +5330,6 @@ export default function App(){
         user_id:profile.id,
         endpoint:json.endpoint,
         p256dh:json.keys?.p256dh,
-        auth:json.keys?.auth,
         subscription:json,
       },{onConflict:"endpoint"});
       if(error){setIosPushStatus("⚠️ sub OK mais Supabase err: "+error.message+"\nendpoint="+json.endpoint.slice(0,80));return;}
