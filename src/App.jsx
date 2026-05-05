@@ -5246,6 +5246,7 @@ export default function App(){
   const [overtakenBanner,setOvertakenBanner]=useState(null);
   const [overtakenDetail,setOvertakenDetail]=useState(false);
   const [iosPushNeeded,setIosPushNeeded]=useState(false);
+  const [iosPushStatus,setIosPushStatus]=useState(null); // null | "loading" | string (erreur)
 
   const enqueueCelebration = useCallback((item) => {
     setCelebQueue(q => {
@@ -5298,14 +5299,28 @@ export default function App(){
 
   const enableIosPush=useCallback(async()=>{
     if(typeof window==="undefined"||!window.OneSignalDeferred) return;
+    setIosPushStatus("loading");
     window.OneSignalDeferred.push(async(OneSignal)=>{
       try{
+        try{ await OneSignal.User.PushSubscription.optOut(); }catch{}
+        try{ await OneSignal.Notifications.requestPermission(); }catch{}
         await OneSignal.User.PushSubscription.optIn();
+        await new Promise(r=>setTimeout(r,800));
         const reg=await navigator.serviceWorker?.ready;
         const sub=await reg?.pushManager?.getSubscription();
-        setIosPushNeeded(!sub);
-        console.log("[OneSignal] optIn OK, sub=",!!sub);
-      }catch(e){console.error("[OneSignal] optIn échoué",e);}
+        console.log("[OneSignal] optIn done, sub=",sub);
+        if(sub){
+          setIosPushNeeded(false);
+          setIosPushStatus(null);
+        }else{
+          const optedIn=OneSignal.User.PushSubscription.optedIn;
+          const perm=OneSignal.Notifications.permission;
+          setIosPushStatus(`Échec : optedIn=${optedIn} perm=${perm} sub=null`);
+        }
+      }catch(e){
+        console.error("[OneSignal] optIn échoué",e);
+        setIosPushStatus("Erreur : "+(e?.message||String(e)));
+      }
     });
   },[]);
 
@@ -5479,8 +5494,11 @@ export default function App(){
             <div style={{fontSize:48,marginBottom:12}}>🔔</div>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:8}}>ACTIVE LES NOTIFS</div>
             <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45,marginBottom:20}}>iOS exige un appui explicite pour finaliser ton abonnement aux notifications push.</div>
-            <button type="button" onClick={enableIosPush} style={{width:"100%",background:"#6366F1",border:"none",borderRadius:12,padding:"14px 20px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:"pointer",letterSpacing:0.5,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}>Activer maintenant</button>
-            <button type="button" onClick={()=>setIosPushNeeded(false)} style={{marginTop:10,background:"transparent",border:"none",color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer",padding:"6px 12px",touchAction:"manipulation"}}>Plus tard</button>
+            <button type="button" disabled={iosPushStatus==="loading"} onClick={enableIosPush} style={{width:"100%",background:iosPushStatus==="loading"?"#4B4F75":"#6366F1",border:"none",borderRadius:12,padding:"14px 20px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:iosPushStatus==="loading"?"wait":"pointer",letterSpacing:0.5,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}>{iosPushStatus==="loading"?"Activation…":"Activer maintenant"}</button>
+            {iosPushStatus && iosPushStatus!=="loading" && (
+              <div style={{marginTop:12,padding:"8px 10px",background:"rgba(230,57,70,0.12)",border:"1px solid rgba(230,57,70,0.35)",borderRadius:8,fontSize:11,color:"#FCA5A5",fontFamily:"'Barlow',sans-serif",lineHeight:1.4,wordBreak:"break-word"}}>{iosPushStatus}</div>
+            )}
+            <button type="button" onClick={()=>{setIosPushNeeded(false);setIosPushStatus(null);}} style={{marginTop:10,background:"transparent",border:"none",color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer",padding:"6px 12px",touchAction:"manipulation"}}>Plus tard</button>
           </div>
         </div>
       )}
