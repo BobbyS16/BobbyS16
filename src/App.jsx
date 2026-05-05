@@ -5282,14 +5282,30 @@ export default function App(){
     if(typeof window==="undefined"||typeof navigator==="undefined") return;
     const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
     const isStandalone=window.navigator.standalone===true||window.matchMedia?.("(display-mode: standalone)").matches===true;
-    if(!isIOS||!isStandalone) return;
     let cancelled=false;
     const check=async()=>{
       try{
         const reg=await navigator.serviceWorker?.ready;
         const sub=await reg?.pushManager?.getSubscription();
-        if(!cancelled) setIosPushNeeded(!sub);
-      }catch{ if(!cancelled) setIosPushNeeded(true); }
+        if(cancelled) return;
+        if(sub){
+          const json=sub.toJSON();
+          supabase.from("push_subscriptions").upsert({
+            user_id:profile.id,
+            endpoint:json.endpoint,
+            p256dh:json.keys?.p256dh,
+            subscription:json,
+          },{onConflict:"endpoint"}).then(({error})=>{
+            if(error) console.error("[push] sync supabase err",error);
+            else console.log("[push] sub native syncée Supabase");
+          });
+          if(isIOS&&isStandalone) setIosPushNeeded(false);
+        }else if(isIOS&&isStandalone){
+          setIosPushNeeded(true);
+        }
+      }catch(e){
+        if(!cancelled&&isIOS&&isStandalone) setIosPushNeeded(true);
+      }
     };
     check();
     const onFocus=()=>check();
