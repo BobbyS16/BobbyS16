@@ -5302,19 +5302,24 @@ export default function App(){
     if(typeof window==="undefined"){setIosPushStatus("KO: window undefined");return;}
     if(!window.OneSignalDeferred){setIosPushStatus("KO: OneSignalDeferred absent");return;}
     setIosPushStatus("2/ OneSignalDeferred.push…");
+    const withTimeout=(p,ms,label)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(label+" timeout "+ms+"ms")),ms))]);
     window.OneSignalDeferred.push(async(OneSignal)=>{
       try{
-        setIosPushStatus("3/ SDK chargé, optOut…");
-        try{ await OneSignal.User.PushSubscription.optOut(); }catch(e){ setIosPushStatus("optOut err: "+(e?.message||e)); }
-        setIosPushStatus("4/ requestPermission…");
+        setIosPushStatus("3/ SDK chargé, requestPermission…");
         let perm=null;
-        try{ perm=await OneSignal.Notifications.requestPermission(); }catch(e){ setIosPushStatus("reqPerm err: "+(e?.message||e)); return; }
-        setIosPushStatus("5/ requestPerm="+perm+", optIn…");
-        try{ await OneSignal.User.PushSubscription.optIn(); }catch(e){ setIosPushStatus("optIn err: "+(e?.message||e)); return; }
-        setIosPushStatus("6/ optIn ok, attente 1s…");
-        await new Promise(r=>setTimeout(r,1000));
-        const reg=await navigator.serviceWorker?.ready;
-        const sub=await reg?.pushManager?.getSubscription();
+        try{ perm=await withTimeout(OneSignal.Notifications.requestPermission(),5000,"requestPermission"); }
+        catch(e){ setIosPushStatus("reqPerm err: "+(e?.message||e)); return; }
+        setIosPushStatus("4/ perm="+perm+", optIn…");
+        try{ await withTimeout(OneSignal.User.PushSubscription.optIn(),5000,"optIn"); }
+        catch(e){ setIosPushStatus("optIn err: "+(e?.message||e)); return; }
+        setIosPushStatus("5/ optIn ok, attente sub native…");
+        let sub=null;
+        for(let i=0;i<10;i++){
+          await new Promise(r=>setTimeout(r,500));
+          const reg=await navigator.serviceWorker?.ready;
+          sub=await reg?.pushManager?.getSubscription();
+          if(sub) break;
+        }
         const optedIn=OneSignal.User.PushSubscription.optedIn;
         const permFinal=OneSignal.Notifications.permission;
         const subId=OneSignal.User.PushSubscription.id;
