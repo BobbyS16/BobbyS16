@@ -2109,7 +2109,7 @@ function AddPickerModal({onPickTraining,onPickRace,onClose}){
   );
 }
 
-function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,iosPushNeeded,onEnableIosPush}){
+function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
@@ -2339,16 +2339,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       </div>
 
       <PullToRefresh onRefresh={refreshHome} paddingBottom="calc(110px + env(safe-area-inset-bottom))">
-      {iosPushNeeded && (
-        <div style={{background:"linear-gradient(135deg, rgba(99,102,241,0.14), rgba(99,102,241,0.04))",border:"1px solid rgba(99,102,241,0.35)",borderRadius:14,padding:"12px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
-          <div style={{fontSize:22,flexShrink:0}}>🔔</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,color:"#A5B4FC"}}>ACTIVE LES NOTIFS</div>
-            <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.35}}>iOS exige un appui pour finaliser l'abonnement.</div>
-          </div>
-          <button onClick={onEnableIosPush} style={{flexShrink:0,background:"#6366F1",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3}}>Activer</button>
-        </div>
-      )}
       {overtakenBanner && overtakenBanner.overtakes.length > 0 && (() => {
         const top = overtakenBanner.overtakes[0];
         const fp = overtakenBanner.profiles.find(p => p.id === top.friendId);
@@ -5471,7 +5461,7 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} iosPushNeeded={iosPushNeeded} onEnableIosPush={enableIosPush}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id} onActivityChange={refresh}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
@@ -5483,6 +5473,17 @@ export default function App(){
       <CelebrationQueueRenderer queue={celebQueue} paused={celebPaused} onClose={closeCurrentCelebration} onViewRanking={()=>setTab("ranking")}/>
       {overtakenDetail && overtakenBanner && <OvertakenDetailModal overtakes={overtakenBanner.overtakes} profiles={overtakenBanner.profiles} onClose={()=>setOvertakenDetail(false)} onAddActivity={()=>{setOvertakenDetail(false);setAddMode("training");}}/>}
       <InstallPrompt/>
+      {iosPushNeeded && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.78)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px",backdropFilter:"blur(6px)",WebkitBackdropFilter:"blur(6px)"}}>
+          <div style={{background:"#1a1a1a",border:"1px solid rgba(99,102,241,0.4)",borderRadius:18,padding:"24px 22px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(99,102,241,0.25)"}}>
+            <div style={{fontSize:48,marginBottom:12}}>🔔</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:8}}>ACTIVE LES NOTIFS</div>
+            <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45,marginBottom:20}}>iOS exige un appui explicite pour finaliser ton abonnement aux notifications push.</div>
+            <button type="button" onClick={enableIosPush} style={{width:"100%",background:"#6366F1",border:"none",borderRadius:12,padding:"14px 20px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:"pointer",letterSpacing:0.5,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}>Activer maintenant</button>
+            <button type="button" onClick={()=>setIosPushNeeded(false)} style={{marginTop:10,background:"transparent",border:"none",color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer",padding:"6px 12px",touchAction:"manipulation"}}>Plus tard</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
