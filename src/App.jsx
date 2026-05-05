@@ -5305,14 +5305,17 @@ export default function App(){
     const withTimeout=(p,ms,label)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(label+" timeout "+ms+"ms")),ms))]);
     window.OneSignalDeferred.push(async(OneSignal)=>{
       try{
-        setIosPushStatus("3/ SDK chargé, requestPermission…");
-        let perm=null;
-        try{ perm=await withTimeout(OneSignal.Notifications.requestPermission(),5000,"requestPermission"); }
-        catch(e){ setIosPushStatus("reqPerm err: "+(e?.message||e)); return; }
-        setIosPushStatus("4/ perm="+perm+", optIn…");
+        const permNow=OneSignal.Notifications.permission;
+        setIosPushStatus("3/ SDK chargé, perm initiale="+permNow);
+        if(permNow!==true){
+          setIosPushStatus("4/ requestPermission native…");
+          try{ await withTimeout(window.Notification.requestPermission(),8000,"Notification.requestPermission"); }
+          catch(e){ setIosPushStatus("native reqPerm err: "+(e?.message||e)); return; }
+        }
+        setIosPushStatus("5/ optIn…");
         try{ await withTimeout(OneSignal.User.PushSubscription.optIn(),5000,"optIn"); }
         catch(e){ setIosPushStatus("optIn err: "+(e?.message||e)); return; }
-        setIosPushStatus("5/ optIn ok, attente sub native…");
+        setIosPushStatus("6/ optIn ok, attente sub native…");
         let sub=null;
         for(let i=0;i<10;i++){
           await new Promise(r=>setTimeout(r,500));
