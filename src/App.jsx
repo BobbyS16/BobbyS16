@@ -5283,29 +5283,13 @@ export default function App(){
     const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
     const isStandalone=window.navigator.standalone===true||window.matchMedia?.("(display-mode: standalone)").matches===true;
     let cancelled=false;
+    if(!isIOS||!isStandalone) return;
     const check=async()=>{
       try{
         const reg=await navigator.serviceWorker?.ready;
         const sub=await reg?.pushManager?.getSubscription();
-        if(cancelled) return;
-        if(sub){
-          const json=sub.toJSON();
-          supabase.from("push_subscriptions").upsert({
-            user_id:profile.id,
-            endpoint:json.endpoint,
-            p256dh:json.keys?.p256dh,
-            subscription:json,
-          },{onConflict:"endpoint"}).then(({error})=>{
-            if(error) console.error("[push] sync supabase err",error);
-            else console.log("[push] sub native syncée Supabase");
-          });
-          if(isIOS&&isStandalone) setIosPushNeeded(false);
-        }else if(isIOS&&isStandalone){
-          setIosPushNeeded(true);
-        }
-      }catch(e){
-        if(!cancelled&&isIOS&&isStandalone) setIosPushNeeded(true);
-      }
+        if(!cancelled) setIosPushNeeded(!sub);
+      }catch{ if(!cancelled) setIosPushNeeded(true); }
     };
     check();
     const onFocus=()=>check();
@@ -5340,22 +5324,19 @@ export default function App(){
           applicationServerKey:urlB64ToUint8Array(VAPID),
         });
       }
-      setIosPushStatus("4/ sub native OK, save Supabase…");
+      setIosPushStatus("4/ sub native OK, register OneSignal…");
       const json=sub.toJSON();
-      const{error}=await supabase.from("push_subscriptions").upsert({
-        user_id:profile.id,
-        endpoint:json.endpoint,
-        p256dh:json.keys?.p256dh,
-        subscription:json,
-      },{onConflict:"endpoint"});
-      if(error){setIosPushStatus("⚠️ sub OK mais Supabase err: "+error.message+"\nendpoint="+json.endpoint.slice(0,80));return;}
-      setIosPushStatus("5/ Supabase OK, retry OneSignal.login…");
-      try{
-        window.OneSignalDeferred?.push(async(OneSignal)=>{
-          try{ await OneSignal.login(profile.id); }catch{}
-        });
-      }catch{}
-      setIosPushStatus("✅ Tout est OK ! endpoint="+json.endpoint.slice(0,60)+"…");
+      const{data:sessionData}=await supabase.auth.getSession();
+      const accessToken=sessionData?.session?.access_token;
+      if(!accessToken){setIosPushStatus("❌ pas de session Supabase");return;}
+      const r=await fetch("/api/onesignal/register-push-subscription",{
+        method:"POST",
+        headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`},
+        body:JSON.stringify({endpoint:json.endpoint,p256dh:json.keys?.p256dh,auth:json.keys?.auth}),
+      });
+      const body=await r.json().catch(()=>({}));
+      if(!r.ok){setIosPushStatus("❌ register err "+r.status+": "+JSON.stringify(body).slice(0,300));return;}
+      setIosPushStatus("✅ Sub enregistrée ! player_id="+(body.player_id||"?"));
       setTimeout(()=>{setIosPushNeeded(false);setIosPushStatus(null);},3500);
     }catch(e){
       console.error("[push] bypass err",e);
