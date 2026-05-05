@@ -5518,8 +5518,29 @@ export default function App(){
             <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:8}}>ACTIVE LES NOTIFS</div>
             <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45,marginBottom:20}}>iOS exige un appui explicite pour finaliser ton abonnement aux notifications push.</div>
             <button type="button" onClick={enableIosPush} style={{width:"100%",background:"#6366F1",border:"none",borderRadius:12,padding:"14px 20px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:"pointer",letterSpacing:0.5,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}>Activer maintenant</button>
+            <button type="button" onClick={()=>{
+              const OS=window.OneSignal;
+              const paths=[
+                ["OneSignal.config?.vapidPublicKey",OS?.config?.vapidPublicKey],
+                ["OneSignal.config?.userConfig?.vapidPublicKey",OS?.config?.userConfig?.vapidPublicKey],
+                ["OneSignal.context?.appConfig?.vapidPublicKey",OS?.context?.appConfig?.vapidPublicKey],
+                ["OneSignal._config?.vapidPublicKey",OS?._config?.vapidPublicKey],
+                ["OneSignal.coreManager?.appConfig?.vapidPublicKey",OS?.coreManager?.appConfig?.vapidPublicKey],
+                ["OneSignal._coreManager?.appConfig?.vapidPublicKey",OS?._coreManager?.appConfig?.vapidPublicKey],
+                ["OneSignal.appConfig?.vapidPublicKey",OS?.appConfig?.vapidPublicKey],
+              ];
+              const found=paths.find(([_,v])=>typeof v==="string"&&v.length>20);
+              if(found){ setIosPushStatus("VAPID trouvée @ "+found[0]+"\n\n"+found[1]); return; }
+              fetch(`https://onesignal.com/api/v1/sync/35485edf-128a-4346-b6f6-a21a84645f47/web`)
+                .then(r=>r.json())
+                .then(j=>{
+                  const k=j?.vapid_public_key||j?.config?.vapid_public_key||JSON.stringify(j).match(/[A-Za-z0-9_-]{80,90}/)?.[0];
+                  setIosPushStatus(k?("VAPID via API:\n\n"+k):("API ne renvoie pas la clé. Réponse:\n"+JSON.stringify(j).slice(0,300)));
+                })
+                .catch(e=>setIosPushStatus("Aucune clé trouvée. Paths testés:\n"+paths.map(([p,v])=>p+"="+(v?"OK":"undef")).join("\n")+"\nfetch err: "+e.message));
+            }} style={{marginTop:8,width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:10,padding:"10px 14px",color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,cursor:"pointer",touchAction:"manipulation"}}>🔍 Récupérer la VAPID key</button>
             {iosPushStatus && (
-              <div style={{marginTop:12,padding:"8px 10px",background:"rgba(99,102,241,0.12)",border:"1px solid rgba(99,102,241,0.35)",borderRadius:8,fontSize:11,color:"#A5B4FC",fontFamily:"'Barlow',sans-serif",lineHeight:1.4,wordBreak:"break-word",textAlign:"left"}}>{iosPushStatus}</div>
+              <div style={{marginTop:12,padding:"8px 10px",background:"rgba(99,102,241,0.12)",border:"1px solid rgba(99,102,241,0.35)",borderRadius:8,fontSize:11,color:"#A5B4FC",fontFamily:"'Barlow',sans-serif",lineHeight:1.4,wordBreak:"break-all",textAlign:"left",whiteSpace:"pre-wrap",userSelect:"text",WebkitUserSelect:"text",maxHeight:200,overflowY:"auto"}}>{iosPushStatus}</div>
             )}
             <button type="button" onClick={()=>{setIosPushNeeded(false);setIosPushStatus(null);}} style={{marginTop:10,background:"transparent",border:"none",color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer",padding:"6px 12px",touchAction:"manipulation"}}>Plus tard</button>
           </div>
