@@ -5312,10 +5312,17 @@ export default function App(){
           try{ await withTimeout(window.Notification.requestPermission(),8000,"Notification.requestPermission"); }
           catch(e){ setIosPushStatus("native reqPerm err: "+(e?.message||e)); return; }
         }
-        setIosPushStatus("5/ optIn…");
-        try{ await withTimeout(OneSignal.User.PushSubscription.optIn(),5000,"optIn"); }
-        catch(e){ setIosPushStatus("optIn err: "+(e?.message||e)); return; }
-        setIosPushStatus("6/ optIn ok, attente sub native…");
+        setIosPushStatus("5/ Slidedown.promptPush…");
+        let optInOk=false;
+        try{
+          await withTimeout(OneSignal.Slidedown.promptPush({force:true}),5000,"promptPush");
+          optInOk=true;
+        }catch(e){ setIosPushStatus("promptPush err: "+(e?.message||e)+" (fallback optIn)"); }
+        if(!optInOk){
+          try{ await withTimeout(OneSignal.User.PushSubscription.optIn(),5000,"optIn"); optInOk=true; }
+          catch(e){ setIosPushStatus("optIn err: "+(e?.message||e)+" (les 2 ont échoué, bypass natif requis)"); return; }
+        }
+        setIosPushStatus("6/ subscribe ok, attente sub native…");
         let sub=null;
         for(let i=0;i<10;i++){
           await new Promise(r=>setTimeout(r,500));
