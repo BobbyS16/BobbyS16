@@ -1,122 +1,333 @@
-Privacy Policy
-Last updated: May 5, 2026
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — PaceRank</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a1a;
+      --muted: #555;
+      --accent: #2563eb;
+      --border: #e5e7eb;
+      --code-bg: #f5f5f7;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0e0e0e;
+        --fg: #f0ede8;
+        --muted: #a1a1aa;
+        --accent: #60a5fa;
+        --border: #27272a;
+        --code-bg: #18181b;
+      }
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+    }
+    main {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+    h1 {
+      font-size: 2rem;
+      margin: 0 0 0.25em;
+    }
+    h2 {
+      color: var(--accent);
+      margin-top: 2.2em;
+      margin-bottom: 0.5em;
+      font-size: 1.35rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.3em;
+    }
+    h3 {
+      margin-top: 1.5em;
+      margin-bottom: 0.3em;
+      font-size: 1.05rem;
+    }
+    p, ul {
+      margin: 0.6em 0;
+    }
+    ul {
+      padding-left: 1.4em;
+    }
+    li {
+      margin: 0.25em 0;
+    }
+    a {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    a:hover {
+      text-decoration: none;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 2em;
+    }
+    .back {
+      display: inline-block;
+      margin-top: 3em;
+      padding: 10px 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--fg);
+      font-weight: 600;
+    }
+    .back:hover {
+      background: var(--code-bg);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Privacy Policy</h1>
+    <p class="meta">Last updated: May 5, 2026</p>
 
-1. Introduction
+    <h2>1. Introduction</h2>
+    <p>
+      PaceRank ("we", "our", or "us") respects your privacy and is committed to protecting your
+      personal data. This Privacy Policy explains how we collect, use, store, and share your
+      information when you use our application available at
+      <a href="https://pacerank.app">https://pacerank.app</a>.
+    </p>
 
-PaceRank ("we", "our", or "us") respects your privacy and is committed to protecting your personal data. This Privacy Policy explains how we collect, use, store, and share your information when you use our application available at pacerank.app.
+    <h2>2. Data Controller</h2>
+    <ul>
+      <li><strong>Philippe Sallenave</strong>, founder of PaceRank</li>
+      <li>Email:
+        <a href="mailto:philippe.sallenave@pacerank.app">philippe.sallenave@pacerank.app</a>
+      </li>
+    </ul>
 
-2. Data Controller
+    <h2>3. Data We Collect</h2>
+    <p>When you create a PaceRank account, we collect:</p>
+    <h3>Account information</h3>
+    <ul>
+      <li>Name, email address, profile photo, age, city (via Google OAuth or manual entry)</li>
+    </ul>
+    <h3>Sports activity data</h3>
+    <ul>
+      <li>
+        Activities you log manually or import from connected services (Strava, Garmin Connect),
+        including distance, duration, pace, discipline, elevation, heart rate, and date
+      </li>
+    </ul>
+    <h3>Social data</h3>
+    <ul>
+      <li>Friend connections within the app</li>
+    </ul>
+    <h3>Technical data</h3>
+    <ul>
+      <li>Log data, IP address, browser type, used for security and debugging purposes</li>
+    </ul>
 
-Philippe Sallenave, founder of PaceRank
-Email: philippe.sallenave@pacerank.app
+    <h2>4. How We Use Your Data</h2>
+    <p>We use your data to:</p>
+    <ul>
+      <li>Provide the core service: rankings, leaderboards, performance points calculation</li>
+      <li>Allow you to compare and connect with friends</li>
+      <li>Authenticate you securely (via Google OAuth)</li>
+      <li>Improve the app and fix bugs</li>
+    </ul>
+    <p>
+      <strong>We do not sell your personal data, and we do not use it for advertising
+      purposes.</strong>
+    </p>
 
-3. Data We Collect
+    <h2>5. Third-Party Services Overview</h2>
+    <p>PaceRank uses the following trusted third-party services:</p>
+    <ul>
+      <li><strong>Supabase</strong> — database hosting and authentication (data stored in the European Union)</li>
+      <li><strong>Vercel</strong> — application hosting</li>
+      <li><strong>Google OAuth</strong> — sign-in service</li>
+      <li>
+        <strong>Garmin Connect API</strong> (optional) — to import activity data from your Garmin
+        account, with your explicit consent. See section 6 for details.
+      </li>
+      <li>
+        <strong>Strava API</strong> (optional) — to import activity data from your Strava account,
+        with your explicit consent. See section 7 for details.
+      </li>
+    </ul>
 
-When you create a PaceRank account, we collect:
+    <h2>6. Data from Garmin Connect</h2>
+    <p>
+      PaceRank offers an optional integration with Garmin Connect to allow you to automatically
+      import your sports activities. This integration is <strong>strictly opt-in</strong> and
+      requires your explicit authorization through Garmin's official OAuth consent flow.
+    </p>
 
-Account information: name, email address, profile photo, age, city (via Google OAuth or manual entry).
-Sports activity data: activities you log manually or import from connected services (Strava, Garmin Connect), including distance, duration, pace, discipline, elevation, heart rate, and date.
-Social data: friend connections within the app.
-Technical data: log data, IP address, browser type, used for security and debugging purposes.
-4. How We Use Your Data
+    <h3>6.1 What data we access</h3>
+    <p>
+      When you authorize the integration, PaceRank requests <strong>read-only</strong> access to
+      the following activity data from your Garmin Connect account:
+    </p>
+    <ul>
+      <li>Activity type (running, cycling, swimming, trail running, triathlon, etc.)</li>
+      <li>Activity date and time</li>
+      <li>Duration</li>
+      <li>Distance</li>
+      <li>Average pace and speed</li>
+      <li>Elevation gain</li>
+      <li>Average and maximum heart rate (if available)</li>
+    </ul>
+    <p>
+      <strong>PaceRank does not access your GPS routes</strong>, personal health metrics (weight,
+      sleep, stress, etc.), or any data unrelated to sports activity performance.
+    </p>
 
-We use your data to:
+    <h3>6.2 How we use this data</h3>
+    <p>Garmin activity data is used exclusively to:</p>
+    <ul>
+      <li>Compute your PaceRank performance points</li>
+      <li>Display your activities on your profile and on leaderboards</li>
+      <li>Enable performance comparison between friends</li>
+    </ul>
+    <p>
+      Garmin data is <strong>never sold, shared with advertisers, or used for any purpose outside
+      of the PaceRank service</strong>.
+    </p>
 
-Provide the core service: rankings, leaderboards, performance points calculation.
-Allow you to compare and connect with friends.
-Authenticate you securely (via Google OAuth).
-Improve the app and fix bugs.
-We do not sell your personal data, and we do not use it for advertising purposes.
+    <h3>6.3 How this data is stored</h3>
+    <p>
+      Imported Garmin activity data is stored on our secure Supabase database located in the
+      European Union, with Row-Level Security policies ensuring that only you can access your own
+      data. Original data ownership remains with Garmin and with you as the user; PaceRank only
+      stores a derived copy needed to provide the service.
+    </p>
 
-5. Third-Party Services Overview
+    <h3>6.4 How to revoke access</h3>
+    <p>You can revoke PaceRank's access to your Garmin Connect account at any time by visiting:</p>
+    <ul>
+      <li>
+        <a href="https://connect.garmin.com/modern/settings/account-information" target="_blank" rel="noopener">
+          connect.garmin.com → Settings → Account Information → Connected Apps
+        </a>
+      </li>
+    </ul>
+    <p>
+      Once access is revoked, PaceRank will no longer import new activities from Garmin. You can
+      also request the deletion of previously imported Garmin data by contacting us at
+      <a href="mailto:philippe.sallenave@pacerank.app">philippe.sallenave@pacerank.app</a>.
+    </p>
 
-PaceRank uses the following trusted third-party services:
+    <h3>6.5 Garmin's terms apply</h3>
+    <p>
+      Use of Garmin Connect data within PaceRank is also governed by Garmin's own terms and
+      privacy policy:
+    </p>
+    <ul>
+      <li>
+        <a href="https://www.garmin.com/en-US/privacy/connect/" target="_blank" rel="noopener">
+          Garmin Connect Privacy Policy
+        </a>
+      </li>
+      <li>
+        <a href="https://www.garmin.com/en-US/legal/terms-of-use" target="_blank" rel="noopener">
+          Garmin Terms of Use
+        </a>
+      </li>
+    </ul>
 
-Supabase — database hosting and authentication (data stored in the European Union).
-Vercel — application hosting.
-Google OAuth — sign-in service.
-Garmin Connect API (optional) — to import activity data from your Garmin account, with your explicit consent. See section 6 for details.
-Strava API (optional) — to import activity data from your Strava account, with your explicit consent. See section 7 for details.
-6. Data from Garmin Connect
+    <h2>7. Data from Strava</h2>
+    <p>
+      PaceRank offers an optional integration with Strava under the same principles as Garmin
+      Connect: <strong>opt-in, read-only access, used solely for the PaceRank service</strong>.
+    </p>
+    <p>
+      Imported Strava data includes activity type, date, duration, distance, pace, elevation, and
+      heart rate (if available). You can revoke PaceRank's access at any time from your Strava
+      account settings:
+    </p>
+    <ul>
+      <li>
+        <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener">
+          strava.com/settings/apps
+        </a>
+      </li>
+    </ul>
+    <p>Use of Strava data is also governed by Strava's own policies:</p>
+    <ul>
+      <li>
+        <a href="https://www.strava.com/legal/privacy" target="_blank" rel="noopener">
+          Strava Privacy Policy
+        </a>
+      </li>
+      <li>
+        <a href="https://www.strava.com/legal/terms" target="_blank" rel="noopener">
+          Strava Terms of Service
+        </a>
+      </li>
+    </ul>
 
-PaceRank offers an optional integration with Garmin Connect to allow you to automatically import your sports activities. This integration is strictly opt-in and requires your explicit authorization through Garmin's official OAuth consent flow.
+    <h2>8. Data Storage and Security</h2>
+    <p>
+      Your data is stored on Supabase servers located in the European Union. We apply
+      industry-standard security measures including:
+    </p>
+    <ul>
+      <li>Encrypted connections (HTTPS / TLS)</li>
+      <li>Row-Level Security (RLS) policies on the database</li>
+      <li>Authenticated API access</li>
+      <li>Secure OAuth token storage for third-party integrations</li>
+    </ul>
 
-6.1 What data we access
+    <h2>9. Your Rights (GDPR)</h2>
+    <p>If you are based in the European Economic Area, you have the right to:</p>
+    <ul>
+      <li>Access the personal data we hold about you</li>
+      <li>Request correction or deletion of your data</li>
+      <li>Withdraw consent for third-party integrations at any time</li>
+      <li>Export your data in a portable format</li>
+      <li>Lodge a complaint with your local data protection authority</li>
+    </ul>
+    <p>
+      To exercise any of these rights, contact us at:
+      <a href="mailto:philippe.sallenave@pacerank.app">philippe.sallenave@pacerank.app</a>.
+    </p>
 
-When you authorize the integration, PaceRank requests read-only access to the following activity data from your Garmin Connect account:
+    <h2>10. Data Retention</h2>
+    <p>
+      We retain your data as long as your account is active. If you delete your account, all
+      personal data — including data imported from Garmin Connect and Strava — is permanently
+      removed within <strong>30 days</strong>, except where we are legally required to retain
+      certain information.
+    </p>
 
-Activity type (running, cycling, swimming, trail running, triathlon, etc.)
-Activity date and time
-Duration
-Distance
-Average pace and speed
-Elevation gain
-Average and maximum heart rate (if available)
-PaceRank does not access your GPS routes, personal health metrics (weight, sleep, stress, etc.), or any data unrelated to sports activity performance.
+    <h2>11. Cookies</h2>
+    <p>
+      PaceRank uses only essential cookies needed for authentication and session management.
+      <strong>We do not use tracking or advertising cookies.</strong>
+    </p>
 
-6.2 How we use this data
+    <h2>12. Changes to This Policy</h2>
+    <p>
+      We may update this Privacy Policy from time to time. The latest version will always be
+      available at
+      <a href="https://pacerank.app/privacy-policy">https://pacerank.app/privacy-policy</a>.
+      Significant changes will be communicated via email or in-app notification.
+    </p>
 
-Garmin activity data is used exclusively to:
+    <h2>13. Contact</h2>
+    <p>For any question regarding this Privacy Policy or your personal data, contact:</p>
+    <ul>
+      <li>
+        <a href="mailto:philippe.sallenave@pacerank.app">philippe.sallenave@pacerank.app</a>
+      </li>
+    </ul>
 
-Compute your PaceRank performance points.
-Display your activities on your profile and on leaderboards.
-Enable performance comparison between friends.
-Garmin data is never sold, shared with advertisers, or used for any purpose outside of the PaceRank service.
-
-6.3 How this data is stored
-
-Imported Garmin activity data is stored on our secure Supabase database located in the European Union, with Row-Level Security policies ensuring that only you can access your own data. Original data ownership remains with Garmin and with you as the user; PaceRank only stores a derived copy needed to provide the service.
-
-6.4 How to revoke access
-
-You can revoke PaceRank's access to your Garmin Connect account at any time by visiting your Garmin Connect account settings:
-connect.garmin.com → Settings → Account Information → Connected Apps
-Once access is revoked, PaceRank will no longer import new activities from Garmin. You can also request the deletion of previously imported Garmin data by contacting us at philippe.sallenave@pacerank.app.
-
-6.5 Garmin's terms apply
-
-Use of Garmin Connect data within PaceRank is also governed by Garmin's own terms and privacy policy:
-
-Garmin Connect Privacy Policy
-Garmin Terms of Use
-7. Data from Strava
-
-PaceRank offers an optional integration with Strava under the same principles as Garmin Connect: opt-in, read-only access, used solely for the PaceRank service.
-
-Imported Strava data includes activity type, date, duration, distance, pace, elevation, and heart rate (if available). You can revoke PaceRank's access at any time from your Strava account settings: strava.com/settings/apps.
-
-Use of Strava data is also governed by Strava's Privacy Policy and Terms of Service.
-
-8. Data Storage and Security
-
-Your data is stored on Supabase servers located in the European Union. We apply industry-standard security measures including encrypted connections (HTTPS), Row-Level Security (RLS) policies on the database, authenticated API access, and secure OAuth token storage for third-party integrations.
-
-9. Your Rights (GDPR)
-
-If you are based in the European Economic Area, you have the right to:
-
-Access the personal data we hold about you.
-Request correction or deletion of your data.
-Withdraw consent for third-party integrations at any time.
-Export your data in a portable format.
-Lodge a complaint with your local data protection authority.
-To exercise any of these rights, contact us at: philippe.sallenave@pacerank.app.
-
-10. Data Retention
-
-We retain your data as long as your account is active. If you delete your account, all personal data — including data imported from Garmin Connect and Strava — is permanently removed within 30 days, except where we are legally required to retain certain information.
-
-11. Cookies
-
-PaceRank uses only essential cookies needed for authentication and session management. We do not use tracking or advertising cookies.
-
-12. Changes to This Policy
-
-We may update this Privacy Policy from time to time. The latest version will always be available at pacerank.app/privacy-policy. Significant changes will be communicated via email or in-app notification.
-
-13. Contact
-
-For any question regarding this Privacy Policy or your personal data, contact:
-philippe.sallenave@pacerank.app
-
-← Back to PaceRank
+    <a class="back" href="/">← Back to PaceRank</a>
+  </main>
+</body>
+</html>
