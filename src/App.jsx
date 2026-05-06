@@ -3983,7 +3983,7 @@ function BadgesByCategory({badges}){
 }
 
 // ── PROFILE MODAL ─────────────────────────────────────────────────────────────
-function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose,pushOptedIn,onEnablePush,onDisablePush}){
+function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePush,onDisablePush}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
@@ -4312,7 +4312,7 @@ function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose,pushOpted
         {pushOptedIn===true?"🔔 Notifications activées (toucher pour désactiver)":pushOptedIn===false?"🔔 Activer les notifications":"🔔 Notifications"}
       </button>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
-      <button onClick={()=>onShowPrivacy?.()} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🔒 Confidentialité</button>
+      <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{display:"block",width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10,textAlign:"center",textDecoration:"none",boxSizing:"border-box"}}>🔒 Confidentialité</a>
       <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🚪 Se déconnecter</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,marginBottom:14}}>Supprimer mon compte</button>
       <PoweredByStrava/>
@@ -4970,7 +4970,7 @@ function OnboardingTour({profile, results, onComplete, onAddRace}) {
   );
 }
 
-function AuthScreen({onShowPrivacy}){
+function AuthScreen(){
   const signIn=async()=>{await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}});};
   return (
     <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
@@ -4982,170 +4982,7 @@ function AuthScreen({onShowPrivacy}){
       </button>
       <div style={{marginTop:18,fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",textAlign:"center",lineHeight:1.5,maxWidth:320}}>
         En créant un compte, j'accepte la{" "}
-        <button onClick={onShowPrivacy} style={{background:"none",border:"none",padding:0,color:"#E63946",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>Politique de confidentialité</button>
-      </div>
-    </div>
-  );
-}
-
-// ── PRIVACY PAGE ──────────────────────────────────────────────────────────────
-function PrivacyPage({onBack}){
-  useEffect(()=>{
-    const prev=document.body.style.overflow;
-    document.body.style.overflow="auto";
-    return()=>{document.body.style.overflow=prev;};
-  },[]);
-  const H1=({children})=><h1 style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:2,color:"#F0EDE8",margin:"0 0 6px"}}>{children}</h1>;
-  const H2=({children})=><h2 style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1.5,color:"#E63946",margin:"28px 0 10px"}}>{children}</h2>;
-  const H3=({children})=><h3 style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:1.2,color:"#F0EDE8",margin:"18px 0 6px"}}>{children}</h3>;
-  const P=({children})=><p style={{fontFamily:"'Barlow',sans-serif",fontSize:14,lineHeight:1.6,color:"rgba(240,237,232,0.85)",margin:"0 0 12px"}}>{children}</p>;
-  const UL=({children})=><ul style={{fontFamily:"'Barlow',sans-serif",fontSize:14,lineHeight:1.7,color:"rgba(240,237,232,0.85)",margin:"0 0 12px",paddingLeft:20}}>{children}</ul>;
-  const A=({href,children})=><a href={href} target="_blank" rel="noopener noreferrer" style={{color:"#E63946",textDecoration:"underline"}}>{children}</a>;
-  const Strong=({children})=><strong style={{color:"#F0EDE8",fontWeight:700}}>{children}</strong>;
-  return (
-    <div style={{minHeight:"100vh",background:"#0e0e0e",color:"#F0EDE8",overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
-      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      <div style={{position:"sticky",top:0,zIndex:5,background:"rgba(14,14,14,0.95)",backdropFilter:"blur(8px)",borderBottom:"1px solid rgba(255,255,255,0.06)",padding:"calc(env(safe-area-inset-top) + 12px) 16px 12px"}}>
-        <div style={{maxWidth:720,margin:"0 auto",display:"flex",alignItems:"center",gap:10}}>
-          <button onClick={onBack} aria-label="Retour" style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"7px 12px",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer"}}>← Retour</button>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8"}}>Confidentialité</div>
-        </div>
-      </div>
-      <div style={{maxWidth:720,margin:"0 auto",padding:"16px 16px calc(40px + env(safe-area-inset-bottom))"}}>
-        <H1>Politique de Confidentialité — PaceRank</H1>
-        <P><Strong>Dernière mise à jour : 27 avril 2026</Strong></P>
-
-        <H2>1. Introduction</H2>
-        <P>PaceRank est une application de classement communautaire pour athlètes d'endurance (course à pied, trail, triathlon, Hyrox, cyclisme, natation). Cette politique de confidentialité explique quelles données nous collectons, comment nous les utilisons et quels sont vos droits.</P>
-        <P>PaceRank est édité par Philippe Sallenave, particulier.<br/>Contact : <A href="mailto:sallenave.philippe@gmail.com">sallenave.philippe@gmail.com</A></P>
-        <P>En utilisant PaceRank, vous acceptez les pratiques décrites dans cette politique.</P>
-
-        <H2>2. Données que nous collectons</H2>
-        <H3>2.1 Données de compte</H3>
-        <UL>
-          <li>Adresse email</li>
-          <li>Mot de passe (chiffré, jamais accessible en clair)</li>
-          <li>Prénom, nom</li>
-          <li>Date de naissance</li>
-          <li>Sexe (Homme / Femme / Préfère ne pas répondre)</li>
-          <li>Ville et région</li>
-          <li>Photo de profil (optionnelle, uploadée par vous)</li>
-        </UL>
-        <H3>2.2 Données sportives</H3>
-        <UL>
-          <li>Activités sportives saisies manuellement (course, trail, triathlon, Hyrox, cyclisme, natation)</li>
-          <li>Activités sportives importées depuis Strava (si vous connectez votre compte Strava)</li>
-          <li>Photos liées à vos courses (optionnelles)</li>
-        </UL>
-        <H3>2.3 Données dérivées (calculées par PaceRank)</H3>
-        <UL>
-          <li>Points de performance par discipline</li>
-          <li>Records personnels</li>
-          <li>Classements et positions dans les ligues</li>
-          <li>Niveaux, streaks, statistiques agrégées</li>
-        </UL>
-        <H3>2.4 Données techniques</H3>
-        <UL>
-          <li>Adresse IP (collectée par notre hébergeur Vercel pour des raisons de sécurité et de logs)</li>
-          <li>Date et heure de connexion</li>
-        </UL>
-        <P>PaceRank ne collecte <Strong>AUCUNE</Strong> donnée de localisation en temps réel, <Strong>AUCUNE</Strong> donnée biométrique (fréquence cardiaque, etc.), et n'utilise <Strong>AUCUN</Strong> outil d'analytics ou de tracking publicitaire.</P>
-
-        <H2>3. Comment nous collectons ces données</H2>
-        <UL>
-          <li><Strong>Saisie directe</Strong> : vous renseignez votre profil et vos activités via l'app</li>
-          <li><Strong>Connexion Google</Strong> : si vous choisissez de vous connecter avec Google, nous recevons votre email et votre nom via Google OAuth</li>
-          <li><Strong>Connexion Strava</Strong> : si vous connectez votre compte Strava, nous importons vos activités sportives via l'API Strava (OAuth, lecture seule, scope <code style={{background:"rgba(255,255,255,0.06)",padding:"1px 6px",borderRadius:4,fontFamily:"monospace",fontSize:12}}>activity:read</code>)</li>
-        </UL>
-
-        <H2>4. Pourquoi nous collectons ces données</H2>
-        <UL>
-          <li>Faire fonctionner l'application (afficher votre profil, vos courses, vos statistiques)</li>
-          <li>Calculer vos points de performance et vous classer dans les ligues</li>
-          <li>Permettre les classements entre amis</li>
-          <li>Comparer vos performances aux temps de référence par discipline</li>
-        </UL>
-        <P>Nous ne vendons jamais vos données. Nous ne les utilisons jamais à des fins publicitaires. Nous ne les transmettons à aucun tiers en dehors des prestataires techniques listés ci-dessous.</P>
-
-        <H2>5. Avec qui nous partageons vos données</H2>
-        <P>PaceRank utilise les prestataires techniques suivants pour faire fonctionner l'application :</P>
-        <H3>5.1 Supabase (Europe)</H3>
-        <P>Hébergement de la base de données, authentification, stockage des photos de profil. Vos données sont stockées en Europe.<br/>Site : <A href="https://supabase.com">https://supabase.com</A></P>
-        <H3>5.2 Vercel (États-Unis)</H3>
-        <P>Hébergement de l'application web et des fonctions serverless. Reçoit votre adresse IP et les logs techniques.<br/>Site : <A href="https://vercel.com">https://vercel.com</A></P>
-        <H3>5.3 Google (États-Unis)</H3>
-        <UL>
-          <li>Google OAuth si vous choisissez de vous connecter avec votre compte Google</li>
-          <li>Google Fonts pour le chargement des polices d'écriture (Google reçoit votre adresse IP lors du chargement de l'app)</li>
-        </UL>
-        <P>Site : <A href="https://policies.google.com/privacy">https://policies.google.com/privacy</A></P>
-        <H3>5.4 Strava (États-Unis)</H3>
-        <P>Si vous connectez votre compte Strava, vos activités sportives sont importées via l'API Strava. Strava reçoit nos requêtes (avec votre token d'autorisation) pour nous fournir vos activités.<br/>Site : <A href="https://www.strava.com/legal/privacy">https://www.strava.com/legal/privacy</A></P>
-        <P>Aucune autre donnée n'est partagée avec ces prestataires en dehors de ce qui est nécessaire à leur fonctionnement.</P>
-
-        <H2>6. Données Strava : règles spécifiques</H2>
-        <P>Si vous connectez votre compte Strava, voici les règles que nous appliquons strictement, conformément aux conditions de l'API Strava :</P>
-        <UL>
-          <li>Nous accédons uniquement à vos activités, en lecture seule</li>
-          <li>Vos activités Strava ne sont jamais partagées avec d'autres utilisateurs sans votre consentement</li>
-          <li>Les données brutes Strava (titre, distance exacte, temps, date, lieu) ne sont stockées que 7 jours maximum dans notre cache. Au-delà, nous conservons uniquement les données dérivées que nous avons calculées (points, records, classements)</li>
-          <li>Si vous supprimez une activité sur Strava, nous la supprimons également chez nous sous 48 heures</li>
-          <li>Si vous déconnectez votre compte Strava, nous supprimons immédiatement toutes les données Strava associées</li>
-          <li>Nous n'utilisons jamais les données Strava pour entraîner une intelligence artificielle ou faire de la publicité ciblée</li>
-        </UL>
-
-        <H2>7. Combien de temps nous gardons vos données</H2>
-        <UL>
-          <li><Strong>Compte utilisateur</Strong> : tant que votre compte existe</li>
-          <li><Strong>Profil</Strong> : tant que votre compte existe</li>
-          <li><Strong>Activités saisies manuellement</Strong> : tant que votre compte existe</li>
-          <li><Strong>Activités Strava (données brutes)</Strong> : 7 jours maximum</li>
-          <li><Strong>Données dérivées (points, records, classements)</Strong> : tant que votre compte existe</li>
-          <li><Strong>Logs techniques</Strong> : 30 jours maximum</li>
-        </UL>
-        <P>Si vous supprimez votre compte, toutes vos données sont supprimées sous 30 jours, à l'exception des données que la loi nous oblige éventuellement à conserver.</P>
-
-        <H2>8. Vos droits (RGPD)</H2>
-        <P>Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez des droits suivants :</P>
-        <UL>
-          <li><Strong>Droit d'accès</Strong> : obtenir une copie de toutes vos données que nous détenons</li>
-          <li><Strong>Droit de rectification</Strong> : corriger toute donnée inexacte vous concernant</li>
-          <li><Strong>Droit à l'effacement</Strong> : demander la suppression de toutes vos données ("droit à l'oubli")</li>
-          <li><Strong>Droit à la portabilité</Strong> : recevoir vos données dans un format structuré et lisible par machine</li>
-          <li><Strong>Droit d'opposition</Strong> : vous opposer à certains traitements</li>
-          <li><Strong>Droit de retrait du consentement</Strong> : retirer à tout moment votre consentement à la connexion Strava ou Google</li>
-          <li><Strong>Droit d'introduire une réclamation</Strong> auprès de la CNIL (<A href="https://www.cnil.fr">https://www.cnil.fr</A>)</li>
-        </UL>
-        <P>Pour exercer ces droits, écrivez-nous à : <A href="mailto:sallenave.philippe@gmail.com">sallenave.philippe@gmail.com</A></P>
-        <P>Nous nous engageons à répondre sous 30 jours.</P>
-
-        <H2>9. Sécurité</H2>
-        <P>Nous prenons la sécurité de vos données au sérieux :</P>
-        <UL>
-          <li>Toutes les communications avec l'application se font via HTTPS (chiffré)</li>
-          <li>Les mots de passe sont chiffrés (jamais stockés en clair)</li>
-          <li>Les tokens d'accès Strava sont stockés de manière sécurisée et ne sont jamais exposés au navigateur</li>
-          <li>L'accès à la base de données est protégé par des règles d'accès strictes (Row Level Security via Supabase)</li>
-        </UL>
-        <P>En cas de violation de données affectant vos données personnelles, nous vous en informerons sans délai conformément aux obligations du RGPD.</P>
-
-        <H2>10. Cookies et tracking</H2>
-        <P>PaceRank n'utilise <Strong>PAS</Strong> de cookies de tracking, ni de cookies publicitaires, ni d'outils d'analytics tiers (pas de Google Analytics, pas de Facebook Pixel, etc.).</P>
-        <P>Les seuls cookies utilisés sont des cookies techniques strictement nécessaires au fonctionnement de l'authentification (session utilisateur).</P>
-
-        <H2>11. Mineurs</H2>
-        <P>PaceRank n'est pas destiné aux personnes de moins de 16 ans. Si vous êtes un parent ou tuteur légal et constatez qu'un mineur de moins de 16 ans nous a fourni ses données, contactez-nous pour que nous les supprimions.</P>
-
-        <H2>12. Transferts internationaux de données</H2>
-        <P>Certains de nos prestataires (Vercel, Google, Strava) sont situés aux États-Unis. Lorsque vos données sont transférées hors de l'Union Européenne, nous nous assurons que ces prestataires offrent un niveau de protection conforme au RGPD (notamment via les clauses contractuelles types de la Commission Européenne).</P>
-
-        <H2>13. Modifications de cette politique</H2>
-        <P>Nous pouvons modifier cette politique de confidentialité de temps à autre. La date de "Dernière mise à jour" en haut du document sera modifiée en conséquence. Pour les modifications substantielles, nous vous en informerons par email ou via une notification dans l'application.</P>
-
-        <H2>14. Contact</H2>
-        <P>Pour toute question concernant cette politique de confidentialité ou vos données personnelles :</P>
-        <P>Email : <A href="mailto:sallenave.philippe@gmail.com">sallenave.philippe@gmail.com</A></P>
-        <P>Nous nous engageons à répondre sous un délai raisonnable, généralement sous 7 jours.</P>
+        <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{color:"#E63946",fontFamily:"'Barlow',sans-serif",fontSize:12,textDecoration:"underline"}}>Politique de confidentialité</a>
       </div>
     </div>
   );
@@ -5237,24 +5074,6 @@ export default function App(){
   const [loading,setLoading]=useState(true);
   const [resultsKey,setResultsKey]=useState(0);
   const [showProfile,setShowProfile]=useState(false);
-  const [showPrivacy,setShowPrivacy]=useState(()=>{
-    try{return window.location.pathname==="/privacy";}catch{return false;}
-  });
-  const openPrivacy=useCallback(()=>{
-    try{window.history.pushState({},"","/privacy");}catch{}
-    setShowPrivacy(true);
-  },[]);
-  const closePrivacy=useCallback(()=>{
-    try{window.history.pushState({},"","/");}catch{}
-    setShowPrivacy(false);
-  },[]);
-  useEffect(()=>{
-    const onPop=()=>{
-      try{setShowPrivacy(window.location.pathname==="/privacy");}catch{}
-    };
-    window.addEventListener("popstate",onPop);
-    return()=>window.removeEventListener("popstate",onPop);
-  },[]);
   const [addMode,setAddMode]=useState(null); // null | "result" | "training"
   const [pendingResultDisc,setPendingResultDisc]=useState(null); // pré-sélection discipline (onboarding)
   const [notifCount,setNotifCount]=useState(0);
@@ -5481,9 +5300,8 @@ export default function App(){
     setNotifCount(count||0);
   };
 
-  if(showPrivacy) return <PrivacyPage onBack={closePrivacy}/>;
   if(loading) return <div style={{minHeight:"100vh",background:"#0e0e0e",display:"flex",alignItems:"center",justifyContent:"center"}}><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><div style={{fontFamily:"'Bebas Neue'",fontSize:40,letterSpacing:4}}><span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span></div></div>;
-  if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen onShowPrivacy={openPrivacy}/></>;
+  if(!session) return <><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/><AuthScreen/></>;
   if(profile&&!(profile.name&&profile.city&&profile.birth_year&&profile.gender&&profile.nationality)) return <OnboardingScreen profile={profile} onDone={loadProfile}/>;
   if(profile&&profile.onboarding_completed===false) return <OnboardingTour profile={profile} results={results} onComplete={loadProfile} onAddRace={(disc)=>{setPendingResultDisc(disc||null);setAddMode("result");}}/>;
 
@@ -5498,7 +5316,7 @@ export default function App(){
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
       {addMode==="result"&&<ResultModal userId={profile?.id} initialDiscipline={pendingResultDisc} onSave={()=>{setAddMode(null);setPendingResultDisc(null);refresh();}} onClose={()=>{setAddMode(null);setPendingResultDisc(null);}}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
-      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onShowPrivacy={()=>{setShowProfile(false);openPrivacy();}} onClose={()=>setShowProfile(false)} pushOptedIn={pushOptedIn} onEnablePush={enablePush} onDisablePush={disablePush}/>}
+      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)} pushOptedIn={pushOptedIn} onEnablePush={enablePush} onDisablePush={disablePush}/>}
       <CelebrationQueueRenderer queue={celebQueue} paused={celebPaused} onClose={closeCurrentCelebration} onViewRanking={()=>setTab("ranking")}/>
       {overtakenDetail && overtakenBanner && <OvertakenDetailModal overtakes={overtakenBanner.overtakes} profiles={overtakenBanner.profiles} onClose={()=>setOvertakenDetail(false)} onAddActivity={()=>{setOvertakenDetail(false);setAddMode("training");}}/>}
       <InstallPrompt/>
