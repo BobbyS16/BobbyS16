@@ -2109,7 +2109,7 @@ function AddPickerModal({onPickTraining,onPickRace,onClose}){
   );
 }
 
-function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail}){
+function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
@@ -2339,6 +2339,17 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       </div>
 
       <PullToRefresh onRefresh={refreshHome} paddingBottom="calc(110px + env(safe-area-inset-bottom))">
+      {pushOptedIn===false && !pushBannerDismissed && (
+        <div style={{background:"linear-gradient(135deg, rgba(99,102,241,0.14), rgba(99,102,241,0.04))",border:"1px solid rgba(99,102,241,0.35)",borderRadius:14,padding:"12px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+          <div style={{fontSize:22,flexShrink:0}}>🔔</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,color:"#A5B4FC"}}>ACTIVE LES NOTIFS</div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.35}}>Reçois un push quand un ami te dépasse ou bat un record.</div>
+          </div>
+          <button type="button" onClick={onEnablePush} style={{flexShrink:0,background:"#6366F1",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}>Activer</button>
+          <button type="button" onClick={onDismissPushBanner} aria-label="Plus tard" style={{flexShrink:0,background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",fontSize:18,cursor:"pointer",padding:4,lineHeight:1,touchAction:"manipulation"}}>✕</button>
+        </div>
+      )}
       {overtakenBanner && overtakenBanner.overtakes.length > 0 && (() => {
         const top = overtakenBanner.overtakes[0];
         const fp = overtakenBanner.profiles.find(p => p.id === top.friendId);
@@ -3972,7 +3983,7 @@ function BadgesByCategory({badges}){
 }
 
 // ── PROFILE MODAL ─────────────────────────────────────────────────────────────
-function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose}){
+function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose,pushOptedIn,onEnablePush,onDisablePush}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
@@ -4294,6 +4305,12 @@ function ProfileModal({profile,results,onRefresh,onShowPrivacy,onClose}){
           {!stravaTokens&&<span style={{fontSize:10,fontWeight:500,color:"rgba(240,237,232,0.35)",letterSpacing:0.3}}>Aucun compte Strava connecté</span>}
         </button>
       </div>
+      <button
+        onClick={()=>{ if(pushOptedIn===true) onDisablePush?.(); else onEnablePush?.(); }}
+        style={{width:"100%",padding:"12px 0",borderRadius:14,background:pushOptedIn===true?"rgba(74,222,128,0.10)":"rgba(255,255,255,0.05)",border:`1px solid ${pushOptedIn===true?"rgba(74,222,128,0.35)":"rgba(255,255,255,0.08)"}`,color:pushOptedIn===true?"#4ADE80":"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}
+      >
+        {pushOptedIn===true?"🔔 Notifications activées (toucher pour désactiver)":pushOptedIn===false?"🔔 Activer les notifications":"🔔 Notifications"}
+      </button>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <button onClick={()=>onShowPrivacy?.()} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🔒 Confidentialité</button>
       <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🚪 Se déconnecter</button>
@@ -5245,8 +5262,13 @@ export default function App(){
   const [celebPaused,setCelebPaused]=useState(false);
   const [overtakenBanner,setOvertakenBanner]=useState(null);
   const [overtakenDetail,setOvertakenDetail]=useState(false);
-  const [iosPushNeeded,setIosPushNeeded]=useState(false);
-  const [iosPushStatus,setIosPushStatus]=useState(null); // null | "loading" | string (erreur)
+  const [pushOptedIn,setPushOptedIn]=useState(null);
+  const [pushBannerDismissed,setPushBannerDismissed]=useState(()=>{
+    try{
+      const t=parseInt(localStorage.getItem("pushBannerDismissedAt")||"0");
+      return t>0&&Date.now()-t<7*24*3600*1000;
+    }catch{return false;}
+  });
 
   const enqueueCelebration = useCallback((item) => {
     setCelebQueue(q => {
@@ -5271,114 +5293,50 @@ export default function App(){
   useEffect(()=>{
     if(!profile?.id||profile.onboarding_completed!==true) return;
     if(typeof window==="undefined"||!window.OneSignalDeferred) return;
+    let cleanup=null;
     window.OneSignalDeferred.push(async(OneSignal)=>{
       try{await OneSignal.login(profile.id);console.log("[OneSignal] login OK pour",profile.id);}
       catch(e){console.error("[OneSignal] login échoué",e);}
+      try{
+        setPushOptedIn(!!OneSignal.User.PushSubscription.optedIn);
+        const handler=(event)=>setPushOptedIn(!!event?.current?.optedIn);
+        OneSignal.User.PushSubscription.addEventListener("change",handler);
+        cleanup=()=>{ try{OneSignal.User.PushSubscription.removeEventListener("change",handler);}catch{} };
+      }catch(e){console.warn("[OneSignal] subscribe state listener err",e);}
     });
+    return()=>{ if(cleanup) cleanup(); };
   },[profile?.id,profile?.onboarding_completed]);
+
+  const enablePush=useCallback(async()=>{
+    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
+    window.OneSignalDeferred.push(async(OneSignal)=>{
+      try{
+        await OneSignal.Notifications.requestPermission();
+        try{ await OneSignal.User.PushSubscription.optIn(); }catch{}
+      }catch(e){console.error("[OneSignal] enablePush err",e);}
+    });
+  },[]);
+
+  const disablePush=useCallback(async()=>{
+    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
+    window.OneSignalDeferred.push(async(OneSignal)=>{
+      try{ await OneSignal.User.PushSubscription.optOut(); }
+      catch(e){console.error("[OneSignal] disablePush err",e);}
+    });
+  },[]);
+
+  const dismissPushBanner=useCallback(()=>{
+    try{ localStorage.setItem("pushBannerDismissedAt",String(Date.now())); }catch{}
+    setPushBannerDismissed(true);
+  },[]);
 
   useEffect(()=>{
-    if(!profile?.id||profile.onboarding_completed!==true) return;
-    if(typeof window==="undefined"||typeof navigator==="undefined") return;
-    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isStandalone=window.navigator.standalone===true||window.matchMedia?.("(display-mode: standalone)").matches===true;
-    let cancelled=false;
-    if(!isIOS||!isStandalone) return;
-    if(localStorage.getItem("ios_push_registered_v1")==="1"){ setIosPushNeeded(false); return; }
-    setIosPushNeeded(true);
-    const check=async()=>{
-      try{
-        setIosPushStatus("auto: lecture sub native…");
-        const reg=await navigator.serviceWorker?.ready;
-        const sub=await reg?.pushManager?.getSubscription();
-        if(cancelled) return;
-        if(!sub){ setIosPushStatus("auto: pas de sub native, tape Activer ci-dessous"); return; }
-        setIosPushStatus("auto: sub trouvée, récup session Supabase…");
-        const json=sub.toJSON();
-        const{data:sessionData}=await supabase.auth.getSession();
-        const accessToken=sessionData?.session?.access_token;
-        if(!accessToken){ setIosPushStatus("auto: pas de session Supabase (re-login ?)"); return; }
-        setIosPushStatus("auto: POST /api/onesignal/register…");
-        const r=await fetch("/api/onesignal/register-push-subscription",{
-          method:"POST",
-          headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`},
-          body:JSON.stringify({endpoint:json.endpoint,p256dh:json.keys?.p256dh,auth:json.keys?.auth}),
-        });
-        const body=await r.json().catch(()=>({}));
-        if(r.ok){
-          setIosPushStatus("✅ Enregistré chez OneSignal ! player_id="+(body.player_id||"?"));
-          try{ localStorage.setItem("ios_push_registered_v1","1"); }catch{}
-          setTimeout(()=>{ if(!cancelled){ setIosPushNeeded(false); setIosPushStatus(null); } },4000);
-        }else{
-          setIosPushStatus("❌ register err "+r.status+": "+JSON.stringify(body).slice(0,400));
-        }
-      }catch(e){ if(!cancelled){ setIosPushStatus("auto err: "+(e?.message||String(e))); } }
-    };
-    check();
-    const onFocus=()=>check();
-    window.addEventListener("focus",onFocus);
-    return()=>{cancelled=true;window.removeEventListener("focus",onFocus);};
-  },[profile?.id,profile?.onboarding_completed]);
-
-  const iosPushBusyRef=useRef(false);
-  const enableIosPush=useCallback(async()=>{
-    if(iosPushBusyRef.current){ setIosPushStatus("⏳ requête en cours, patiente…"); return; }
-    iosPushBusyRef.current=true;
-    setIosPushStatus("1/ click OK, demande permission…");
     try{
-      if(window.Notification?.permission!=="granted"){
-        const p=await window.Notification.requestPermission();
-        if(p!=="granted"){setIosPushStatus("❌ permission refusée: "+p);return;}
-      }
-      setIosPushStatus("2/ permission OK, récup VAPID…");
-      const VAPID=window.OneSignal?.config?.vapidPublicKey;
-      if(!VAPID){setIosPushStatus("❌ VAPID introuvable dans OneSignal.config");return;}
-      const urlB64ToUint8Array=(b64)=>{
-        const padding="=".repeat((4-b64.length%4)%4);
-        const base64=(b64+padding).replace(/-/g,"+").replace(/_/g,"/");
-        const raw=atob(base64);
-        const arr=new Uint8Array(raw.length);
-        for(let i=0;i<raw.length;i++) arr[i]=raw.charCodeAt(i);
-        return arr;
-      };
-      setIosPushStatus("3/ pushManager.subscribe natif…");
-      const reg=await navigator.serviceWorker.ready;
-      let sub=await reg.pushManager.getSubscription();
-      if(!sub){
-        sub=await reg.pushManager.subscribe({
-          userVisibleOnly:true,
-          applicationServerKey:urlB64ToUint8Array(VAPID),
-        });
-      }
-      setIosPushStatus("4/ sub native OK, POST register (max 25s)…");
-      const json=sub.toJSON();
-      const{data:sessionData}=await supabase.auth.getSession();
-      const accessToken=sessionData?.session?.access_token;
-      if(!accessToken){setIosPushStatus("❌ pas de session Supabase");return;}
-      const ctl=new AbortController();
-      const tId=setTimeout(()=>ctl.abort(),25000);
-      let r;
-      try{
-        r=await fetch("/api/onesignal/register-push-subscription",{
-          method:"POST",
-          headers:{"Content-Type":"application/json",Authorization:`Bearer ${accessToken}`},
-          body:JSON.stringify({endpoint:json.endpoint,p256dh:json.keys?.p256dh,auth:json.keys?.auth}),
-          signal:ctl.signal,
-        });
-      }catch(e){
-        if(e?.name==="AbortError"){ setIosPushStatus("❌ timeout 25s — retape Activer (cold start Vercel)"); return; }
-        throw e;
-      }finally{ clearTimeout(tId); }
-      const body=await r.json().catch(()=>({}));
-      if(!r.ok){setIosPushStatus("❌ register err "+r.status+": "+JSON.stringify(body).slice(0,400));return;}
-      setIosPushStatus("✅ Sub enregistrée ! player_id="+(body.player_id||"?"));
-      try{ localStorage.setItem("ios_push_registered_v1","1"); }catch{}
-      setTimeout(()=>{setIosPushNeeded(false);setIosPushStatus(null);},3500);
-    }catch(e){
-      console.error("[push] bypass err",e);
-      setIosPushStatus("❌ "+(e?.name||"")+": "+(e?.message||String(e)));
-    }finally{ iosPushBusyRef.current=false; }
-  },[profile?.id]);
+      if(localStorage.getItem("push_cleanup_v1")==="1") return;
+      ["ios_push_registered_v1"].forEach(k=>{ try{localStorage.removeItem(k);}catch{} });
+      localStorage.setItem("push_cleanup_v1","1");
+    }catch{}
+  },[]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -5532,7 +5490,7 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} pushOptedIn={pushOptedIn} pushBannerDismissed={pushBannerDismissed} onEnablePush={enablePush} onDismissPushBanner={dismissPushBanner}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id} onActivityChange={refresh}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
@@ -5540,45 +5498,10 @@ export default function App(){
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
       {addMode==="result"&&<ResultModal userId={profile?.id} initialDiscipline={pendingResultDisc} onSave={()=>{setAddMode(null);setPendingResultDisc(null);refresh();}} onClose={()=>{setAddMode(null);setPendingResultDisc(null);}}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
-      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onShowPrivacy={()=>{setShowProfile(false);openPrivacy();}} onClose={()=>setShowProfile(false)}/>}
+      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onShowPrivacy={()=>{setShowProfile(false);openPrivacy();}} onClose={()=>setShowProfile(false)} pushOptedIn={pushOptedIn} onEnablePush={enablePush} onDisablePush={disablePush}/>}
       <CelebrationQueueRenderer queue={celebQueue} paused={celebPaused} onClose={closeCurrentCelebration} onViewRanking={()=>setTab("ranking")}/>
       {overtakenDetail && overtakenBanner && <OvertakenDetailModal overtakes={overtakenBanner.overtakes} profiles={overtakenBanner.profiles} onClose={()=>setOvertakenDetail(false)} onAddActivity={()=>{setOvertakenDetail(false);setAddMode("training");}}/>}
       <InstallPrompt/>
-      {iosPushNeeded && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.78)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px",backdropFilter:"blur(6px)",WebkitBackdropFilter:"blur(6px)"}}>
-          <div style={{background:"#1a1a1a",border:"1px solid rgba(99,102,241,0.4)",borderRadius:18,padding:"24px 22px",maxWidth:340,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(99,102,241,0.25)"}}>
-            <div style={{fontSize:48,marginBottom:12}}>🔔</div>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:8}}>ACTIVE LES NOTIFS</div>
-            <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45,marginBottom:20}}>iOS exige un appui explicite pour finaliser ton abonnement aux notifications push.</div>
-            <button type="button" onClick={enableIosPush} style={{width:"100%",background:"#6366F1",border:"none",borderRadius:12,padding:"14px 20px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:"pointer",letterSpacing:0.5,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}>Activer maintenant</button>
-            <button type="button" onClick={()=>{
-              const OS=window.OneSignal;
-              const paths=[
-                ["OneSignal.config?.vapidPublicKey",OS?.config?.vapidPublicKey],
-                ["OneSignal.config?.userConfig?.vapidPublicKey",OS?.config?.userConfig?.vapidPublicKey],
-                ["OneSignal.context?.appConfig?.vapidPublicKey",OS?.context?.appConfig?.vapidPublicKey],
-                ["OneSignal._config?.vapidPublicKey",OS?._config?.vapidPublicKey],
-                ["OneSignal.coreManager?.appConfig?.vapidPublicKey",OS?.coreManager?.appConfig?.vapidPublicKey],
-                ["OneSignal._coreManager?.appConfig?.vapidPublicKey",OS?._coreManager?.appConfig?.vapidPublicKey],
-                ["OneSignal.appConfig?.vapidPublicKey",OS?.appConfig?.vapidPublicKey],
-              ];
-              const found=paths.find(([_,v])=>typeof v==="string"&&v.length>20);
-              if(found){ setIosPushStatus("VAPID trouvée @ "+found[0]+"\n\n"+found[1]); return; }
-              fetch(`https://onesignal.com/api/v1/sync/35485edf-128a-4346-b6f6-a21a84645f47/web`)
-                .then(r=>r.json())
-                .then(j=>{
-                  const k=j?.vapid_public_key||j?.config?.vapid_public_key||JSON.stringify(j).match(/[A-Za-z0-9_-]{80,90}/)?.[0];
-                  setIosPushStatus(k?("VAPID via API:\n\n"+k):("API ne renvoie pas la clé. Réponse:\n"+JSON.stringify(j).slice(0,300)));
-                })
-                .catch(e=>setIosPushStatus("Aucune clé trouvée. Paths testés:\n"+paths.map(([p,v])=>p+"="+(v?"OK":"undef")).join("\n")+"\nfetch err: "+e.message));
-            }} style={{marginTop:8,width:"100%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:10,padding:"10px 14px",color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,cursor:"pointer",touchAction:"manipulation"}}>🔍 Récupérer la VAPID key</button>
-            {iosPushStatus && (
-              <div style={{marginTop:12,padding:"8px 10px",background:"rgba(99,102,241,0.12)",border:"1px solid rgba(99,102,241,0.35)",borderRadius:8,fontSize:11,color:"#A5B4FC",fontFamily:"'Barlow',sans-serif",lineHeight:1.4,wordBreak:"break-all",textAlign:"left",whiteSpace:"pre-wrap",userSelect:"text",WebkitUserSelect:"text",maxHeight:200,overflowY:"auto"}}>{iosPushStatus}</div>
-            )}
-            <button type="button" onClick={()=>{setIosPushNeeded(false);setIosPushStatus(null);}} style={{marginTop:10,background:"transparent",border:"none",color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontSize:12,cursor:"pointer",padding:"6px 12px",touchAction:"manipulation"}}>Plus tard</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
