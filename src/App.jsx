@@ -176,7 +176,7 @@ async function checkAndNotifyOvertake(userId){
       });
       if(overtaken.length>0){
         console.log(`[overtake] notification envoyée à ${overtaken.length} ami(s)`);
-        await supabase.from("notifications").insert(overtaken.map(fid=>({user_id:fid,from_user_id:userId,type:"friend_overtake",read:false})));
+        await supabase.from("notifications").insert(overtaken.map(fid=>({user_id:fid,from_user_id:userId,type:"friend_overtake",read:false,payload:{season,by_pts:Math.max(0,myNew-lastPts)}})));
       }
     }
     try{localStorage.setItem(lsKey,String(myNew));}catch{}
@@ -1815,7 +1815,65 @@ function HowItWorksModal({onClose}){
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
 
-function NotificationsModal({onClose,onNotifsChange}){
+// ── NOTIFS — registre de types ────────────────────────────────────────────────
+// Libellés legacy : utilisés en fallback quand `payload IS NULL` (notifs créées
+// avant l'introduction de payload). Les notifs v1 (avec payload) passent par
+// `renderNotifLabel` qui peut intégrer des variables dynamiques.
+const NOTIF_LEGACY_LABEL = {
+  friend_added:     "t'a ajouté en ami",
+  like_result:      "a aimé ta course",
+  like_training:    "a aimé ton entraînement",
+  comment_result:   "a commenté ta course",
+  comment_training: "a commenté ton entraînement",
+  friend_overtake:  "🚀 t'a dépassé au classement saison",
+};
+const NOTIF_ICON = {
+  friend_added:        "👋",
+  like_result:         "❤️",
+  like_training:       "❤️",
+  comment_result:      "💬",
+  comment_training:    "💬",
+  friend_overtake:     "🚀",
+  friend_official_race:"🏁",
+  friend_pr:           "🏆",
+  league_overtake:     "📉",
+  level_up_imminent:   "⭐",
+};
+// Types qui ont un acteur (from_user_id) et donc affichent "<nom> <verbe>".
+// Les autres ont un libellé impersonnel.
+const NOTIF_HAS_ACTOR = {
+  friend_added: true, like_result: true, like_training: true,
+  comment_result: true, comment_training: true, friend_overtake: true,
+  friend_official_race: true, friend_pr: true,
+  league_overtake: false, level_up_imminent: false,
+};
+function renderNotifLabel(n) {
+  // Si payload existe → format v1 (variables dynamiques)
+  if (n.payload && typeof n.payload === "object") {
+    const p = n.payload || {};
+    switch (n.type) {
+      case "friend_pr":            return `a battu son record en ${p.discipline || "course"}`;
+      case "friend_official_race": return "a participé à une course";
+      case "friend_overtake":      return "t'a dépassé au classement saison";
+      case "league_overtake": {
+        const drop = (p.new_rank||0) - (p.old_rank||0);
+        if (drop > 0) return `Tu as perdu ${drop} place${drop>1?"s":""} dans ta ligue ${p.league_name||""}`.trim();
+        if (drop < 0) return `Tu as gagné ${-drop} place${-drop>1?"s":""} dans ta ligue ${p.league_name||""}`.trim();
+        return "Changement de rang dans ta ligue";
+      }
+      case "level_up_imminent": {
+        const remaining = Math.max(0, (p.next_level_points||0) - (p.current_points||0));
+        return `Plus que ${remaining} pts avant ${p.next_level_name||"niveau supérieur"}`;
+      }
+      // legacy types : si jamais un payload est fourni, on retombe sur libellé legacy
+      default: return NOTIF_LEGACY_LABEL[n.type] || "";
+    }
+  }
+  // Pas de payload → libellé legacy hardcodé
+  return NOTIF_LEGACY_LABEL[n.type] || "";
+}
+
+function NotificationsModal({onClose,onNotifsChange,inAppEnabled=true,onNavigateLeague,onNavigateProfile}){
   const [notifs,setNotifs]=useState([]);
   const [loading,setLoading]=useState(true);
   const [openFriend,setOpenFriend]=useState(null);
@@ -1825,44 +1883,63 @@ function NotificationsModal({onClose,onNotifsChange}){
     const{data:{user}}=await supabase.auth.getUser();
     if(!user){setLoading(false);return;}
     setMyId(user.id);
-    const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).eq("read",false).order("created_at",{ascending:false});
+    // Historique chronologique complet (lues + non-lues)
+    const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).order("created_at",{ascending:false}).limit(100);
     setNotifs(data||[]);setLoading(false);
   };
-  useEffect(()=>{load();},[]);
-  const dismissNotif=async id=>{
+  useEffect(()=>{ if(inAppEnabled) load(); else setLoading(false); },[inAppEnabled]);
+  const markRead=async id=>{
     await supabase.from("notifications").update({read:true}).eq("id",id);
-    setNotifs(n=>n.filter(x=>x.id!==id));
+    setNotifs(n=>n.map(x=>x.id===id?{...x,read:true}:x));
     onNotifsChange&&onNotifsChange();
   };
   const markAll=async()=>{
-    if(notifs.length===0)return;
+    const unread=notifs.filter(n=>!n.read);
+    if(unread.length===0)return;
     const{data:{user}}=await supabase.auth.getUser();
     await supabase.from("notifications").update({read:true}).eq("user_id",user.id).eq("read",false);
-    setNotifs([]);
+    setNotifs(n=>n.map(x=>({...x,read:true})));
     onNotifsChange&&onNotifsChange();
   };
+  const handleClick=async n=>{
+    if(!n.read) await markRead(n.id);
+    if (n.type==="league_overtake") { onNavigateLeague&&onNavigateLeague(); onClose&&onClose(); return; }
+    if (n.type==="level_up_imminent") { onNavigateProfile&&onNavigateProfile(); onClose&&onClose(); return; }
+    if (NOTIF_HAS_ACTOR[n.type] && n.from_user) { setOpenFriend(n.from_user); return; }
+  };
+  const hasUnread = notifs.some(n=>!n.read);
   return (
     <Modal onClose={onClose}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:26,letterSpacing:1,color:"#F0EDE8"}}>🔔 Notifications</div>
-        {notifs.length>0&&<button onClick={markAll} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:10,padding:"7px 11px",color:"rgba(240,237,232,0.65)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,cursor:"pointer"}}>Tout marquer lu</button>}
+        {hasUnread&&<button onClick={markAll} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:10,padding:"7px 11px",color:"rgba(240,237,232,0.65)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,cursor:"pointer"}}>Tout marquer lu</button>}
       </div>
-      {loading?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Chargement…</div>
-       :notifs.length===0?
-         <div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune notification 🎉</div>
-        :notifs.map(n=>{
-          const txt={friend_added:"t'a ajouté en ami",like_result:"a aimé ta course",like_training:"a aimé ton entraînement",comment_result:"a commenté ta course",comment_training:"a commenté ton entraînement",friend_overtake:"🚀 t'a dépassé au classement saison"}[n.type]||"";
-          return (
-            <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
-              <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{cursor:"pointer"}}><Avatar profile={n.from_user} size={36}/></div>
-              <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",lineHeight:1.4}}><strong>{n.from_user?.name||"Quelqu'un"}</strong> {txt}</div>
-                <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{new Date(n.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
-              </div>
-              <button onClick={()=>dismissNotif(n.id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:14,flexShrink:0}}>✕</button>
-            </div>
-          );
-        })}
+      {!inAppEnabled
+        ? <div style={{textAlign:"center",color:"rgba(240,237,232,0.45)",padding:"40px 12px",fontFamily:"'Barlow',sans-serif",fontSize:13,lineHeight:1.5}}>Notifications dans l'app désactivées.<br/>Réactive-les depuis ton profil pour voir l'historique.</div>
+        : loading?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Chargement…</div>
+        : notifs.length===0
+          ? <div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune notification 🎉</div>
+          : notifs.map(n=>{
+              const txt = renderNotifLabel(n);
+              const hasActor = NOTIF_HAS_ACTOR[n.type] !== false;
+              const icon = NOTIF_ICON[n.type] || "🔔";
+              const muted = n.read;
+              return (
+                <div key={n.id} onClick={()=>handleClick(n)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:muted?"rgba(255,255,255,0.025)":"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:`1px solid ${muted?"rgba(255,255,255,0.06)":"rgba(230,57,70,0.2)"}`,opacity:muted?0.6:1,cursor:"pointer"}}>
+                  {hasActor && n.from_user
+                    ? <Avatar profile={n.from_user} size={36}/>
+                    : <div style={{width:36,height:36,borderRadius:"50%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{icon}</div>}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",lineHeight:1.4}}>
+                      {hasActor && <><strong>{n.from_user?.name||"Quelqu'un"}</strong>{" "}</>}
+                      {txt}
+                    </div>
+                    <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{new Date(n.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+                  </div>
+                  {!muted && <span aria-hidden="true" style={{width:8,height:8,borderRadius:"50%",background:"#E63946",flexShrink:0,boxShadow:"0 0 6px rgba(230,57,70,0.6)"}}/>}
+                </div>
+              );
+            })}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myId} onClose={()=>setOpenFriend(null)}/>}
     </Modal>
   );
@@ -2109,7 +2186,7 @@ function AddPickerModal({onPickTraining,onPickRace,onClose}){
   );
 }
 
-function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner}){
+function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner,onOpenLeague}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
@@ -2327,10 +2404,12 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
           <div style={{fontSize:"clamp(9px, 2.2vw, 11px)",color:"#F0EDE8",letterSpacing:3,fontFamily:"'Barlow',sans-serif",fontWeight:600,marginTop:4}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {profile?.in_app_enabled !== false && (
           <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
             🔔
             {notifCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:"2px solid #0e0e0e",boxSizing:"content-box"}}>{notifCount>9?"9+":notifCount}</span>}
           </button>
+          )}
           <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",minWidth:80,boxSizing:"border-box",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,lineHeight:1.2,cursor:"pointer",textAlign:"center"}}>
             {copied?"✓ Copié !":"🔗 Inviter"}
           </button>
@@ -2476,7 +2555,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
       <button onClick={()=>setShowPicker(true)} style={{position:"fixed",bottom:"clamp(74px, 11dvh, 90px)",right:"clamp(14px, 4vw, 20px)",zIndex:99,width:"clamp(44px, 7vw, 56px)",height:"clamp(44px, 7vw, 56px)",borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:"clamp(22px, 5vw, 28px)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)"}}>+</button>
       {showPicker&&<AddPickerModal onPickTraining={onAddTraining} onPickRace={onAddRace} onClose={()=>setShowPicker(false)}/>}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
-      {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange}/>}
+      {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange} inAppEnabled={profile?.in_app_enabled !== false} onNavigateLeague={onOpenLeague} onNavigateProfile={onOpenProfile}/>}
       {classifModalOpen && pendingClassif.length>0 && (
         <RaceClassificationModal
           pending={pendingClassif}
@@ -3875,7 +3954,7 @@ function SocialTab({myProfile,onNotifsChange}){
         {[["groups","🏠 Groupes"],["friends","💬 Tchat"],["search","🔍 Chercher"]].map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"8px 0",borderRadius:12,border:"none",cursor:"pointer",background:tab===k?"#E63946":"rgba(255,255,255,0.06)",color:tab===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12,position:"relative"}}>
             {l}
-            {k==="friends"&&notifs.length>0&&<span style={{position:"absolute",top:4,right:6,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:tab===k?"1.5px solid #fff":"none"}}>{notifs.length>9?"9+":notifs.length}</span>}
+            {k==="friends"&&myProfile?.in_app_enabled!==false&&notifs.length>0&&<span style={{position:"absolute",top:4,right:6,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:tab===k?"1.5px solid #fff":"none"}}>{notifs.length>9?"9+":notifs.length}</span>}
           </button>
         ))}
       </div>
@@ -3889,18 +3968,25 @@ function SocialTab({myProfile,onNotifsChange}){
             :<button onClick={()=>addFriend(p.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(230,57,70,0.15)",color:"#E63946",border:"1px solid rgba(230,57,70,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>+ Ajouter</button>}
         </div>);})}</div>}
       {tab==="friends"&&<div>
-        {notifs.length>0&&<div style={{marginBottom:14}}>
+        {myProfile?.in_app_enabled!==false && notifs.length>0&&<div style={{marginBottom:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700}}>🔔 Notifications</div>
             <button onClick={markAllNotifsRead} style={{background:"none",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:11,cursor:"pointer",fontWeight:600}}>Tout marquer lu</button>
           </div>
           {notifs.map(n=>{
-            const txt={friend_added:"t'a ajouté en ami",like_result:"a aimé ta course",like_training:"a aimé ton entraînement",comment_result:"a commenté ta course",comment_training:"a commenté ton entraînement",friend_overtake:"🚀 t'a dépassé au classement saison"}[n.type]||"";
+            const txt = renderNotifLabel(n);
+            const hasActor = NOTIF_HAS_ACTOR[n.type] !== false;
+            const icon = NOTIF_ICON[n.type] || "🔔";
             return (
               <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
-                <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{cursor:"pointer"}}><Avatar profile={n.from_user} size={32}/></div>
-                <div onClick={()=>n.from_user&&setOpenFriend(n.from_user)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
-                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8"}}><strong>{n.from_user?.name||"Quelqu'un"}</strong> {txt}</div>
+                {hasActor && n.from_user
+                  ? <div onClick={()=>setOpenFriend(n.from_user)} style={{cursor:"pointer"}}><Avatar profile={n.from_user} size={32}/></div>
+                  : <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{icon}</div>}
+                <div onClick={()=>hasActor && n.from_user && setOpenFriend(n.from_user)} style={{flex:1,minWidth:0,cursor:hasActor && n.from_user?"pointer":"default"}}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8"}}>
+                    {hasActor && <><strong>{n.from_user?.name||"Quelqu'un"}</strong>{" "}</>}
+                    {txt}
+                  </div>
                 </div>
                 <button onClick={()=>dismissNotif(n.id)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:12}}>✕</button>
               </div>
@@ -4305,12 +4391,34 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
           {!stravaTokens&&<span style={{fontSize:10,fontWeight:500,color:"rgba(240,237,232,0.35)",letterSpacing:0.3}}>Aucun compte Strava connecté</span>}
         </button>
       </div>
-      <button
-        onClick={()=>{ if(pushOptedIn===true) onDisablePush?.(); else onEnablePush?.(); }}
-        style={{width:"100%",padding:"12px 0",borderRadius:14,background:pushOptedIn===true?"rgba(74,222,128,0.10)":"rgba(255,255,255,0.05)",border:`1px solid ${pushOptedIn===true?"rgba(74,222,128,0.35)":"rgba(255,255,255,0.08)"}`,color:pushOptedIn===true?"#4ADE80":"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}
-      >
-        {pushOptedIn===true?"🔔 Notifications activées (toucher pour désactiver)":pushOptedIn===false?"🔔 Activer les notifications":"🔔 Notifications"}
-      </button>
+      <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>🔔 Notifications</div>
+        <button
+          onClick={async()=>{
+            const next = pushOptedIn!==true;
+            if(next) onEnablePush?.(); else onDisablePush?.();
+            try{ await supabase.from("profiles").update({push_enabled:next}).eq("id",profile.id); onRefresh&&onRefresh(); }catch(e){console.error("[push_enabled] update failed",e);}
+          }}
+          style={{width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",border:"none",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,display:"flex",alignItems:"center",justifyContent:"space-between",touchAction:"manipulation"}}
+        >
+          <span style={{flex:1,textAlign:"left"}}>Notifications push</span>
+          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:pushOptedIn===true?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <span style={{position:"absolute",top:2,left:pushOptedIn===true?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+          </span>
+        </button>
+        <button
+          onClick={async()=>{
+            const next = profile?.in_app_enabled===false;
+            try{ await supabase.from("profiles").update({in_app_enabled:next}).eq("id",profile.id); onRefresh&&onRefresh(); }catch(e){console.error("[in_app_enabled] update failed",e);}
+          }}
+          style={{width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",border:"none",borderTop:"1px solid rgba(255,255,255,0.06)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,display:"flex",alignItems:"center",justifyContent:"space-between",touchAction:"manipulation",marginTop:4}}
+        >
+          <span style={{flex:1,textAlign:"left"}}>Notifications dans l'app</span>
+          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:profile?.in_app_enabled!==false?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <span style={{position:"absolute",top:2,left:profile?.in_app_enabled!==false?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+          </span>
+        </button>
+      </div>
       <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{display:"block",width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10,textAlign:"center",textDecoration:"none",boxSizing:"border-box"}}>🔒 Confidentialité</a>
       <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🚪 Se déconnecter</button>
@@ -5144,10 +5252,36 @@ export default function App(){
     });
   },[]);
 
-  const dismissPushBanner=useCallback(()=>{
+  const dismissPushBanner=useCallback(async()=>{
+    const nowIso = new Date().toISOString();
     try{ localStorage.setItem("pushBannerDismissedAt",String(Date.now())); }catch{}
     setPushBannerDismissed(true);
-  },[]);
+    if(profile?.id){
+      try{ await supabase.from("profiles").update({push_banner_dismissed_at:nowIso}).eq("id",profile.id); }
+      catch(e){ console.error("[push-banner] DB dismiss failed",e); }
+    }
+  },[profile?.id]);
+
+  // Réconciliation DB → localStorage : push_banner_dismissed_at est la source
+  // de vérité (multi-device). localStorage sert juste de cache instantané pour
+  // éviter le flash de bannière au mount.
+  useEffect(()=>{
+    if(!profile) return;
+    const dbAt = profile.push_banner_dismissed_at ? new Date(profile.push_banner_dismissed_at).getTime() : 0;
+    const within7d = dbAt > 0 && (Date.now() - dbAt) < 7*24*3600*1000;
+    if (within7d) {
+      try{ localStorage.setItem("pushBannerDismissedAt",String(dbAt)); }catch{}
+      setPushBannerDismissed(true);
+    } else if (dbAt === 0) {
+      // Pas de dismiss en DB : si localStorage en avait un mais qu'il a expiré ou
+      // qu'on est sur un nouveau device, l'état dérivé du localStorage initial
+      // suffit. Rien à faire.
+    } else {
+      // dismiss en DB > 7j → bannière à nouveau visible
+      try{ localStorage.removeItem("pushBannerDismissedAt"); }catch{}
+      setPushBannerDismissed(false);
+    }
+  },[profile?.push_banner_dismissed_at]);
 
   useEffect(()=>{
     try{
@@ -5308,7 +5442,7 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} pushOptedIn={pushOptedIn} pushBannerDismissed={pushBannerDismissed} onEnablePush={enablePush} onDismissPushBanner={dismissPushBanner}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} pushOptedIn={pushOptedIn} pushBannerDismissed={pushBannerDismissed} onEnablePush={enablePush} onDismissPushBanner={dismissPushBanner} onOpenLeague={()=>setTab("ranking")}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id} onActivityChange={refresh}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
