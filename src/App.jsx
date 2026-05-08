@@ -4394,16 +4394,24 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
       <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
         <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>🔔 Notifications</div>
         <button
-          onClick={async()=>{
-            const next = pushOptedIn!==true;
+          onClick={()=>{
+            // DB push_enabled = source de vérité (multi-device, persistant).
+            // pushOptedIn ne reflète que la sub OneSignal de CE device et
+            // peut être désync (réinstall PWA, autre device). Le tap fait
+            // donc : 1) sync OneSignal (gesture iOS-safe = synchrone), puis
+            // 2) update DB en arrière-plan.
+            const next = profile?.push_enabled !== true;
             if(next) onEnablePush?.(); else onDisablePush?.();
-            try{ await supabase.from("profiles").update({push_enabled:next}).eq("id",profile.id); onRefresh&&onRefresh(); }catch(e){console.error("[push_enabled] update failed",e);}
+            (async()=>{
+              try{ await supabase.from("profiles").update({push_enabled:next}).eq("id",profile.id); onRefresh&&onRefresh(); }
+              catch(e){ console.error("[push_enabled] update failed",e); }
+            })();
           }}
           style={{width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",border:"none",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,display:"flex",alignItems:"center",justifyContent:"space-between",touchAction:"manipulation"}}
         >
           <span style={{flex:1,textAlign:"left"}}>Notifications push</span>
-          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:pushOptedIn===true?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <span style={{position:"absolute",top:2,left:pushOptedIn===true?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:profile?.push_enabled===true?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <span style={{position:"absolute",top:2,left:profile?.push_enabled===true?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
           </span>
         </button>
         <button
