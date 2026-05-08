@@ -5245,27 +5245,14 @@ export default function App(){
     return()=>{ if(cleanup) cleanup(); };
   },[profile?.id]);
 
+  // IMPORTANT iOS Safari : ne JAMAIS await quoi que ce soit avant
+  // OneSignalDeferred.push(...). Un await avant requestPermission() détache
+  // le call stack du user-gesture, et iOS refuse alors d'afficher le prompt
+  // de permission silencieusement. La sub n'est jamais créée, le toggle ne
+  // bascule pas. La dédup welcome est gérée hors de ce flow (cf. endpoint
+  // /api/onesignal/cleanup-old-subs, déclenché séparément).
   const enablePush=useCallback(async()=>{
     if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    // Pré-cleanup : la welcome notif OneSignal est routée vers TOUTES les
-    // push subs liées à l'external_user_id. Si on a accumulé d'anciennes
-    // subs (réinstalls PWA, réactivations…), elles recevront la welcome
-    // en plus de la nouvelle. On supprime tout avant requestPermission()
-    // pour garantir qu'il n'y a qu'1 cible quand la welcome part.
-    try{
-      const { data:{ session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (token) {
-        await fetch("/api/onesignal/cleanup-old-subs", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ delete_all: true }),
-        });
-      }
-    }catch(e){console.warn("[OneSignal] pre-cleanup failed",e);}
     window.OneSignalDeferred.push(async(OneSignal)=>{
       try{
         await OneSignal.Notifications.requestPermission();
