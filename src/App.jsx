@@ -5217,13 +5217,24 @@ export default function App(){
 
   useEffect(()=>{if(session){loadProfile();loadResults();loadNotifCount();}},[session]);
 
+  // OneSignal.login() doit être appelé dès que l'external_user_id (profile.id)
+  // est connu, AVANT toute requestPermission/optIn — sinon le SDK fire la
+  // welcome notif une 1ère fois pour la sub anonyme, puis une 2ème fois quand
+  // on migre vers l'external_user_id. Pas de gate onboarding_completed ici.
   useEffect(()=>{
-    if(!profile?.id||profile.onboarding_completed!==true) return;
+    if(!profile?.id) return;
     if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    let cleanup=null;
     window.OneSignalDeferred.push(async(OneSignal)=>{
       try{await OneSignal.login(profile.id);console.log("[OneSignal] login OK pour",profile.id);}
       catch(e){console.error("[OneSignal] login échoué",e);}
+    });
+  },[profile?.id]);
+
+  useEffect(()=>{
+    if(!profile?.id) return;
+    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
+    let cleanup=null;
+    window.OneSignalDeferred.push(async(OneSignal)=>{
       try{
         setPushOptedIn(!!OneSignal.User.PushSubscription.optedIn);
         const handler=(event)=>setPushOptedIn(!!event?.current?.optedIn);
@@ -5232,7 +5243,7 @@ export default function App(){
       }catch(e){console.warn("[OneSignal] subscribe state listener err",e);}
     });
     return()=>{ if(cleanup) cleanup(); };
-  },[profile?.id,profile?.onboarding_completed]);
+  },[profile?.id]);
 
   const enablePush=useCallback(async()=>{
     if(typeof window==="undefined"||!window.OneSignalDeferred) return;
