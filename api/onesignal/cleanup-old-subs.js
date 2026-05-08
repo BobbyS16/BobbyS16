@@ -14,8 +14,13 @@
 // ses propres subs. NOTIFS_DISPATCH_SECRET ne convient pas ici car il
 // serait exposé côté browser.
 //
-// Body JSON: { keep_subscription_id: string } — la sub à préserver
-// (récupérée côté client via OneSignal.User.PushSubscription.id).
+// Body JSON: { keep_subscription_id?: string, delete_all?: boolean }
+//  - delete_all=true → supprime toutes les push subs liées à l'external_id.
+//    Utilisé AVANT requestPermission pour repartir de zéro (la welcome
+//    OneSignal route vers TOUTES les subs liées au user, donc supprimer
+//    avant d'en créer une nouvelle évite la welcome dupliquée).
+//  - keep_subscription_id → supprime toutes les push subs sauf celle-ci.
+//    Utilisé en safety net post-optIn.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -55,9 +60,10 @@ export default async function handler(req, res) {
   const externalUserId = userData.user.id;
 
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
-  const keepSubId = body.keep_subscription_id;
-  if (!keepSubId || typeof keepSubId !== "string") {
-    return res.status(400).json({ error: "keep_subscription_id required" });
+  const keepSubId = typeof body.keep_subscription_id === "string" ? body.keep_subscription_id : null;
+  const deleteAll = body.delete_all === true;
+  if (!keepSubId && !deleteAll) {
+    return res.status(400).json({ error: "keep_subscription_id or delete_all=true required" });
   }
 
   const userUrl = `${ONESIGNAL_API_BASE}/apps/${ONESIGNAL_APP_ID}/users/by/external_id/${encodeURIComponent(externalUserId)}`;
@@ -77,7 +83,7 @@ export default async function handler(req, res) {
   const subs = Array.isArray(userJson.subscriptions) ? userJson.subscriptions : [];
 
   const pushSubs = subs.filter(s => PUSH_SUB_TYPES.has(s.type));
-  const toDelete = pushSubs.filter(s => s.id && s.id !== keepSubId);
+  const toDelete = pushSubs.filter(s => s.id && (deleteAll || s.id !== keepSubId));
 
   let deleted = 0, failed = 0;
   for (const s of toDelete) {
@@ -100,10 +106,11 @@ export default async function handler(req, res) {
     }
   }
 
-  const kept = pushSubs.some(s => s.id === keepSubId) ? 1 : 0;
+  const kept = !deleteAll && pushSubs.some(s => s.id === keepSubId) ? 1 : 0;
   return res.status(200).json({
     external_user_id: externalUserId,
     total_push_subs: pushSubs.length,
+    mode: deleteAll ? "delete_all" : "keep_one",
     kept,
     deleted,
     failed,

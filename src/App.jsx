@@ -5247,30 +5247,29 @@ export default function App(){
 
   const enablePush=useCallback(async()=>{
     if(typeof window==="undefined"||!window.OneSignalDeferred) return;
+    // Pré-cleanup : la welcome notif OneSignal est routée vers TOUTES les
+    // push subs liées à l'external_user_id. Si on a accumulé d'anciennes
+    // subs (réinstalls PWA, réactivations…), elles recevront la welcome
+    // en plus de la nouvelle. On supprime tout avant requestPermission()
+    // pour garantir qu'il n'y a qu'1 cible quand la welcome part.
+    try{
+      const { data:{ session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (token) {
+        await fetch("/api/onesignal/cleanup-old-subs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ delete_all: true }),
+        });
+      }
+    }catch(e){console.warn("[OneSignal] pre-cleanup failed",e);}
     window.OneSignalDeferred.push(async(OneSignal)=>{
       try{
         await OneSignal.Notifications.requestPermission();
         try{ await OneSignal.User.PushSubscription.optIn(); }catch{}
-        // Dédup serveur : OneSignal crée une nouvelle sub à chaque réinstall
-        // PWA / réactivation. On nettoie les anciennes subs liées au même
-        // external_user_id pour éviter pushs dupliqués.
-        try{
-          const subId = OneSignal.User.PushSubscription.id;
-          if (subId) {
-            const { data:{ session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (token) {
-              await fetch("/api/onesignal/cleanup-old-subs", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ keep_subscription_id: subId }),
-              }).catch(e => console.warn("[OneSignal] cleanup call failed", e));
-            }
-          }
-        }catch(e){console.warn("[OneSignal] cleanup err",e);}
       }catch(e){console.error("[OneSignal] enablePush err",e);}
     });
   },[]);
