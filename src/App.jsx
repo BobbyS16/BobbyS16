@@ -184,6 +184,117 @@ async function checkAndNotifyOvertake(userId){
   }catch(e){console.error("[overtake] check failed",e);}
 }
 
+// detectLeagueOvertakes — type d du brief notifs auto-générées.
+// Compare les rangs intra-ligue (peers du même league_group_id sur week_points)
+// avant/après save d'un result. Si le user a amélioré son rang ET certains peers
+// l'ont vu monter au-dessus d'eux, insère 2 notifs par paire (overtaker direction
+// 'up', overtaken direction 'down'). Snapshot via localStorage pour comparer
+// avec l'état précédent. Dedup 1h sur (user_id, from_user_id, type) côté DB.
+async function detectLeagueOvertakes(userId) {
+  if (!userId) return;
+  try {
+    const { data: myLeague } = await supabase
+      .from("user_leagues")
+      .select("league_group_id, current_league, week_points")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!myLeague?.league_group_id) return;
+
+    const { data: peers } = await supabase
+      .from("user_leagues")
+      .select("user_id, week_points")
+      .eq("league_group_id", myLeague.league_group_id);
+    if (!peers || peers.length < 2) return;
+
+    const sorted = [...peers].sort((a, b) => (b.week_points || 0) - (a.week_points || 0));
+    const ranksNow = Object.fromEntries(sorted.map((p, i) => [p.user_id, i + 1]));
+
+    const cacheKey = `league_ranks_${myLeague.league_group_id}_${userId}`;
+    let ranksPrev = {};
+    try { ranksPrev = JSON.parse(localStorage.getItem(cacheKey) || "{}"); } catch {}
+
+    const myRankNow = ranksNow[userId];
+    const myRankPrev = ranksPrev[userId];
+
+    // Premier passage : on initialise le cache et on sort, pas de comparaison.
+    if (myRankPrev === undefined) {
+      try { localStorage.setItem(cacheKey, JSON.stringify(ranksNow)); } catch {}
+      return;
+    }
+
+    if (myRankNow < myRankPrev) {
+      // Peers que j'ai dépassés : ils étaient au-dessus de mon nouveau rang
+      // (rangPrev <= myRankPrev) et ils ont vu leur rang descendre.
+      const overtaken = peers.filter(p => {
+        if (p.user_id === userId) return false;
+        const pPrev = ranksPrev[p.user_id];
+        const pNow = ranksNow[p.user_id];
+        return pPrev !== undefined
+          && pNow !== undefined
+          && pNow > pPrev
+          && pPrev >= myRankNow
+          && pPrev <= myRankPrev;
+      });
+
+      if (overtaken.length > 0) {
+        const myWeekPts = myLeague.week_points || 0;
+        const oneHourAgo = new Date(Date.now() - 3600 * 1000).toISOString();
+
+        for (const peer of overtaken) {
+          const peerWeekPts = peer.week_points || 0;
+          const byPts = Math.max(0, myWeekPts - peerWeekPts);
+          const leagueName = myLeague.current_league;
+
+          // Dedup côté DB : si on a déjà notifié ce couple direct dans la
+          // dernière heure, skip les 2 inserts pour rester cohérent.
+          const { data: existing } = await supabase
+            .from("notifications")
+            .select("id")
+            .eq("type", "league_overtake")
+            .eq("user_id", userId)
+            .eq("from_user_id", peer.user_id)
+            .gt("created_at", oneHourAgo)
+            .limit(1);
+          if (existing && existing.length > 0) continue;
+
+          await supabase.from("notifications").insert([
+            {
+              user_id: userId,
+              from_user_id: peer.user_id,
+              type: "league_overtake",
+              read: false,
+              payload: {
+                old_rank: myRankPrev,
+                new_rank: myRankNow,
+                league_name: leagueName,
+                by_pts: byPts,
+                direction: "up",
+              },
+            },
+            {
+              user_id: peer.user_id,
+              from_user_id: userId,
+              type: "league_overtake",
+              read: false,
+              payload: {
+                old_rank: ranksPrev[peer.user_id],
+                new_rank: ranksNow[peer.user_id],
+                league_name: leagueName,
+                by_pts: byPts,
+                direction: "down",
+              },
+            },
+          ]);
+        }
+      }
+    }
+
+    try { localStorage.setItem(cacheKey, JSON.stringify(ranksNow)); } catch {}
+  } catch (e) {
+    console.error("[league-overtake] detection failed", e);
+  }
+}
+
 // ── CELEBRATION + OVERTAKES ───────────────────────────────────────────────────
 const PACERANK_COLORS = ["#E63946","#FFD700","#F0EDE8","#4ADE80","#FF6B35"];
 function fireBurst(opts={}) {
@@ -5370,13 +5481,15 @@ export default function App(){
     setResultsKey(k=>k+1);
     if (profile?.id) {
       checkAndNotifyOvertake(profile.id);
+      // type d : dépassements intra-ligue → INSERT notifs (up + down) par paire
+      detectLeagueOvertakes(profile.id);
       // Détection dépassement (cas A)
       const overtakes = await detectOvertakes(profile.id, "afterSave");
       if (overtakes.length > 0) {
         const profs = await fetchProfilesByIds(overtakes.map(o => o.friendId));
         enqueueCelebration({type:"overtake", overtakes, profiles: profs});
       }
-      // Détection palier de points
+      // Détection palier de points (level_up + level_up_imminent)
       try {
         const [{data:fresh}] = await Promise.all([
           supabase.from("profiles").select("last_points_milestone").eq("id", profile.id).maybeSingle(),
@@ -5393,7 +5506,45 @@ export default function App(){
         const milestone = detectPointsMilestone(newPts, lastMilestone);
         if (milestone) {
           enqueueCelebration({type:"milestone", milestone, prevPoints: lastMilestone, newPoints: newPts});
+          // type e : INSERT notif level_up. La dedup vient de l'UPDATE
+          // last_points_milestone ci-dessous : detectPointsMilestone retourne
+          // null si le milestone est déjà atteint, donc on ne re-INSERT pas.
+          await supabase.from("notifications").insert({
+            user_id: profile.id,
+            type: "level_up",
+            read: false,
+            payload: { milestone, points_at_levelup: newPts },
+          });
           await supabase.from("profiles").update({last_points_milestone: milestone}).eq("id", profile.id);
+        } else {
+          // type f : level_up_imminent. Si on est à <100 pts d'un milestone
+          // pas encore atteint, et qu'on n'a jamais notifié pour ce milestone-là.
+          const nextMilestone = POINTS_MILESTONES.find(m => m > newPts);
+          if (nextMilestone) {
+            const pointsToGo = nextMilestone - newPts;
+            if (pointsToGo > 0 && pointsToGo <= 100) {
+              const { data: existing } = await supabase
+                .from("notifications")
+                .select("id, payload")
+                .eq("user_id", profile.id)
+                .eq("type", "level_up_imminent");
+              const alreadyNotified = (existing || []).some(n =>
+                Number(n.payload?.next_milestone) === nextMilestone
+              );
+              if (!alreadyNotified) {
+                await supabase.from("notifications").insert({
+                  user_id: profile.id,
+                  type: "level_up_imminent",
+                  read: false,
+                  payload: {
+                    current_points: newPts,
+                    next_milestone: nextMilestone,
+                    points_to_go: pointsToGo,
+                  },
+                });
+              }
+            }
+          }
         }
       } catch (e) { console.error("[milestone] detection failed", e); }
     }
