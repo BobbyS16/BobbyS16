@@ -4901,6 +4901,9 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
       )}
 
       <Btn onClick={onClose} variant="secondary" mb={0}>Fermer</Btn>
+      {/* Spacer iPhone : home indicator + padding extra pour que le bouton
+          Fermer ne soit pas tronqué quand le content est long. */}
+      <div style={{height:"calc(20px + env(safe-area-inset-bottom))"}}/>
 
       {showSubmit && (
         <PronoSubmitModal
