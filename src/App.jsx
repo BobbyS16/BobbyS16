@@ -2285,6 +2285,35 @@ const UPCOMING_DISCIPLINES = [
   { k:"hyrox", label:"Hyrox", icon:"🔥" },
 ];
 
+// Distances proposées par discipline. La dernière entrée est toujours
+// "Autre" qui ouvre la saisie libre. Valeurs en km, label affiché à
+// côté de la valeur quand utile (semi/marathon/IM/etc.).
+const UPCOMING_DISTANCES = {
+  run: [
+    { v: 5,       label: "5 km" },
+    { v: 10,      label: "10 km" },
+    { v: 21.0975, label: "21,1 km — Semi" },
+    { v: 42.195,  label: "42,195 km — Marathon" },
+  ],
+  trail: [
+    { v: 15,  label: "15 km" },
+    { v: 25,  label: "25 km — Trail court" },
+    { v: 45,  label: "45 km — Trail moyen" },
+    { v: 80,  label: "80 km — Trail long" },
+    { v: 100, label: "100 km" },
+    { v: 160, label: "160 km — Ultra (100 mi)" },
+  ],
+  tri: [
+    { v: 25.75, label: "25,75 km — Sprint (S)" },
+    { v: 51.5,  label: "51,5 km — Olympique (M)" },
+    { v: 113,   label: "113 km — Half Ironman (L)" },
+    { v: 226,   label: "226 km — Ironman (XL)" },
+  ],
+  hyrox: [
+    { v: 8, label: "8 km — Hyrox (course)" },
+  ],
+};
+
 function intervalToHHMMSS(iv) {
   // PostgREST renvoie un interval comme "01:23:45" ou "1 day 02:00:00".
   // En V1 on ne stocke que des durées < 24h donc le format simple suffit.
@@ -2302,7 +2331,16 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
   const [name, setName] = useState(race?.race_name || "");
   const [date, setDate] = useState(race?.race_date || todayISO);
   const [discipline, setDiscipline] = useState(race?.discipline || "run");
-  const [distance, setDistance] = useState(race?.distance_km != null ? String(race.distance_km) : "");
+  // Distance: si la valeur préchargée correspond à un preset de la discipline
+  // active on l'aligne dessus (auto-détection edit), sinon mode "custom".
+  const initialDistance = race?.distance_km != null ? Number(race.distance_km) : null;
+  const initialPresetMatch = (UPCOMING_DISTANCES[race?.discipline || "run"] || []).find(o => Math.abs(o.v - (initialDistance ?? -1)) < 0.001);
+  const [distancePreset, setDistancePreset] = useState(
+    initialDistance == null ? "" : (initialPresetMatch ? String(initialPresetMatch.v) : "custom")
+  );
+  const [distanceCustom, setDistanceCustom] = useState(
+    initialDistance != null && !initialPresetMatch ? String(initialDistance) : ""
+  );
   const [targetTime, setTargetTime] = useState(intervalToHHMMSS(race?.target_time));
   const [hasTarget, setHasTarget] = useState(!!race?.target_time);
   const [loading, setLoading] = useState(false);
@@ -2313,7 +2351,14 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
     if (!name.trim()) { setError("Nom de la course requis"); return; }
     if (!date) { setError("Date requise"); return; }
     if (date < todayISO) { setError("La date ne peut pas être dans le passé"); return; }
-    const dKm = parseFloat(distance);
+    let dKm;
+    if (distancePreset === "custom") {
+      dKm = parseFloat(distanceCustom);
+    } else if (distancePreset === "") {
+      dKm = NaN;
+    } else {
+      dKm = parseFloat(distancePreset);
+    }
     if (isNaN(dKm) || dKm <= 0) { setError("Distance invalide"); return; }
     let target = null;
     if (hasTarget && targetTime) {
@@ -2359,14 +2404,33 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
       <Lbl c="Discipline *"/>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {UPCOMING_DISCIPLINES.map(d=>(
-          <button key={d.k} onClick={()=>setDiscipline(d.k)} style={{flex:1,padding:"10px 0",borderRadius:12,border:"none",cursor:"pointer",background:discipline===d.k?"rgba(237,42,55,0.18)":"rgba(255,255,255,0.04)",color:discipline===d.k?"#ED2A37":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:4,border:`1px solid ${discipline===d.k?"rgba(237,42,55,0.4)":"transparent"}`}}>
+          <button key={d.k} onClick={()=>{
+            setDiscipline(d.k);
+            // Reset distance au changement de discipline (les presets sont
+            // spécifiques à chaque sport).
+            setDistancePreset("");
+            setDistanceCustom("");
+          }} style={{flex:1,padding:"10px 0",borderRadius:12,border:"none",cursor:"pointer",background:discipline===d.k?"rgba(237,42,55,0.18)":"rgba(255,255,255,0.04)",color:discipline===d.k?"#ED2A37":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:4,border:`1px solid ${discipline===d.k?"rgba(237,42,55,0.4)":"transparent"}`}}>
             <span>{d.icon}</span><span>{d.label}</span>
           </button>
         ))}
       </div>
 
-      <Lbl c="Distance (km) *"/>
-      <Inp value={distance} onChange={setDistance} placeholder="Ex: 42.195" type="number"/>
+      <Lbl c="Distance *"/>
+      <select
+        value={distancePreset}
+        onChange={e=>setDistancePreset(e.target.value)}
+        style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:15,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:distancePreset==="custom"?6:10,colorScheme:"dark"}}
+      >
+        <option value="" disabled>Sélectionne une distance…</option>
+        {(UPCOMING_DISTANCES[discipline] || []).map(o => (
+          <option key={o.v} value={o.v}>{o.label}</option>
+        ))}
+        <option value="custom">Autre (saisir en km)</option>
+      </select>
+      {distancePreset === "custom" && (
+        <Inp value={distanceCustom} onChange={setDistanceCustom} placeholder="Distance en km (ex: 17.5)" type="number"/>
+      )}
 
       <button onClick={()=>setHasTarget(v=>!v)} style={{width:"100%",padding:"11px 12px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:600,marginBottom:hasTarget?10:14,display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
         <span>🎯 Mon objectif (optionnel)</span>
