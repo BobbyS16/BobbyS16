@@ -2274,10 +2274,123 @@ function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
 }
 const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p.length>1?`${p[0]} ${p[1][0].toUpperCase()}.`:p[0];};
 
-function AddPickerModal({onPickTraining,onPickRace,onClose}){
+// UpcomingRaceModal — déclaration d'une course à venir.
+// Mode insert (race=null) ou edit (race={...}).
+// On utilise un <input type="date" min="..."> natif pour le picker date,
+// car le DatePicker maison ne couvre que les années passées (CY-14 → CY).
+const UPCOMING_DISCIPLINES = [
+  { k:"run",   label:"Run",   icon:"🏃" },
+  { k:"trail", label:"Trail", icon:"⛰️" },
+  { k:"tri",   label:"Tri",   icon:"🏊" },
+  { k:"hyrox", label:"Hyrox", icon:"🔥" },
+];
+
+function intervalToHHMMSS(iv) {
+  // PostgREST renvoie un interval comme "01:23:45" ou "1 day 02:00:00".
+  // En V1 on ne stocke que des durées < 24h donc le format simple suffit.
+  if (!iv) return "";
+  if (typeof iv === "string") {
+    const m = iv.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+    if (m) return `${m[1].padStart(2,"0")}:${m[2]}:${m[3]}`;
+  }
+  return "";
+}
+
+function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
+  const isEdit = !!race?.id;
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const [name, setName] = useState(race?.race_name || "");
+  const [date, setDate] = useState(race?.race_date || todayISO);
+  const [discipline, setDiscipline] = useState(race?.discipline || "run");
+  const [distance, setDistance] = useState(race?.distance_km != null ? String(race.distance_km) : "");
+  const [targetTime, setTargetTime] = useState(intervalToHHMMSS(race?.target_time));
+  const [hasTarget, setHasTarget] = useState(!!race?.target_time);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    setError("");
+    if (!name.trim()) { setError("Nom de la course requis"); return; }
+    if (!date) { setError("Date requise"); return; }
+    if (date < todayISO) { setError("La date ne peut pas être dans le passé"); return; }
+    const dKm = parseFloat(distance);
+    if (isNaN(dKm) || dKm <= 0) { setError("Distance invalide"); return; }
+    let target = null;
+    if (hasTarget && targetTime) {
+      const m = targetTime.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+      if (!m) { setError("Format objectif invalide (HH:MM:SS)"); return; }
+      target = targetTime;
+    }
+    setLoading(true);
+    const payload = {
+      user_id: userId,
+      race_name: name.trim(),
+      race_date: date,
+      discipline,
+      distance_km: dKm,
+      target_time: target,
+    };
+    const op = isEdit
+      ? supabase.from("upcoming_races").update(payload).eq("id", race.id).select().single()
+      : supabase.from("upcoming_races").insert(payload).select().single();
+    const { data, error: err } = await op;
+    setLoading(false);
+    if (err) { setError(err.message); return; }
+    onSaved?.(data);
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:6}}>{isEdit ? "Modifier la course" : "Déclarer une course"}</div>
+      <div style={{fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginBottom:18,lineHeight:1.5}}>Tes amis verront cette course et pourront pronostiquer (bientôt).</div>
+
+      <Lbl c="Nom de la course *"/>
+      <Inp value={name} onChange={setName} placeholder="Ex: Marathon de Paris 2026"/>
+
+      <Lbl c="Date de la course *"/>
+      <input
+        type="date"
+        value={date}
+        min={todayISO}
+        onChange={e=>setDate(e.target.value)}
+        style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:15,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10,colorScheme:"dark"}}
+      />
+
+      <Lbl c="Discipline *"/>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {UPCOMING_DISCIPLINES.map(d=>(
+          <button key={d.k} onClick={()=>setDiscipline(d.k)} style={{flex:1,padding:"10px 0",borderRadius:12,border:"none",cursor:"pointer",background:discipline===d.k?"rgba(237,42,55,0.18)":"rgba(255,255,255,0.04)",color:discipline===d.k?"#ED2A37":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:4,border:`1px solid ${discipline===d.k?"rgba(237,42,55,0.4)":"transparent"}`}}>
+            <span>{d.icon}</span><span>{d.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <Lbl c="Distance (km) *"/>
+      <Inp value={distance} onChange={setDistance} placeholder="Ex: 42.195" type="number"/>
+
+      <button onClick={()=>setHasTarget(v=>!v)} style={{width:"100%",padding:"11px 12px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:600,marginBottom:hasTarget?10:14,display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
+        <span>🎯 Mon objectif (optionnel)</span>
+        <span aria-hidden style={{width:34,height:18,borderRadius:99,background:hasTarget?"#4ADE80":"rgba(255,255,255,0.15)",position:"relative",flexShrink:0}}><span style={{position:"absolute",top:2,left:hasTarget?18:2,width:14,height:14,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/></span>
+      </button>
+      {hasTarget && (
+        <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:14}}>
+          <TimePicker value={targetTime || "00:00:00"} onChange={setTargetTime}/>
+        </div>
+      )}
+
+      {error && <div style={{color:"#ED2A37",fontSize:12,fontFamily:"'Barlow',sans-serif",marginBottom:10,textAlign:"center"}}>{error}</div>}
+
+      <Btn onClick={submit} disabled={loading}>{loading ? "Enregistrement…" : (isEdit ? "Enregistrer" : "Déclarer")}</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
+    </Modal>
+  );
+}
+
+function AddPickerModal({onPickTraining,onPickRace,onPickUpcoming,onClose}){
   const opts=[
     {icon:"🏋️",label:"Entraînement",desc:"Run, Vélo, Natation, Trail",color:"#4ade80",cb:onPickTraining},
     {icon:"🏅",label:"Course officielle",desc:"5km, 10km, marathon, trail, triathlon, hyrox…",color:"#E63946",cb:onPickRace},
+    {icon:"📅",label:"Course à venir",desc:"Déclare une course que tu prépares",color:"#3B82F6",cb:onPickUpcoming},
   ];
   return (
     <Modal onClose={onClose}>
@@ -2436,7 +2549,7 @@ function JoinGroupModal({userId, prefilledCode = "", onJoined, onClose}) {
   );
 }
 
-function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner,onOpenLeague}){
+function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner,onOpenLeague}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
@@ -2865,7 +2978,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,refreshKey,onOpenProfil
           })}
       </PullToRefresh>
       <button onClick={()=>setShowPicker(true)} style={{position:"fixed",bottom:"clamp(74px, 11dvh, 90px)",right:"clamp(14px, 4vw, 20px)",zIndex:99,width:"clamp(44px, 7vw, 56px)",height:"clamp(44px, 7vw, 56px)",borderRadius:"50%",background:"#E63946",border:"none",color:"#fff",fontSize:"clamp(22px, 5vw, 28px)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(230,57,70,0.5)"}}>+</button>
-      {showPicker&&<AddPickerModal onPickTraining={onAddTraining} onPickRace={onAddRace} onClose={()=>setShowPicker(false)}/>}
+      {showPicker&&<AddPickerModal onPickTraining={onAddTraining} onPickRace={onAddRace} onPickUpcoming={onAddUpcoming} onClose={()=>setShowPicker(false)}/>}
       {showCreateGroup&&<CreateGroupModal userId={userId} onCreated={(g)=>{setShowCreateGroup(false); loadMyGroups(); setSelectedGroupId(g.id);}} onClose={()=>setShowCreateGroup(false)}/>}
       {showJoinGroup&&<JoinGroupModal userId={userId} prefilledCode={typeof showJoinGroup==="object"?showJoinGroup.prefilledCode:""} onJoined={(g)=>{setShowJoinGroup(false); loadMyGroups(); setSelectedGroupId(g.id); setRankFilter("groupes");}} onClose={()=>setShowJoinGroup(false)}/>}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
@@ -4492,6 +4605,22 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
   };
   const [hidden,setHidden]=useState(!!profile?.ranking_hidden);
   useEffect(()=>{setHidden(!!profile?.ranking_hidden);},[profile?.ranking_hidden]);
+  // Courses à venir (déclarations futures de l'user)
+  const [upcomingRaces,setUpcomingRaces]=useState([]);
+  const [upcomingModal,setUpcomingModal]=useState(null); // null | "new" | {id, ...} pour edit
+  const loadUpcomingRaces=async()=>{
+    if(!profile?.id) return;
+    const todayISO = new Date().toISOString().slice(0,10);
+    const {data}=await supabase.from("upcoming_races")
+      .select("*").eq("user_id",profile.id).gte("race_date",todayISO)
+      .order("race_date",{ascending:true});
+    setUpcomingRaces(data||[]);
+  };
+  useEffect(()=>{loadUpcomingRaces();},[profile?.id]);
+  const handleDeleteUpcoming=async id=>{
+    await supabase.from("upcoming_races").delete().eq("id",id);
+    loadUpcomingRaces();
+  };
   const [stravaTokens,setStravaTokens]=useState(null);
   const [stravaBusy,setStravaBusy]=useState(false);
   const [stravaMsg,setStravaMsg]=useState("");
@@ -4792,6 +4921,35 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
           {!stravaTokens&&<span style={{fontSize:10,fontWeight:500,color:"rgba(240,237,232,0.35)",letterSpacing:0.3}}>Aucun compte Strava connecté</span>}
         </button>
       </div>
+
+      {/* Mes courses à venir */}
+      <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>📅 Mes courses à venir</div>
+        {upcomingRaces.length === 0 ? (
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45,padding:"6px 0 12px",textAlign:"center"}}>Aucune course déclarée pour l'instant.</div>
+        ) : (
+          upcomingRaces.map(r => {
+            const dispLabel = (UPCOMING_DISCIPLINES.find(d => d.k === r.discipline) || {label:r.discipline, icon:"🏁"});
+            const dt = new Date(r.race_date);
+            const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
+            return (
+              <div key={r.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+                <div style={{fontSize:22,flexShrink:0}}>{dispLabel.icon}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race_name}</div>
+                  <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>
+                    {dStr} · {r.distance_km} km{r.target_time ? ` · 🎯 ${intervalToHHMMSS(r.target_time)}` : ""}
+                  </div>
+                </div>
+                <button onClick={()=>setUpcomingModal(r)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>Modifier</button>
+                <button onClick={()=>handleDeleteUpcoming(r.id)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(230,57,70,0.1)",color:"#E63946",border:"none",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>✕</button>
+              </div>
+            );
+          })
+        )}
+        <button onClick={()=>setUpcomingModal("new")} style={{width:"100%",marginTop:10,padding:"10px 0",borderRadius:10,background:"rgba(59,130,246,0.12)",color:"#3B82F6",border:"1px solid rgba(59,130,246,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>+ Déclarer une course à venir</button>
+      </div>
+
       <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
         <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>🔔 Notifications</div>
         <button
@@ -4833,6 +4991,7 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
       {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
       {editResult&&<ResultModal existing={editResult} userId={profile.id} onSave={()=>{setEditResult(null);onRefresh();}} onClose={()=>setEditResult(null)}/>}
+      {upcomingModal&&<UpcomingRaceModal userId={profile.id} race={upcomingModal==="new"?null:upcomingModal} onSaved={()=>{setUpcomingModal(null);loadUpcomingRaces();setProfileToast("Course déclarée 🏁");}} onClose={()=>setUpcomingModal(null)}/>}
       {showStravaPending&&(
         <Modal onClose={()=>setShowStravaPending(false)}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1.5,color:"#F0EDE8",marginBottom:8}}>Bientôt disponible</div>
@@ -5854,7 +6013,7 @@ export default function App(){
   return (
     <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} pushOptedIn={pushOptedIn} pushBannerDismissed={pushBannerDismissed} onEnablePush={enablePush} onDismissPushBanner={dismissPushBanner} onOpenLeague={()=>setTab("ranking")}/>}
+      {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} onAddUpcoming={()=>setAddMode("upcoming")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} pushOptedIn={pushOptedIn} pushBannerDismissed={pushBannerDismissed} onEnablePush={enablePush} onDismissPushBanner={dismissPushBanner} onOpenLeague={()=>setTab("ranking")}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
       {tab==="training"&&<TrainingTab userId={profile?.id} onActivityChange={refresh}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
@@ -5862,6 +6021,7 @@ export default function App(){
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
       {addMode==="result"&&<ResultModal userId={profile?.id} initialDiscipline={pendingResultDisc} onSave={()=>{setAddMode(null);setPendingResultDisc(null);refresh();}} onClose={()=>{setAddMode(null);setPendingResultDisc(null);}}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
+      {addMode==="upcoming"&&<UpcomingRaceModal userId={profile?.id} onSaved={()=>{setAddMode(null);}} onClose={()=>setAddMode(null)}/>}
       {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)} pushOptedIn={pushOptedIn} onEnablePush={enablePush} onDisablePush={disablePush}/>}
       <CelebrationQueueRenderer queue={celebQueue} paused={celebPaused} onClose={closeCurrentCelebration} onViewRanking={()=>setTab("ranking")}/>
       {overtakenDetail && overtakenBanner && <OvertakenDetailModal overtakes={overtakenBanner.overtakes} profiles={overtakenBanner.profiles} onClose={()=>setOvertakenDetail(false)} onAddActivity={()=>{setOvertakenDetail(false);setAddMode("training");}}/>}
