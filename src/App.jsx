@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import confetti from "canvas-confetti";
 import { calculateTrainingPoints } from "./utils/trainingPoints.js";
+import { usePushSubscription } from "./hooks/usePushSubscription.js";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -4394,16 +4395,17 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
       <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
         <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>🔔 Notifications</div>
         <button
-          onClick={async()=>{
-            const next = pushOptedIn!==true;
-            if(next) onEnablePush?.(); else onDisablePush?.();
-            try{ await supabase.from("profiles").update({push_enabled:next}).eq("id",profile.id); onRefresh&&onRefresh(); }catch(e){console.error("[push_enabled] update failed",e);}
+          onClick={()=>{
+            // One-way data flow : on agit sur OneSignal (source unique de
+            // vérité), le listener du hook synchronise la DB. Aucune écriture
+            // directe de profile.push_enabled ici.
+            if(pushOptedIn) onDisablePush?.(); else onEnablePush?.();
           }}
           style={{width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",border:"none",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,display:"flex",alignItems:"center",justifyContent:"space-between",touchAction:"manipulation"}}
         >
           <span style={{flex:1,textAlign:"left"}}>Notifications push</span>
-          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:pushOptedIn===true?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <span style={{position:"absolute",top:2,left:pushOptedIn===true?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:pushOptedIn?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <span style={{position:"absolute",top:2,left:pushOptedIn?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
           </span>
         </button>
         <button
@@ -5189,7 +5191,6 @@ export default function App(){
   const [celebPaused,setCelebPaused]=useState(false);
   const [overtakenBanner,setOvertakenBanner]=useState(null);
   const [overtakenDetail,setOvertakenDetail]=useState(false);
-  const [pushOptedIn,setPushOptedIn]=useState(null);
   const [pushBannerDismissed,setPushBannerDismissed]=useState(()=>{
     try{
       const t=parseInt(localStorage.getItem("pushBannerDismissedAt")||"0");
@@ -5217,40 +5218,8 @@ export default function App(){
 
   useEffect(()=>{if(session){loadProfile();loadResults();loadNotifCount();}},[session]);
 
-  useEffect(()=>{
-    if(!profile?.id||profile.onboarding_completed!==true) return;
-    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    let cleanup=null;
-    window.OneSignalDeferred.push(async(OneSignal)=>{
-      try{await OneSignal.login(profile.id);console.log("[OneSignal] login OK pour",profile.id);}
-      catch(e){console.error("[OneSignal] login échoué",e);}
-      try{
-        setPushOptedIn(!!OneSignal.User.PushSubscription.optedIn);
-        const handler=(event)=>setPushOptedIn(!!event?.current?.optedIn);
-        OneSignal.User.PushSubscription.addEventListener("change",handler);
-        cleanup=()=>{ try{OneSignal.User.PushSubscription.removeEventListener("change",handler);}catch{} };
-      }catch(e){console.warn("[OneSignal] subscribe state listener err",e);}
-    });
-    return()=>{ if(cleanup) cleanup(); };
-  },[profile?.id,profile?.onboarding_completed]);
-
-  const enablePush=useCallback(async()=>{
-    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    window.OneSignalDeferred.push(async(OneSignal)=>{
-      try{
-        await OneSignal.Notifications.requestPermission();
-        try{ await OneSignal.User.PushSubscription.optIn(); }catch{}
-      }catch(e){console.error("[OneSignal] enablePush err",e);}
-    });
-  },[]);
-
-  const disablePush=useCallback(async()=>{
-    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    window.OneSignalDeferred.push(async(OneSignal)=>{
-      try{ await OneSignal.User.PushSubscription.optOut(); }
-      catch(e){console.error("[OneSignal] disablePush err",e);}
-    });
-  },[]);
+  const { optedIn: pushOptedIn, optIn: enablePush, optOut: disablePush } =
+    usePushSubscription(profile);
 
   const dismissPushBanner=useCallback(async()=>{
     const nowIso = new Date().toISOString();
@@ -5273,9 +5242,11 @@ export default function App(){
       try{ localStorage.setItem("pushBannerDismissedAt",String(dbAt)); }catch{}
       setPushBannerDismissed(true);
     } else if (dbAt === 0) {
-      // Pas de dismiss en DB : si localStorage en avait un mais qu'il a expiré ou
-      // qu'on est sur un nouveau device, l'état dérivé du localStorage initial
-      // suffit. Rien à faire.
+      // DB = NULL → bannière doit être visible. On purge le cache localStorage
+      // (sinon un dismiss antérieur sur ce device la maintient masquée alors
+      // que le serveur a reset).
+      try{ localStorage.removeItem("pushBannerDismissedAt"); }catch{}
+      setPushBannerDismissed(false);
     } else {
       // dismiss en DB > 7j → bannière à nouveau visible
       try{ localStorage.removeItem("pushBannerDismissedAt"); }catch{}
