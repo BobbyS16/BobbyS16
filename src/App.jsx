@@ -4487,17 +4487,23 @@ function fmtCardPace(distanceKm, durationSec, sport) {
   return `${m}'${s.toString().padStart(2,"0")}/km`;
 }
 
-// Extrait les 4 stats (Distance / Durée / Allure / Pts) pour une entry.
-function statsForEntry(entry) {
+// Extrait les 4 stats pour une entry (Distance · Durée · Allure|D+ · Pts).
+// La 3e cellule devient "D+" pour les disciplines où le dénivelé compte
+// plus que l'allure (vélo, trail, tri) si elevation_gain_m est renseigné.
+function statsForEntry(entry, family) {
   const e = entry.data;
+  const elevation = e.elevation_gain_m || (entry.kind === "result" ? e.elevation : null) || 0;
+  const showElevation = elevation > 0 && (family === "velo" || family === "trail" || family === "tri");
+
   if (entry.kind === "training") {
     const distance = e.distance || 0;
     const duration = e.duration || 0;
     return {
       distance: distance ? `${distance} km` : "—",
       duration: fmtCardDuration(duration),
-      pace:     fmtCardPace(distance, duration, e.sport),
-      points:   `+${e.points || 0}`,
+      thirdLabel: showElevation ? "D+" : "Allure",
+      thirdValue: showElevation ? `${elevation}m` : fmtCardPace(distance, duration, e.sport),
+      points:    `+${e.points || 0}`,
     };
   }
   const d = distanceForDiscipline(e.discipline);
@@ -4505,8 +4511,9 @@ function statsForEntry(entry) {
   return {
     distance: d != null ? `${d} km` : (DISCIPLINES[e.discipline]?.label || "—"),
     duration: fmtCardDuration(t),
-    pace:     d ? fmtCardPace(d, t, "Course") : "—",
-    points:   "+" + (e.points || calcPoints?.(e.discipline, e.time, e.elevation) || 0),
+    thirdLabel: showElevation ? "D+" : "Allure",
+    thirdValue: showElevation ? `${elevation}m` : (d ? fmtCardPace(d, t, "Course") : "—"),
+    points:    "+" + (e.points || calcPoints?.(e.discipline, e.time, e.elevation) || 0),
   };
 }
 
@@ -4528,7 +4535,7 @@ function FeedCard({ entry, firstComment }) {
   const e = entry.data;
   const fam = activityFamily(entry);
   const badgeColor = ACTIVITY_BADGE_COLORS[fam.family] || ACTIVITY_BADGE_COLORS.run;
-  const stats = statsForEntry(entry);
+  const stats = statsForEntry(entry, fam.family);
   const title = entry.kind === "training"
     ? (e.is_official_race ? (e.official_race_name || "Course officielle") : (e.title || `Sortie ${e.sport || ""}`.trim()))
     : (DISCIPLINES[e.discipline]?.label || e.discipline) + (e.race ? ` · ${e.race}` : "");
@@ -4555,10 +4562,10 @@ function FeedCard({ entry, firstComment }) {
 
       {/* Stats 4-col grid */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",borderTop:e.photo_url?"1px solid #232323":"none"}}>
-        <StatCell label="Distance" value={stats.distance}/>
-        <StatCell label="Durée"    value={stats.duration}/>
-        <StatCell label="Allure"   value={stats.pace}/>
-        <StatCell label="Pts"      value={stats.points} valueColor="#ED2A37"/>
+        <StatCell label="Distance"        value={stats.distance}/>
+        <StatCell label="Durée"           value={stats.duration}/>
+        <StatCell label={stats.thirdLabel} value={stats.thirdValue}/>
+        <StatCell label="Pts"             value={stats.points} valueColor="#ED2A37"/>
       </div>
 
       {/* 1er commentaire inline */}
@@ -4993,11 +5000,11 @@ function FilPanel({ myProfile }) {
       const sinceISO = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString().slice(0, 10);
       const [trR, reR, prR] = await Promise.all([
         supabase.from("trainings")
-          .select("id,user_id,sport,duration,distance,date,points,is_official_race,official_race_name,title,photo_url")
+          .select("id,user_id,sport,duration,distance,date,points,is_official_race,official_race_name,title,photo_url,elevation_gain_m")
           .in("user_id", friendIds).gte("date", sinceISO)
           .order("date", { ascending: false }).limit(40),
         supabase.from("results")
-          .select("id,user_id,discipline,time,race,year,race_date,elevation,photo_url")
+          .select("id,user_id,discipline,time,race,year,race_date,elevation,elevation_gain_m,photo_url")
           .in("user_id", friendIds).gte("race_date", sinceISO)
           .order("race_date", { ascending: false }).limit(40),
         supabase.from("profiles")
