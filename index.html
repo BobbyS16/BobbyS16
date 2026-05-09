@@ -15,24 +15,10 @@
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       OneSignalDeferred.push(async function(OneSignal) {
-        // On désactive TOUS les prompts natifs OneSignal côté code, pour
-        // ne pas dépendre uniquement de la config dashboard (qui peut être
-        // ré-activée par erreur). Notre bannière violette custom prend le
-        // relais via enablePush() au tap utilisateur.
         await OneSignal.init({
           appId: "35485edf-128a-4346-b6f6-a21a84645f47",
           notifyButton: { enable: false },
-          promptOptions: {
-            slidedown: {
-              prompts: [
-                { type: "push",         autoPrompt: false },
-                { type: "category",     autoPrompt: false },
-                { type: "email",        autoPrompt: false },
-                { type: "sms",          autoPrompt: false },
-                { type: "smsAndEmail",  autoPrompt: false },
-              ],
-            },
-          },
+          allowLocalhostAsSecureOrigin: false,
         });
       });
     </script>

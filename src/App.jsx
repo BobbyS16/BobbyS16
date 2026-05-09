@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
 import confetti from "canvas-confetti";
 import { calculateTrainingPoints } from "./utils/trainingPoints.js";
+import { usePushSubscription } from "./hooks/usePushSubscription.js";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -4395,23 +4396,16 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
         <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>🔔 Notifications</div>
         <button
           onClick={()=>{
-            // DB push_enabled = source de vérité (multi-device, persistant).
-            // pushOptedIn ne reflète que la sub OneSignal de CE device et
-            // peut être désync (réinstall PWA, autre device). Le tap fait
-            // donc : 1) sync OneSignal (gesture iOS-safe = synchrone), puis
-            // 2) update DB en arrière-plan.
-            const next = profile?.push_enabled !== true;
-            if(next) onEnablePush?.(); else onDisablePush?.();
-            (async()=>{
-              try{ await supabase.from("profiles").update({push_enabled:next}).eq("id",profile.id); onRefresh&&onRefresh(); }
-              catch(e){ console.error("[push_enabled] update failed",e); }
-            })();
+            // One-way data flow : on agit sur OneSignal (source unique de
+            // vérité), le listener du hook synchronise la DB. Aucune écriture
+            // directe de profile.push_enabled ici.
+            if(pushOptedIn) onDisablePush?.(); else onEnablePush?.();
           }}
           style={{width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",border:"none",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,display:"flex",alignItems:"center",justifyContent:"space-between",touchAction:"manipulation"}}
         >
           <span style={{flex:1,textAlign:"left"}}>Notifications push</span>
-          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:profile?.push_enabled===true?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <span style={{position:"absolute",top:2,left:profile?.push_enabled===true?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:pushOptedIn?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <span style={{position:"absolute",top:2,left:pushOptedIn?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
           </span>
         </button>
         <button
@@ -5197,7 +5191,6 @@ export default function App(){
   const [celebPaused,setCelebPaused]=useState(false);
   const [overtakenBanner,setOvertakenBanner]=useState(null);
   const [overtakenDetail,setOvertakenDetail]=useState(false);
-  const [pushOptedIn,setPushOptedIn]=useState(null);
   const [pushBannerDismissed,setPushBannerDismissed]=useState(()=>{
     try{
       const t=parseInt(localStorage.getItem("pushBannerDismissedAt")||"0");
@@ -5225,57 +5218,8 @@ export default function App(){
 
   useEffect(()=>{if(session){loadProfile();loadResults();loadNotifCount();}},[session]);
 
-  // OneSignal.login() doit être appelé dès que l'external_user_id (profile.id)
-  // est connu, AVANT toute requestPermission/optIn — sinon le SDK fire la
-  // welcome notif une 1ère fois pour la sub anonyme, puis une 2ème fois quand
-  // on migre vers l'external_user_id. Pas de gate onboarding_completed ici.
-  useEffect(()=>{
-    if(!profile?.id) return;
-    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    window.OneSignalDeferred.push(async(OneSignal)=>{
-      try{await OneSignal.login(profile.id);console.log("[OneSignal] login OK pour",profile.id);}
-      catch(e){console.error("[OneSignal] login échoué",e);}
-    });
-  },[profile?.id]);
-
-  useEffect(()=>{
-    if(!profile?.id) return;
-    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    let cleanup=null;
-    window.OneSignalDeferred.push(async(OneSignal)=>{
-      try{
-        setPushOptedIn(!!OneSignal.User.PushSubscription.optedIn);
-        const handler=(event)=>setPushOptedIn(!!event?.current?.optedIn);
-        OneSignal.User.PushSubscription.addEventListener("change",handler);
-        cleanup=()=>{ try{OneSignal.User.PushSubscription.removeEventListener("change",handler);}catch{} };
-      }catch(e){console.warn("[OneSignal] subscribe state listener err",e);}
-    });
-    return()=>{ if(cleanup) cleanup(); };
-  },[profile?.id]);
-
-  // IMPORTANT iOS Safari : ne JAMAIS await quoi que ce soit avant
-  // OneSignalDeferred.push(...). Un await avant requestPermission() détache
-  // le call stack du user-gesture, et iOS refuse alors d'afficher le prompt
-  // de permission silencieusement. La sub n'est jamais créée, le toggle ne
-  // bascule pas. La dédup welcome est gérée hors de ce flow (cf. endpoint
-  // /api/onesignal/cleanup-old-subs, déclenché séparément).
-  const enablePush=useCallback(async()=>{
-    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    window.OneSignalDeferred.push(async(OneSignal)=>{
-      try{
-        await OneSignal.Notifications.requestPermission();
-        try{ await OneSignal.User.PushSubscription.optIn(); }catch{}
-      }catch(e){console.error("[OneSignal] enablePush err",e);}
-    });
-  },[]);
-
-  const disablePush=useCallback(async()=>{
-    if(typeof window==="undefined"||!window.OneSignalDeferred) return;
-    window.OneSignalDeferred.push(async(OneSignal)=>{
-      try{ await OneSignal.User.PushSubscription.optOut(); }
-      catch(e){console.error("[OneSignal] disablePush err",e);}
-    });
-  },[]);
+  const { optedIn: pushOptedIn, optIn: enablePush, optOut: disablePush } =
+    usePushSubscription(profile);
 
   const dismissPushBanner=useCallback(async()=>{
     const nowIso = new Date().toISOString();
