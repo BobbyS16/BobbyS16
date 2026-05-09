@@ -4556,9 +4556,92 @@ function PrognoCard({ entry, firstComment }) {
   );
 }
 
+// UpcomingRaceCard — ligne de course à venir dans la section dédiée du fil.
+// Discipline UPCOMING_DISCIPLINES (run/trail/tri/hyrox) → couleur de badge
+// via ACTIVITY_BADGE_COLORS. Tap → modal détail (qui montrera les pronos
+// quand la feature sera dispo).
+function UpcomingRaceCard({ race, onTap }) {
+  const disc = UPCOMING_DISCIPLINES.find(d => d.k === race.discipline);
+  const badgeColor = ACTIVITY_BADGE_COLORS[race.discipline] || ACTIVITY_BADGE_COLORS.run;
+  const dt = new Date(race.race_date);
+  const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
+  const targetStr = intervalToHHMMSS(race.target_time);
+  return (
+    <button onClick={onTap} style={{display:"block",width:"100%",textAlign:"left",cursor:"pointer",background:"#0E0E0E",border:"1px solid #232323",borderRadius:20,marginBottom:10,padding:0,overflow:"hidden",font:"inherit",color:"inherit"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",position:"relative"}}>
+        <div style={{width:46,height:46,borderRadius:14,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{disc?.icon || "🏁"}</div>
+        <div style={{flex:1,minWidth:0,paddingRight:64}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{race.race_name}</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.5)",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {dStr} · {race.distance_km} km{targetStr ? ` · 🎯 ${targetStr}` : ""}
+          </div>
+        </div>
+        <div style={{position:"absolute",top:14,right:14,padding:"4px 10px",borderRadius:99,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}66`,color:badgeColor,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase"}}>{disc?.label || race.discipline}</div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderTop:"1px solid #232323"}}>
+        <Avatar profile={race.user} size={26}/>
+        <div style={{flex:1,minWidth:0,fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(race.user?.name)} y participe</div>
+        <div style={{color:"rgba(240,237,232,0.35)",fontSize:14,flexShrink:0}}>›</div>
+      </div>
+    </button>
+  );
+}
+
+// UpcomingRaceDetailModal — détail au tap d'une UpcomingRaceCard.
+// Affiche la course + le participant (créateur de la déclaration) avec
+// son target_time si renseigné. Section pronostics = placeholder pour
+// l'instant : la table race_pronostics et la feature de saisie d'un
+// prono ami arrivent dans la suite (roadmap pronos sem 7-8).
+function UpcomingRaceDetailModal({ race, onClose }) {
+  const disc = UPCOMING_DISCIPLINES.find(d => d.k === race.discipline);
+  const badgeColor = ACTIVITY_BADGE_COLORS[race.discipline] || ACTIVITY_BADGE_COLORS.run;
+  const dt = new Date(race.race_date);
+  const dStr = dt.toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+  const targetStr = intervalToHHMMSS(race.target_time);
+
+  return (
+    <Modal onClose={onClose}>
+      {/* Header course */}
+      <div style={{padding:"4px 0 14px",borderBottom:"1px solid #232323",marginBottom:14}}>
+        <div style={{display:"inline-block",padding:"4px 10px",borderRadius:99,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}66`,color:badgeColor,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>{disc?.icon || "🏁"} {disc?.label || race.discipline}</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:0.8,color:"#F0EDE8",lineHeight:1.1,marginBottom:6}}>{race.race_name}</div>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.55)",letterSpacing:0.3}}>
+          {dStr.charAt(0).toUpperCase() + dStr.slice(1)} · {race.distance_km} km
+        </div>
+      </div>
+
+      {/* Participant */}
+      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.2,textTransform:"uppercase",color:"rgba(240,237,232,0.4)",fontWeight:700,marginBottom:8}}>Participant</div>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid #232323",borderRadius:14,marginBottom:18}}>
+        <Avatar profile={race.user} size={36}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:0.4,color:"#F0EDE8",lineHeight:1.1}}>{shortName(race.user?.name) || "Anonyme"}</div>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>
+            {targetStr ? <>🎯 Objectif : <span style={{color:"#F0EDE8",fontWeight:700}}>{targetStr}</span></> : "Pas d'objectif annoncé"}
+          </div>
+        </div>
+      </div>
+
+      {/* Pronostics — placeholder en attendant la feature */}
+      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.2,textTransform:"uppercase",color:"rgba(240,237,232,0.4)",fontWeight:700,marginBottom:8}}>Pronostics des amis</div>
+      <div style={{padding:"22px 14px",background:"rgba(255,215,0,0.04)",border:"1px dashed rgba(255,215,0,0.3)",borderRadius:14,textAlign:"center",marginBottom:14}}>
+        <div style={{fontSize:24,marginBottom:6}}>🎯</div>
+        <div style={{fontSize:13,color:"#FFD700",fontFamily:"'Bebas Neue'",letterSpacing:1.2,marginBottom:4}}>BIENTÔT</div>
+        <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
+          Tes amis pourront pronostiquer le temps de {shortName(race.user?.name) || "ce coureur"} sur cette course. Les pronos seront listés ici avec le temps estimé de chacun.
+        </div>
+      </div>
+
+      <Btn onClick={onClose} variant="secondary" mb={0}>Fermer</Btn>
+    </Modal>
+  );
+}
+
 function FilPanel({ myProfile }) {
   const [feed, setFeed] = useState([]);
   const [commentsByActivity, setCommentsByActivity] = useState({});
+  const [upcomingRaces, setUpcomingRaces] = useState([]);
+  const [selectedUpcoming, setSelectedUpcoming] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -4568,8 +4651,20 @@ function FilPanel({ myProfile }) {
       const { data: fs } = await supabase.from("friendships")
         .select("friend_id").eq("user_id", myProfile.id).eq("status", "accepted");
       const friendIds = (fs || []).map(f => f.friend_id);
+      // On inclut self dans les courses à venir (le user voit ses propres
+      // courses + celles de ses amis dans le fil).
+      const upcomingUserIds = [myProfile.id, ...friendIds];
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const upR = await supabase.from("upcoming_races")
+        .select("id,user_id,race_name,race_date,discipline,distance_km,target_time")
+        .in("user_id", upcomingUserIds).gte("race_date", todayISO)
+        .order("race_date", { ascending: true }).limit(20);
+
       if (friendIds.length === 0) {
-        if (!cancel) { setFeed([]); setLoading(false); }
+        // Pas d'amis → seulement self pour les upcoming, et 0 feed activités.
+        const profileMap = myProfile ? { [myProfile.id]: myProfile } : {};
+        const upcoming = (upR.data || []).map(r => ({ ...r, user: profileMap[r.user_id] }));
+        if (!cancel) { setFeed([]); setUpcomingRaces(upcoming); setLoading(false); }
         return;
       }
       const sinceISO = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -4583,7 +4678,7 @@ function FilPanel({ myProfile }) {
           .in("user_id", friendIds).gte("race_date", sinceISO)
           .order("race_date", { ascending: false }).limit(40),
         supabase.from("profiles")
-          .select("id,name,avatar,city,birth_year").in("id", friendIds),
+          .select("id,name,avatar,city,birth_year").in("id", upcomingUserIds),
       ]);
       const byId = Object.fromEntries((prR.data || []).map(p => [p.id, p]));
       const trEntries = (trR.data || []).map(t => ({
@@ -4631,9 +4726,12 @@ function FilPanel({ myProfile }) {
         }
       }
 
+      const upcoming = (upR.data || []).map(r => ({ ...r, user: byId[r.user_id] }));
+
       if (!cancel) {
         setFeed(merged);
         setCommentsByActivity(commentMap);
+        setUpcomingRaces(upcoming);
         setLoading(false);
       }
     };
@@ -4645,10 +4743,21 @@ function FilPanel({ myProfile }) {
     <div>
       {/* Section Courses à venir */}
       <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>🏁 Courses à venir</div>
-      <div style={{padding:"22px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:18,textAlign:"center",border:"1px solid rgba(255,255,255,0.05)"}}>
-        <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45}}>Aucune course planifiée par tes amis pour l'instant.</div>
-        <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginTop:6,lineHeight:1.45}}>Bientôt — calendrier des courses officielles à venir.</div>
-      </div>
+      {upcomingRaces.length === 0 ? (
+        <div style={{padding:"22px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:18,textAlign:"center",border:"1px solid rgba(255,255,255,0.05)"}}>
+          <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45}}>Aucune course déclarée par toi ou tes amis pour l'instant.</div>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginTop:6,lineHeight:1.45}}>Tap "+" sur le Home → "Course à venir" pour en déclarer une.</div>
+        </div>
+      ) : (
+        <div style={{marginBottom:18}}>
+          {upcomingRaces.map(r => (
+            <UpcomingRaceCard key={r.id} race={r} onTap={()=>setSelectedUpcoming(r)}/>
+          ))}
+        </div>
+      )}
+      {selectedUpcoming && (
+        <UpcomingRaceDetailModal race={selectedUpcoming} onClose={()=>setSelectedUpcoming(null)}/>
+      )}
 
       {/* Section Activités récentes */}
       <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>⚡ Activités récentes</div>
