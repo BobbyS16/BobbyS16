@@ -2278,17 +2278,16 @@ const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p
 // Mode insert (race=null) ou edit (race={...}).
 // On utilise un <input type="date" min="..."> natif pour le picker date,
 // car le DatePicker maison ne couvre que les années passées (CY-14 → CY).
-// 6 disciplines acceptées sur upcoming_races (cf. CHECK constraint
-// upcoming_races_discipline_check). Couleurs centralisées dans
-// ACTIVITY_BADGE_COLORS (course=jaune / velo=orange / nat=bleu / trail=vert
-// / tri=violet / hyrox=rouge).
+// Disciplines proposées dans le modal de déclaration. Vélo et Natation
+// sont retirés (peu de courses officielles dans ces 2 sports en France).
+// Le CHECK constraint DB accepte toujours les 6 valeurs (course/velo/
+// natation/trail/tri/hyrox) au cas où on les ré-ajouterait — d'éventuelles
+// rows existantes en velo/natation continueraient de s'afficher.
 const UPCOMING_DISCIPLINES = [
-  { k:"course",   label:"Course",   icon:"🏃" },
-  { k:"velo",     label:"Vélo",     icon:"🚴" },
-  { k:"natation", label:"Natation", icon:"🏊" },
-  { k:"trail",    label:"Trail",    icon:"⛰️" },
-  { k:"tri",      label:"Tri",      icon:"🤽" },
-  { k:"hyrox",    label:"Hyrox",    icon:"🔥" },
+  { k:"course", label:"Course", icon:"🏃" },
+  { k:"trail",  label:"Trail",  icon:"⛰️" },
+  { k:"tri",    label:"Tri",    icon:"🤽" },
+  { k:"hyrox",  label:"Hyrox",  icon:"🔥" },
 ];
 
 // Distances proposées par discipline. La dernière entrée est toujours
@@ -2431,7 +2430,7 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
       />
 
       <Lbl c="Discipline *"/>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:6,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:6,marginBottom:14}}>
         {UPCOMING_DISCIPLINES.map(d=>{
           const c = ACTIVITY_BADGE_COLORS[d.k] || "#ED2A37";
           const active = discipline === d.k;
