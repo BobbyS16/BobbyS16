@@ -5242,9 +5242,11 @@ export default function App(){
       try{ localStorage.setItem("pushBannerDismissedAt",String(dbAt)); }catch{}
       setPushBannerDismissed(true);
     } else if (dbAt === 0) {
-      // Pas de dismiss en DB : si localStorage en avait un mais qu'il a expiré ou
-      // qu'on est sur un nouveau device, l'état dérivé du localStorage initial
-      // suffit. Rien à faire.
+      // DB = NULL → bannière doit être visible. On purge le cache localStorage
+      // (sinon un dismiss antérieur sur ce device la maintient masquée alors
+      // que le serveur a reset).
+      try{ localStorage.removeItem("pushBannerDismissedAt"); }catch{}
+      setPushBannerDismissed(false);
     } else {
       // dismiss en DB > 7j → bannière à nouveau visible
       try{ localStorage.removeItem("pushBannerDismissedAt"); }catch{}
