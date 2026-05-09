@@ -21,6 +21,7 @@ function buildPushContent(notif) {
   const p = notif.payload || {};
   switch (notif.type) {
     case "friend_added":         return { title: "👋 Nouvel ami",       body: `${fromName} t'a ajouté en ami` };
+    case "friend_request":       return { title: "✉️ Demande d'ami",    body: `${fromName} veut t'ajouter en ami` };
     case "like_result":          return { title: "❤️ Like",             body: `${fromName} a aimé ta course` };
     case "like_training":        return { title: "❤️ Like",             body: `${fromName} a aimé ton entraînement` };
     case "comment_result":       return { title: "💬 Commentaire",      body: `${fromName} a commenté ta course` };

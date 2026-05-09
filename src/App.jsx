@@ -5105,13 +5105,17 @@ function FilPanel({ myProfile }) {
 function ActuTab({myProfile,onNotifsChange}){
   const [tab,setTab]=useState("amis");
   const [friends,setFriends]=useState([]);
+  const [pendingIncoming,setPendingIncoming]=useState([]);
+  const [pendingOutgoing,setPendingOutgoing]=useState([]);
+  const [suggestions,setSuggestions]=useState([]);
   const [notifs,setNotifs]=useState([]);
   const [search,setSearch]=useState("");
   const [searchRes,setSearchRes]=useState([]);
   const [chat,setChat]=useState(null);
   const [openFriend,setOpenFriend]=useState(null);
+  const [inviteCopied,setInviteCopied]=useState(false);
 
-  useEffect(()=>{loadFriends();loadNotifs();},[]);
+  useEffect(()=>{loadFriends();loadNotifs();loadPending();loadSuggestions();},[]);
 
   const loadFriends=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
@@ -5121,6 +5125,67 @@ function ActuTab({myProfile,onNotifsChange}){
     const{data:profiles}=await supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids);
     const byId=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));
     setFriends(fs.map(f=>({...f,friend:byId[f.friend_id]||null})));
+  };
+  // Charge les demandes pending (incoming reçues + outgoing envoyées). 2 queries
+  // sur friendships.user_id = me, séparées par status. Profils résolus en 1 batch.
+  const loadPending=async()=>{
+    const{data:{user}}=await supabase.auth.getUser();
+    const {data:rows}=await supabase.from("friendships")
+      .select("*").eq("user_id",user.id).in("status",["incoming","pending"]);
+    const ids=[...new Set((rows||[]).map(r=>r.friend_id))];
+    if(ids.length===0){setPendingIncoming([]);setPendingOutgoing([]);return;}
+    const{data:profiles}=await supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids);
+    const byId=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));
+    setPendingIncoming((rows||[]).filter(r=>r.status==="incoming").map(r=>({...r,friend:byId[r.friend_id]||null})));
+    setPendingOutgoing((rows||[]).filter(r=>r.status==="pending").map(r=>({...r,friend:byId[r.friend_id]||null})));
+  };
+  // Suggestions = amis d'amis + même ville (combinés, dédupliqués, max 10).
+  // Exclut les users déjà amis, ceux en pending dans un sens ou l'autre, et moi.
+  const loadSuggestions=async()=>{
+    const{data:{user}}=await supabase.auth.getUser();
+    const myCity=myProfile?.city;
+    const{data:myFs}=await supabase.from("friendships").select("friend_id,status").eq("user_id",user.id);
+    const blocked=new Set([user.id, ...((myFs||[]).map(f=>f.friend_id))]);
+
+    const friendsAccepted=(myFs||[]).filter(f=>f.status==="accepted").map(f=>f.friend_id);
+    let foaIds=[];
+    if(friendsAccepted.length>0){
+      const{data:foa}=await supabase.from("friendships")
+        .select("friend_id").eq("status","accepted").in("user_id",friendsAccepted);
+      foaIds=[...new Set((foa||[]).map(f=>f.friend_id))].filter(id=>!blocked.has(id));
+    }
+
+    let cityIds=[];
+    if(myCity){
+      const{data:cityProfiles}=await supabase.from("profiles")
+        .select("id").eq("city",myCity).neq("id",user.id).limit(20);
+      cityIds=(cityProfiles||[]).map(p=>p.id).filter(id=>!blocked.has(id));
+    }
+
+    // Merge avec priorité aux amis d'amis (en premier), puis ville
+    const order=[...foaIds, ...cityIds.filter(id=>!foaIds.includes(id))].slice(0,10);
+    if(order.length===0){setSuggestions([]);return;}
+    const{data:profiles}=await supabase.from("profiles")
+      .select("id,name,avatar,city,birth_year").in("id",order);
+    const byId=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));
+    setSuggestions(order.map(id=>byId[id]).filter(Boolean));
+  };
+  const acceptFriend=async(requesterId)=>{
+    await supabase.rpc("accept_friend",{p_requester_id:requesterId});
+    loadFriends();loadPending();loadNotifs();onNotifsChange&&onNotifsChange();
+  };
+  const declineFriend=async(otherId)=>{
+    await supabase.rpc("decline_friend",{p_other_id:otherId});
+    loadPending();loadSuggestions();
+  };
+  const handleInvite=async()=>{
+    const url=`${window.location.origin}/?ref=${myProfile?.id}`;
+    const text="Rejoins-moi sur PaceRank !";
+    if(navigator.share){
+      try{await navigator.share({title:"PaceRank",text,url});}catch{}
+    }else{
+      try{await navigator.clipboard.writeText(url); setInviteCopied(true); setTimeout(()=>setInviteCopied(false),2000);}catch{}
+    }
   };
   const loadNotifs=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
@@ -5146,11 +5211,15 @@ function ActuTab({myProfile,onNotifsChange}){
     setSearchRes(data||[]);
   };
   const addFriend=async friendId=>{
-    const stub=searchRes.find(p=>p.id===friendId);
-    if(stub)setFriends(f=>f.some(x=>x.friend?.id===friendId)?f:[...f,{friend:{id:stub.id,name:stub.name,avatar:stub.avatar,city:stub.city,birth_year:stub.birth_year}}]);
+    // Avec le système pending/accept, le clic envoie une demande au lieu d'un
+    // ajout direct. Optimistic update sur pendingOutgoing.
+    const stub=searchRes.find(p=>p.id===friendId) || suggestions.find(p=>p.id===friendId);
+    if(stub){
+      setPendingOutgoing(po=>po.some(x=>x.friend_id===friendId)?po:[...po,{friend_id:friendId,status:"pending",friend:{id:stub.id,name:stub.name,avatar:stub.avatar,city:stub.city,birth_year:stub.birth_year}}]);
+    }
     const{error}=await supabase.rpc("add_friend",{p_friend_id:friendId});
-    if(error){setFriends(f=>f.filter(x=>x.friend?.id!==friendId));return;}
-    loadFriends();
+    if(error){ setPendingOutgoing(po=>po.filter(x=>x.friend_id!==friendId)); return; }
+    loadPending();
   };
   const removeFriend=async friendId=>{
     setFriends(f=>f.filter(x=>x.friend?.id!==friendId));
@@ -5183,18 +5252,27 @@ function ActuTab({myProfile,onNotifsChange}){
       {tab==="pronos" && <PronosTab myProfile={myProfile}/>}
       {tab==="defis"  && <Placeholder title="⚔️" hint="Bientôt — défis entre amis"/>}
       {tab==="amis"&&<div>
+        {/* 1. Recherche */}
         <Inp value={search} onChange={handleSearch} placeholder="Recherche par nom…"/>
         {search.length>=2 && searchRes.map(p=>{
           const isFriend=friends.some(f=>f.friend?.id===p.id);
+          const isPendingOut=pendingOutgoing.some(f=>f.friend_id===p.id);
+          const isPendingIn=pendingIncoming.some(f=>f.friend_id===p.id);
           return(
           <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
             <Avatar profile={p} size={36}/><div style={{flex:1}}><div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{p.name}</div><div style={{fontSize:11,color:"rgba(240,237,232,0.35)"}}>{p.city||""}</div></div>
             {isFriend
-              ?<button onClick={()=>removeFriend(p.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.7)",border:"1px solid rgba(255,255,255,0.12)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>Annuler</button>
-              :<button onClick={()=>addFriend(p.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(230,57,70,0.15)",color:"#E63946",border:"1px solid rgba(230,57,70,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>+ Ajouter</button>}
+              ?<button onClick={()=>removeFriend(p.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.7)",border:"1px solid rgba(255,255,255,0.12)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>Retirer</button>
+              :isPendingIn
+                ?<button onClick={()=>acceptFriend(p.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(74,222,128,0.18)",color:"#4ADE80",border:"1px solid rgba(74,222,128,0.4)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>Accepter</button>
+                :isPendingOut
+                  ?<button onClick={()=>declineFriend(p.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.5)",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>Demande envoyée</button>
+                  :<button onClick={()=>addFriend(p.id)} style={{padding:"6px 12px",borderRadius:10,background:"rgba(230,57,70,0.15)",color:"#E63946",border:"1px solid rgba(230,57,70,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>+ Ajouter</button>}
           </div>);
         })}
-        {myProfile?.in_app_enabled!==false && notifs.length>0&&<div style={{marginBottom:14}}>
+
+        {/* Notifs in-app (toujours en haut quand il y en a) */}
+        {myProfile?.in_app_enabled!==false && notifs.length>0&&<div style={{marginBottom:14,marginTop:6}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700}}>🔔 Notifications</div>
             <button onClick={markAllNotifsRead} style={{background:"none",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:11,cursor:"pointer",fontWeight:600}}>Tout marquer lu</button>
@@ -5219,7 +5297,52 @@ function ActuTab({myProfile,onNotifsChange}){
             );
           })}
         </div>}
-        {friends.length===0&&<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun ami — utilise la recherche !</div>}
+
+        {/* 2. Bulle Inviter (en pointillé) */}
+        <button onClick={handleInvite} style={{width:"100%",padding:"16px 14px",borderRadius:16,background:"transparent",border:"1.5px dashed rgba(255,255,255,0.2)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,marginBottom:18,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          <span style={{fontSize:18}}>✉️</span>
+          <span>{inviteCopied ? "✓ Lien copié" : "Inviter des amis"}</span>
+        </button>
+
+        {/* 3. Demandes d'amis en attente (incoming) */}
+        {pendingIncoming.length>0 && <div style={{marginBottom:18}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>📬 Demandes d'amis ({pendingIncoming.length})</div>
+          {pendingIncoming.map(r=>(
+            <div key={r.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(74,222,128,0.06)",borderRadius:14,marginBottom:7,border:"1px solid rgba(74,222,128,0.2)"}}>
+              <div onClick={()=>r.friend && setOpenFriend(r.friend)} style={{cursor:"pointer"}}><Avatar profile={r.friend} size={36}/></div>
+              <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>r.friend && setOpenFriend(r.friend)}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.friend?.name || "Anonyme"}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.45)"}}>veut t'ajouter en ami{r.friend?.city?` · ${r.friend.city}`:""}</div>
+              </div>
+              <button onClick={()=>acceptFriend(r.friend_id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(74,222,128,0.18)",color:"#4ADE80",border:"1px solid rgba(74,222,128,0.4)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>✓ Accepter</button>
+              <button onClick={()=>declineFriend(r.friend_id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.6)",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>✕</button>
+            </div>
+          ))}
+        </div>}
+
+        {/* 4. Suggestions d'amis */}
+        {suggestions.length>0 && <div style={{marginBottom:18}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>✨ Suggestions</div>
+          {suggestions.map(p=>{
+            const isPendingOut=pendingOutgoing.some(po=>po.friend_id===p.id);
+            return (
+              <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
+                <div onClick={()=>setOpenFriend(p)} style={{cursor:"pointer"}}><Avatar profile={p} size={36}/></div>
+                <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>setOpenFriend(p)}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                  <div style={{fontSize:11,color:"rgba(240,237,232,0.4)"}}>{p.city||""}</div>
+                </div>
+                {isPendingOut
+                  ? <button onClick={()=>declineFriend(p.id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.5)",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>Demande envoyée</button>
+                  : <button onClick={()=>addFriend(p.id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(230,57,70,0.15)",color:"#E63946",border:"1px solid rgba(230,57,70,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>+ Ajouter</button>}
+              </div>
+            );
+          })}
+        </div>}
+
+        {/* 5. Liste des amis (existante) */}
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>👥 Mes amis{friends.length>0?` (${friends.length})`:""}</div>
+        {friends.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun ami pour l'instant</div>}
         {friends.map(f=>{
           const dmId=[myProfile?.id,f.friend_id].sort().join("_");
           return(
