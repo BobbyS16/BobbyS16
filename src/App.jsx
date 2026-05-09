@@ -2362,6 +2362,7 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
   const [distanceCustom, setDistanceCustom] = useState(
     initialDistance != null && !initialPresetMatch ? String(initialDistance) : ""
   );
+  const [elevation, setElevation] = useState(race?.elevation_gain_m != null ? String(race.elevation_gain_m) : "");
   const [targetTime, setTargetTime] = useState(intervalToHHMMSS(race?.target_time));
   const [hasTarget, setHasTarget] = useState(!!race?.target_time);
   const [loading, setLoading] = useState(false);
@@ -2387,6 +2388,12 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
       if (!m) { setError("Format objectif invalide (HH:MM:SS)"); return; }
       target = targetTime;
     }
+    let elev = null;
+    if (elevation !== "") {
+      const ev = parseInt(elevation);
+      if (isNaN(ev) || ev < 0) { setError("Dénivelé invalide"); return; }
+      elev = ev;
+    }
     setLoading(true);
     const payload = {
       user_id: userId,
@@ -2395,6 +2402,7 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
       discipline,
       distance_km: dKm,
       target_time: target,
+      elevation_gain_m: elev,
     };
     const op = isEdit
       ? supabase.from("upcoming_races").update(payload).eq("id", race.id).select().single()
@@ -2419,7 +2427,7 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
         value={date}
         min={todayISO}
         onChange={e=>setDate(e.target.value)}
-        style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:15,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10,colorScheme:"dark"}}
+        style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:15,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10,colorScheme:"dark",WebkitAppearance:"none",appearance:"none"}}
       />
 
       <Lbl c="Discipline *"/>
@@ -2456,6 +2464,9 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
       {distancePreset === "custom" && (
         <Inp value={distanceCustom} onChange={setDistanceCustom} placeholder="Distance en km (ex: 17.5)" type="number"/>
       )}
+
+      <Lbl c="Dénivelé D+ (mètres, optionnel)"/>
+      <Inp value={elevation} onChange={setElevation} placeholder="Ex: 1200" type="number"/>
 
       <button onClick={()=>setHasTarget(v=>!v)} style={{width:"100%",padding:"11px 12px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:600,marginBottom:hasTarget?10:14,display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
         <span>🎯 Mon objectif (optionnel)</span>
@@ -4675,7 +4686,7 @@ function PronosTab({ myProfile }) {
     // Toutes les courses futures de mes amis
     const { data: friendsRaces } = friendIds.length > 0
       ? await supabase.from("upcoming_races")
-          .select("id,user_id,race_name,race_date,discipline,distance_km,target_time")
+          .select("id,user_id,race_name,race_date,discipline,distance_km,target_time,elevation_gain_m")
           .in("user_id", friendIds).gte("race_date", todayISO)
           .order("race_date", { ascending: true })
       : { data: [] };
@@ -4709,7 +4720,7 @@ function PronosTab({ myProfile }) {
     const myActiveRaces = [];
     if (myProRaceIdsArr.length > 0) {
       const { data: rs } = await supabase.from("upcoming_races")
-        .select("id,user_id,race_name,race_date,discipline,distance_km,target_time")
+        .select("id,user_id,race_name,race_date,discipline,distance_km,target_time,elevation_gain_m")
         .in("id", myProRaceIdsArr).gte("race_date", todayISO);
       const racesById = Object.fromEntries((rs || []).map(r => [r.id, r]));
       // Profils des coureurs des courses pronostiquées
@@ -4822,7 +4833,7 @@ function UpcomingRaceCard({ race, onTap }) {
         <div style={{flex:1,minWidth:0,paddingRight:64}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{race.race_name}</div>
           <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.5)",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {dStr} · {race.distance_km} km{targetStr ? ` · 🎯 ${targetStr}` : ""}
+            {dStr} · {race.distance_km} km{race.elevation_gain_m ? ` · ⛰️ ${race.elevation_gain_m}m D+` : ""}{targetStr ? ` · 🎯 ${targetStr}` : ""}
           </div>
         </div>
         <div style={{position:"absolute",top:14,right:14,padding:"4px 10px",borderRadius:99,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}66`,color:badgeColor,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase"}}>{disc?.label || race.discipline}</div>
@@ -4879,7 +4890,7 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
         <div style={{display:"inline-block",padding:"4px 10px",borderRadius:99,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}66`,color:badgeColor,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase",marginBottom:8}}>{disc?.icon || "🏁"} {disc?.label || race.discipline}</div>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:0.8,color:"#F0EDE8",lineHeight:1.1,marginBottom:6}}>{race.race_name}</div>
         <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.55)",letterSpacing:0.3}}>
-          {dStr.charAt(0).toUpperCase() + dStr.slice(1)} · {race.distance_km} km
+          {dStr.charAt(0).toUpperCase() + dStr.slice(1)} · {race.distance_km} km{race.elevation_gain_m ? ` · ⛰️ ${race.elevation_gain_m}m D+` : ""}
         </div>
       </div>
 
@@ -4969,7 +4980,7 @@ function FilPanel({ myProfile }) {
       const upcomingUserIds = [myProfile.id, ...friendIds];
       const todayISO = new Date().toISOString().slice(0, 10);
       const upR = await supabase.from("upcoming_races")
-        .select("id,user_id,race_name,race_date,discipline,distance_km,target_time")
+        .select("id,user_id,race_name,race_date,discipline,distance_km,target_time,elevation_gain_m")
         .in("user_id", upcomingUserIds).gte("race_date", todayISO)
         .order("race_date", { ascending: true }).limit(20);
 
@@ -5617,7 +5628,7 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race_name}</div>
                   <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>
-                    {dStr} · {r.distance_km} km{r.target_time ? ` · 🎯 ${intervalToHHMMSS(r.target_time)}` : ""}
+                    {dStr} · {r.distance_km} km{r.elevation_gain_m ? ` · ⛰️ ${r.elevation_gain_m}m D+` : ""}{r.target_time ? ` · 🎯 ${intervalToHHMMSS(r.target_time)}` : ""}
                   </div>
                 </div>
                 <button onClick={()=>setUpcomingModal(r)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>Modifier</button>
