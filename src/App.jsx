@@ -4556,6 +4556,223 @@ function PrognoCard({ entry, firstComment }) {
   );
 }
 
+// PronoSubmitModal — saisie / édition d'un pronostic sur une course à venir
+// Utilise le TimePicker existant (HH:MM:SS) + champ commentaire optionnel.
+function PronoSubmitModal({ race, existing, userId, onSaved, onClose }) {
+  const isEdit = !!existing?.id;
+  const [predictedTime, setPredictedTime] = useState(intervalToHHMMSS(existing?.predicted_time) || "00:00:00");
+  const [comment, setComment] = useState(existing?.comment || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    setError("");
+    const m = predictedTime.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (!m) { setError("Format de temps invalide (HH:MM:SS)"); return; }
+    const totalSec = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseInt(m[3]);
+    if (totalSec <= 0) { setError("Le temps estimé doit être > 0"); return; }
+    setLoading(true);
+    const payload = {
+      upcoming_race_id: race.id,
+      predictor_id: userId,
+      predicted_time: predictedTime,
+      comment: comment.trim() || null,
+    };
+    const op = isEdit
+      ? supabase.from("race_pronostics").update(payload).eq("id", existing.id).select().single()
+      : supabase.from("race_pronostics").insert(payload).select().single();
+    const { data, error: err } = await op;
+    setLoading(false);
+    if (err) { setError(err.message); return; }
+    onSaved?.(data);
+  };
+
+  const remove = async () => {
+    if (!isEdit) return;
+    setLoading(true);
+    await supabase.from("race_pronostics").delete().eq("id", existing.id);
+    setLoading(false);
+    onSaved?.(null);
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:6}}>{isEdit ? "Modifier mon prono" : "Pronostiquer"}</div>
+      <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginBottom:16,lineHeight:1.5}}>
+        Combien de temps va mettre <strong style={{color:"#F0EDE8"}}>{shortName(race.user?.name) || "ton ami"}</strong> sur <strong style={{color:"#F0EDE8"}}>{race.race_name}</strong> ({race.distance_km} km) ?
+      </div>
+
+      <Lbl c="Temps estimé *"/>
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:14}}>
+        <TimePicker value={predictedTime} onChange={setPredictedTime}/>
+      </div>
+
+      <Lbl c="Commentaire (optionnel)"/>
+      <Inp value={comment} onChange={setComment} placeholder="Ex: Il est en forme cette saison…"/>
+
+      {error && <div style={{color:"#ED2A37",fontSize:12,fontFamily:"'Barlow',sans-serif",marginBottom:10,textAlign:"center"}}>{error}</div>}
+
+      <Btn onClick={submit} disabled={loading}>{loading ? "Enregistrement…" : (isEdit ? "Enregistrer" : "Pronostiquer")}</Btn>
+      {isEdit && (
+        <button onClick={remove} disabled={loading} style={{width:"100%",padding:"10px",background:"transparent",border:"none",color:"#ED2A37",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:6}}>🗑️ Supprimer mon prono</button>
+      )}
+      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
+    </Modal>
+  );
+}
+
+// PronosTab — sub-tab PRONOS de ActuTab.
+// Section 1 : courses des amis sur lesquelles je n'ai pas (encore) déposé
+// de prono. Section 2 : mes pronos en cours, avec leur temps prédit et
+// la course associée.
+function PronosTab({ myProfile }) {
+  const [toBet, setToBet] = useState([]);
+  const [myPronos, setMyPronos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openRace, setOpenRace] = useState(null); // course à pronostiquer (ouvre le submit modal directement)
+  const [openMyProno, setOpenMyProno] = useState(null); // {race, prono} pour edit
+
+  const reload = async () => {
+    if (!myProfile?.id) return;
+    setLoading(true);
+    const { data: fs } = await supabase.from("friendships")
+      .select("friend_id").eq("user_id", myProfile.id).eq("status","accepted");
+    const friendIds = (fs || []).map(f => f.friend_id);
+    const todayISO = new Date().toISOString().slice(0,10);
+
+    // Toutes les courses futures de mes amis
+    const { data: friendsRaces } = friendIds.length > 0
+      ? await supabase.from("upcoming_races")
+          .select("id,user_id,race_name,race_date,discipline,distance_km,target_time")
+          .in("user_id", friendIds).gte("race_date", todayISO)
+          .order("race_date", { ascending: true })
+      : { data: [] };
+
+    // Mes pronos déjà déposés (même si la course est passée — on n'affiche
+    // que celles encore à venir, donc on join et filter ensuite)
+    const { data: mine } = await supabase.from("race_pronostics")
+      .select("id,upcoming_race_id,predicted_time,comment,created_at")
+      .eq("predictor_id", myProfile.id);
+
+    const myProRaceIds = new Set((mine || []).map(p => p.upcoming_race_id));
+
+    // Charger les profils des coureurs concernés
+    const allRaceUserIds = [...new Set((friendsRaces || []).map(r => r.user_id))];
+    const profileMap = {};
+    if (allRaceUserIds.length > 0) {
+      const { data: ps } = await supabase.from("profiles")
+        .select("id,name,avatar,city,birth_year").in("id", allRaceUserIds);
+      for (const p of (ps || [])) profileMap[p.id] = p;
+    }
+
+    // Section 1 : courses à pronostiquer (sans prono de moi)
+    const pending = (friendsRaces || [])
+      .filter(r => !myProRaceIds.has(r.id))
+      .map(r => ({ ...r, user: profileMap[r.user_id] }));
+
+    // Section 2 : mes pronos en cours (joindre course + filtrer race_date >= today)
+    // On a besoin de récupérer les courses correspondantes (peuvent être
+    // self ou sur des amis qui ne sont plus dans friendIds — RLS gère).
+    const myProRaceIdsArr = (mine || []).map(p => p.upcoming_race_id);
+    const myActiveRaces = [];
+    if (myProRaceIdsArr.length > 0) {
+      const { data: rs } = await supabase.from("upcoming_races")
+        .select("id,user_id,race_name,race_date,discipline,distance_km,target_time")
+        .in("id", myProRaceIdsArr).gte("race_date", todayISO);
+      const racesById = Object.fromEntries((rs || []).map(r => [r.id, r]));
+      // Profils des coureurs des courses pronostiquées
+      const userIdsExtra = (rs || []).map(r => r.user_id).filter(uid => !profileMap[uid]);
+      if (userIdsExtra.length > 0) {
+        const { data: ps2 } = await supabase.from("profiles")
+          .select("id,name,avatar,city,birth_year").in("id", userIdsExtra);
+        for (const p of (ps2 || [])) profileMap[p.id] = p;
+      }
+      for (const p of (mine || [])) {
+        const r = racesById[p.upcoming_race_id];
+        if (r) myActiveRaces.push({ prono: p, race: { ...r, user: profileMap[r.user_id] } });
+      }
+      myActiveRaces.sort((a,b) => new Date(a.race.race_date) - new Date(b.race.race_date));
+    }
+
+    setToBet(pending);
+    setMyPronos(myActiveRaces);
+    setLoading(false);
+  };
+
+  useEffect(() => { reload(); }, [myProfile?.id]);
+
+  return (
+    <div>
+      {/* Section 1 — Courses à pronostiquer */}
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>🎯 Courses à pronostiquer</div>
+      {loading ? (
+        <div style={{padding:"30px 0",textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+      ) : toBet.length === 0 ? (
+        <div style={{padding:"22px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:18,textAlign:"center",border:"1px solid rgba(255,255,255,0.05)"}}>
+          <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45}}>Aucune course de tes amis à pronostiquer pour l'instant.</div>
+        </div>
+      ) : (
+        <div style={{marginBottom:18}}>
+          {toBet.map(r => (
+            <UpcomingRaceCard key={r.id} race={r} onTap={()=>setOpenRace(r)}/>
+          ))}
+        </div>
+      )}
+
+      {/* Section 2 — Mes pronos en cours */}
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>📊 Mes pronos en cours</div>
+      {loading ? (
+        <div style={{padding:"30px 0",textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+      ) : myPronos.length === 0 ? (
+        <div style={{padding:"22px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,textAlign:"center",border:"1px solid rgba(255,255,255,0.05)"}}>
+          <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif"}}>Aucun prono en cours. Pronostique sur les courses ci-dessus.</div>
+        </div>
+      ) : (
+        myPronos.map(({ prono, race }) => {
+          const dt = new Date(race.race_date);
+          const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short" });
+          return (
+            <button key={prono.id} onClick={()=>setOpenMyProno({ race, prono })} style={{display:"block",width:"100%",textAlign:"left",cursor:"pointer",background:"#0E0E0E",border:"1px solid #232323",borderRadius:20,marginBottom:10,padding:"12px 14px",font:"inherit",color:"inherit"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <Avatar profile={race.user} size={34}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:0.4,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{race.race_name}</div>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.5)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(race.user?.name)} · {dStr} · {race.distance_km} km</div>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0,paddingLeft:8}}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:"rgba(240,237,232,0.4)",fontWeight:700}}>Mon prono</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#FFD700",letterSpacing:0.3}}>{intervalToHHMMSS(prono.predicted_time)}</div>
+                </div>
+              </div>
+              {prono.comment && (
+                <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #232323",fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.7)",lineHeight:1.4}}>💬 {prono.comment}</div>
+              )}
+            </button>
+          );
+        })
+      )}
+
+      {openRace && (
+        <PronoSubmitModal
+          race={openRace}
+          userId={myProfile.id}
+          onSaved={()=>{ setOpenRace(null); reload(); }}
+          onClose={()=>setOpenRace(null)}
+        />
+      )}
+      {openMyProno && (
+        <PronoSubmitModal
+          race={openMyProno.race}
+          existing={openMyProno.prono}
+          userId={myProfile.id}
+          onSaved={()=>{ setOpenMyProno(null); reload(); }}
+          onClose={()=>setOpenMyProno(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 // UpcomingRaceCard — ligne de course à venir dans la section dédiée du fil.
 // Discipline UPCOMING_DISCIPLINES (run/trail/tri/hyrox) → couleur de badge
 // via ACTIVITY_BADGE_COLORS. Tap → modal détail (qui montrera les pronos
@@ -4588,16 +4805,40 @@ function UpcomingRaceCard({ race, onTap }) {
 }
 
 // UpcomingRaceDetailModal — détail au tap d'une UpcomingRaceCard.
-// Affiche la course + le participant (créateur de la déclaration) avec
-// son target_time si renseigné. Section pronostics = placeholder pour
-// l'instant : la table race_pronostics et la feature de saisie d'un
-// prono ami arrivent dans la suite (roadmap pronos sem 7-8).
-function UpcomingRaceDetailModal({ race, onClose }) {
+// Affiche : course + participant (avec target_time) + liste des pronos
+// déposés par les amis (via race_pronostics) + bouton de saisie/édition
+// si l'user courant peut pronostiquer (= n'est pas le coureur).
+function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
   const disc = UPCOMING_DISCIPLINES.find(d => d.k === race.discipline);
   const badgeColor = ACTIVITY_BADGE_COLORS[race.discipline] || ACTIVITY_BADGE_COLORS.run;
   const dt = new Date(race.race_date);
   const dStr = dt.toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
   const targetStr = intervalToHHMMSS(race.target_time);
+
+  const [pronos, setPronos] = useState([]);
+  const [loadingPronos, setLoadingPronos] = useState(true);
+  const [showSubmit, setShowSubmit] = useState(false);
+
+  const load = async () => {
+    setLoadingPronos(true);
+    const { data } = await supabase.from("race_pronostics")
+      .select("id,upcoming_race_id,predictor_id,predicted_time,comment,created_at")
+      .eq("upcoming_race_id", race.id)
+      .order("created_at", { ascending: true });
+    const predictorIds = [...new Set((data || []).map(p => p.predictor_id))];
+    let predictorMap = {};
+    if (predictorIds.length > 0) {
+      const { data: profs } = await supabase.from("profiles")
+        .select("id,name,avatar,city,birth_year").in("id", predictorIds);
+      predictorMap = Object.fromEntries((profs || []).map(p => [p.id, p]));
+    }
+    setPronos((data || []).map(p => ({ ...p, predictor: predictorMap[p.predictor_id] })));
+    setLoadingPronos(false);
+  };
+  useEffect(() => { load(); }, [race.id]);
+
+  const isOwner = race.user_id === myProfile?.id;
+  const myProno = pronos.find(p => p.predictor_id === myProfile?.id);
 
   return (
     <Modal onClose={onClose}>
@@ -4622,17 +4863,54 @@ function UpcomingRaceDetailModal({ race, onClose }) {
         </div>
       </div>
 
-      {/* Pronostics — placeholder en attendant la feature */}
-      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.2,textTransform:"uppercase",color:"rgba(240,237,232,0.4)",fontWeight:700,marginBottom:8}}>Pronostics des amis</div>
-      <div style={{padding:"22px 14px",background:"rgba(255,215,0,0.04)",border:"1px dashed rgba(255,215,0,0.3)",borderRadius:14,textAlign:"center",marginBottom:14}}>
-        <div style={{fontSize:24,marginBottom:6}}>🎯</div>
-        <div style={{fontSize:13,color:"#FFD700",fontFamily:"'Bebas Neue'",letterSpacing:1.2,marginBottom:4}}>BIENTÔT</div>
-        <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
-          Tes amis pourront pronostiquer le temps de {shortName(race.user?.name) || "ce coureur"} sur cette course. Les pronos seront listés ici avec le temps estimé de chacun.
-        </div>
+      {/* Pronostics — vraie liste */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.2,textTransform:"uppercase",color:"rgba(240,237,232,0.4)",fontWeight:700}}>Pronostics{pronos.length>0 ? ` (${pronos.length})` : ""}</div>
+        {!isOwner && myProfile?.id && (
+          <button onClick={()=>setShowSubmit(true)} style={{padding:"5px 11px",borderRadius:10,background:"rgba(255,215,0,0.15)",color:"#FFD700",border:"1px solid rgba(255,215,0,0.4)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>
+            {myProno ? "✏️ Modifier mon prono" : "🎯 Pronostiquer"}
+          </button>
+        )}
       </div>
+      {loadingPronos ? (
+        <div style={{padding:"24px 0",textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+      ) : pronos.length === 0 ? (
+        <div style={{padding:"22px 14px",background:"rgba(255,215,0,0.04)",border:"1px dashed rgba(255,215,0,0.3)",borderRadius:14,textAlign:"center",marginBottom:14}}>
+          <div style={{fontSize:13,color:"#FFD700",fontFamily:"'Bebas Neue'",letterSpacing:1.2,marginBottom:4}}>AUCUN PRONO</div>
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
+            {isOwner ? "Pas encore de pronostic de tes amis." : "Sois le premier à pronostiquer !"}
+          </div>
+        </div>
+      ) : (
+        <div style={{marginBottom:14}}>
+          {pronos.map(p => (
+            <div key={p.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid #232323",borderRadius:14,marginBottom:8}}>
+              <Avatar profile={p.predictor} size={32}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:0.4,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.predictor?.name) || "Anonyme"}{p.predictor_id === myProfile?.id && <span style={{color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,marginLeft:6}}>(toi)</span>}</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#FFD700",letterSpacing:0.3,flexShrink:0}}>{intervalToHHMMSS(p.predicted_time)}</div>
+                </div>
+                {p.comment && (
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.7)",marginTop:4,lineHeight:1.4}}>💬 {p.comment}</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Btn onClick={onClose} variant="secondary" mb={0}>Fermer</Btn>
+
+      {showSubmit && (
+        <PronoSubmitModal
+          race={race}
+          existing={myProno}
+          userId={myProfile?.id}
+          onSaved={()=>{ setShowSubmit(false); load(); }}
+          onClose={()=>setShowSubmit(false)}
+        />
+      )}
     </Modal>
   );
 }
@@ -4756,7 +5034,7 @@ function FilPanel({ myProfile }) {
         </div>
       )}
       {selectedUpcoming && (
-        <UpcomingRaceDetailModal race={selectedUpcoming} onClose={()=>setSelectedUpcoming(null)}/>
+        <UpcomingRaceDetailModal race={selectedUpcoming} myProfile={myProfile} onClose={()=>setSelectedUpcoming(null)}/>
       )}
 
       {/* Section Activités récentes */}
@@ -4856,7 +5134,7 @@ function ActuTab({myProfile,onNotifsChange}){
         ))}
       </div>
       {tab==="fil"    && <FilPanel myProfile={myProfile}/>}
-      {tab==="pronos" && <Placeholder title="🎯" hint="Bientôt — pronostique sur les courses à venir"/>}
+      {tab==="pronos" && <PronosTab myProfile={myProfile}/>}
       {tab==="defis"  && <Placeholder title="⚔️" hint="Bientôt — défis entre amis"/>}
       {tab==="amis"&&<div>
         <Inp value={search} onChange={handleSearch} placeholder="Recherche par nom…"/>
