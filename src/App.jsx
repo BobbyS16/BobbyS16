@@ -4540,8 +4540,13 @@ function FeedCard({ entry, firstComment }) {
     ? (e.is_official_race ? (e.official_race_name || "Course officielle") : (e.title || `Sortie ${e.sport || ""}`.trim()))
     : (DISCIPLINES[e.discipline]?.label || e.discipline) + (e.race ? ` · ${e.race}` : "");
 
+  // La couleur de la card matche celle du sport (bordure + léger fond teinté)
+  // pour une lecture rapide du type d'activité dans le fil.
+  const cardBg = `linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`;
+  const cardBorder = `1px solid ${badgeColor}55`;
+  const innerSeparator = `1px solid ${badgeColor}30`;
   return (
-    <div style={{background:"#0E0E0E",border:"1px solid #232323",borderRadius:20,marginBottom:12,overflow:"hidden"}}>
+    <div style={{background:cardBg,border:cardBorder,borderRadius:20,marginBottom:12,overflow:"hidden"}}>
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 10px",position:"relative"}}>
         <Avatar profile={entry.user} size={38}/>
@@ -4561,7 +4566,7 @@ function FeedCard({ entry, firstComment }) {
       )}
 
       {/* Stats 4-col grid */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",borderTop:e.photo_url?"1px solid #232323":"none"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",borderTop:e.photo_url?innerSeparator:"none"}}>
         <StatCell label="Distance"        value={stats.distance}/>
         <StatCell label="Durée"           value={stats.duration}/>
         <StatCell label={stats.thirdLabel} value={stats.thirdValue}/>
@@ -4570,7 +4575,7 @@ function FeedCard({ entry, firstComment }) {
 
       {/* 1er commentaire inline */}
       {firstComment && (
-        <div style={{borderTop:"1px solid #232323",padding:"10px 14px",display:"flex",alignItems:"flex-start",gap:8,background:"rgba(255,255,255,0.015)"}}>
+        <div style={{borderTop:innerSeparator,padding:"10px 14px",display:"flex",alignItems:"flex-start",gap:8,background:"rgba(255,255,255,0.015)"}}>
           <div style={{fontSize:14,flexShrink:0,marginTop:1}}>💬</div>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.85)",lineHeight:1.4}}>
@@ -5109,7 +5114,7 @@ function FilPanel({ myProfile }) {
 }
 
 function ActuTab({myProfile,onNotifsChange}){
-  const [tab,setTab]=useState("amis");
+  const [tab,setTab]=useState("fil");
   const [friends,setFriends]=useState([]);
   const [pendingIncoming,setPendingIncoming]=useState([]);
   const [pendingOutgoing,setPendingOutgoing]=useState([]);
