@@ -79,3 +79,82 @@ drop trigger if exists trg_notify_friend_official_race on trainings;
 create trigger trg_notify_friend_official_race
 after insert or update of is_official_race, classification_status on trainings
 for each row execute function notify_friend_official_race();
+
+-- ── 2. friend_pr ──────────────────────────────────────────────────────────
+-- Notifie les amis quand un user bat son propre record sur une discipline
+-- donnée. Conditions :
+--   - Strict text match sur (user_id, discipline)
+--   - Au moins 1 résultat antérieur (sinon 1ère course = pas un PR)
+--   - NEW.time < min(time des autres results de cette combinaison)
+--
+-- distance_km est dérivée de la discipline pour les running classics ;
+-- null pour trail/triathlon/hyrox dont la distance varie selon l'épreuve
+-- réelle (pas stockée en DB).
+
+create or replace function notify_friend_pr() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_previous_best int;
+  v_distance_km   numeric;
+begin
+  -- Meilleur temps précédent du user sur cette discipline (hors NEW)
+  select min(time) into v_previous_best
+  from results
+  where user_id = NEW.user_id
+    and discipline = NEW.discipline
+    and id <> NEW.id;
+
+  -- Pas de résultat antérieur → ce n'est pas un PR mais une 1ère course
+  if v_previous_best is null then
+    return NEW;
+  end if;
+
+  -- Pas plus rapide qu'avant → pas un PR
+  if NEW.time >= v_previous_best then
+    return NEW;
+  end if;
+
+  v_distance_km := case NEW.discipline
+    when '5km'      then 5
+    when '10km'     then 10
+    when 'semi'     then 21.1
+    when 'marathon' then 42.195
+    else null
+  end;
+
+  insert into notifications (user_id, type, from_user_id, activity_type, activity_id, payload)
+  select
+    f.friend_id,
+    'friend_pr',
+    NEW.user_id,
+    'result',
+    NEW.id,
+    jsonb_build_object(
+      'result_id',           NEW.id::text,
+      'discipline',          NEW.discipline,
+      'distance_km',         v_distance_km,
+      'old_time',            v_previous_best,
+      'new_time',            NEW.time,
+      'improvement_seconds', v_previous_best - NEW.time
+    )
+  from friendships f
+  where f.user_id = NEW.user_id
+    and f.status = 'accepted'
+    and not exists (
+      select 1 from notifications n
+      where n.type = 'friend_pr'
+        and n.payload->>'result_id' = NEW.id::text
+        and n.user_id = f.friend_id
+    );
+
+  return NEW;
+end;
+$$;
+
+drop trigger if exists trg_notify_friend_pr on results;
+create trigger trg_notify_friend_pr
+after insert on results
+for each row execute function notify_friend_pr();
