@@ -2490,7 +2490,7 @@ function AddPickerModal({onPickTraining,onPickRace,onPickUpcoming,onClose}){
   const opts=[
     {icon:"🏋️",label:"Entraînement",desc:"Run, Vélo, Natation, Trail",color:"#4ade80",cb:onPickTraining},
     {icon:"🏅",label:"Course officielle",desc:"5km, 10km, marathon, trail, triathlon, hyrox…",color:"#E63946",cb:onPickRace},
-    {icon:"📅",label:"Course à venir",desc:"Déclare une course que tu prépares",color:"#3B82F6",cb:onPickUpcoming},
+    {icon:"📅",label:"Course à venir",desc:"Déclare une course que tu prépares",color:"#FFD700",cb:onPickUpcoming},
   ];
   return (
     <Modal onClose={onClose}>
@@ -5637,7 +5637,7 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
             );
           })
         )}
-        <button onClick={()=>setUpcomingModal("new")} style={{width:"100%",marginTop:10,padding:"10px 0",borderRadius:10,background:"rgba(59,130,246,0.12)",color:"#3B82F6",border:"1px solid rgba(59,130,246,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>+ Déclarer une course à venir</button>
+        <button onClick={()=>setUpcomingModal("new")} style={{width:"100%",marginTop:10,padding:"10px 0",borderRadius:10,background:"rgba(255,215,0,0.12)",color:"#FFD700",border:"1px solid rgba(255,215,0,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>+ Déclarer une course à venir</button>
       </div>
 
       <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
