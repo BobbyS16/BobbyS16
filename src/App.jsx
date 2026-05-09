@@ -2286,7 +2286,7 @@ const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p
 const UPCOMING_DISCIPLINES = [
   { k:"course", label:"Course", icon:"🏃" },
   { k:"trail",  label:"Trail",  icon:"⛰️" },
-  { k:"tri",    label:"Tri",    icon:"🤽" },
+  { k:"tri",    label:"Tri",    icon:"🏊" },
   { k:"hyrox",  label:"Hyrox",  icon:"🔥" },
 ];
 
