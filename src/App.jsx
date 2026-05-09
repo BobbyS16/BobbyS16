@@ -4177,6 +4177,128 @@ function ChatModal({myId,title,table,filterCol,filterId,friendId,onClose}){
 // notifications + recherche d'utilisateurs de l'ancien SocialTab.
 // La fonctionnalité Groupes a été déplacée dans HomeTab (4e pilule
 // du toggle leaderboard).
+// FilPanel — sub-tab FIL dans ActuTab.
+// 2 sections : Courses à venir (placeholder en V1, on n'a pas de table
+// d'événements futurs en DB), Activités récentes (trainings + results
+// des amis sur les 14 derniers jours, ordonnés par date desc).
+function fmtRelativeDate(d) {
+  const dt = new Date(d);
+  const days = Math.floor((Date.now() - dt.getTime()) / (24 * 3600 * 1000));
+  if (days <= 0) return "aujourd'hui";
+  if (days === 1) return "hier";
+  if (days < 14) return `il y a ${days}j`;
+  return dt.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+function FeedEntry({ entry }) {
+  const e = entry.data;
+  let icon = "📌";
+  let primary = "";
+  let secondary = "";
+  if (entry.kind === "training") {
+    if (e.is_official_race) {
+      icon = "🏁";
+      primary = e.official_race_name || `${e.sport} officielle`;
+      secondary = `${e.distance} km · ${e.points || 0} pts`;
+    } else {
+      icon = e.sport === "Course" ? "🏃" : e.sport === "Vélo" ? "🚴" : e.sport === "Natation" ? "🏊" : e.sport === "Trail" ? "⛰️" : "🏋️";
+      primary = `${e.sport}${e.distance ? ` · ${e.distance} km` : ""}`;
+      secondary = `${e.points || 0} pts`;
+    }
+  } else {
+    icon = "🏆";
+    const lbl = DISCIPLINES[e.discipline]?.label || e.discipline;
+    primary = `${lbl}${e.race ? ` · ${e.race}` : ""}`;
+    const t = e.time || 0;
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    secondary = h > 0
+      ? `${h}h${m.toString().padStart(2,"0")}'${s.toString().padStart(2,"0")}"`
+      : `${m}'${s.toString().padStart(2,"0")}"`;
+  }
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.04)"}}>
+      <Avatar profile={entry.user} size={34}/>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          <span style={{marginRight:4}}>{icon}</span>{shortName(entry.user?.name)} — {primary}
+        </div>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{secondary} · {fmtRelativeDate(entry.date)}</div>
+      </div>
+    </div>
+  );
+}
+
+function FilPanel({ myProfile }) {
+  const [feed, setFeed] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancel = false;
+    const load = async () => {
+      if (!myProfile?.id) return;
+      const { data: fs } = await supabase.from("friendships")
+        .select("friend_id").eq("user_id", myProfile.id).eq("status", "accepted");
+      const friendIds = (fs || []).map(f => f.friend_id);
+      if (friendIds.length === 0) {
+        if (!cancel) { setFeed([]); setLoading(false); }
+        return;
+      }
+      const sinceISO = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+      const [trR, reR, prR] = await Promise.all([
+        supabase.from("trainings")
+          .select("id,user_id,sport,distance,date,points,is_official_race,official_race_name")
+          .in("user_id", friendIds).gte("date", sinceISO)
+          .order("date", { ascending: false }).limit(40),
+        supabase.from("results")
+          .select("id,user_id,discipline,time,race,year,race_date")
+          .in("user_id", friendIds).gte("race_date", sinceISO)
+          .order("race_date", { ascending: false }).limit(40),
+        supabase.from("profiles")
+          .select("id,name,avatar,city,birth_year").in("id", friendIds),
+      ]);
+      const byId = Object.fromEntries((prR.data || []).map(p => [p.id, p]));
+      const trEntries = (trR.data || []).map(t => ({
+        kind: "training", id: "t_" + t.id, user: byId[t.user_id],
+        date: t.date, sortKey: new Date(t.date).getTime(), data: t,
+      }));
+      const reEntries = (reR.data || []).map(r => ({
+        kind: "result", id: "r_" + r.id, user: byId[r.user_id],
+        date: r.race_date, sortKey: new Date(r.race_date).getTime(), data: r,
+      }));
+      const merged = [...trEntries, ...reEntries]
+        .filter(e => e.user)
+        .sort((a, b) => b.sortKey - a.sortKey)
+        .slice(0, 25);
+      if (!cancel) { setFeed(merged); setLoading(false); }
+    };
+    load();
+    return () => { cancel = true; };
+  }, [myProfile?.id]);
+
+  return (
+    <div>
+      {/* Section Courses à venir */}
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>🏁 Courses à venir</div>
+      <div style={{padding:"22px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:18,textAlign:"center",border:"1px solid rgba(255,255,255,0.05)"}}>
+        <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45}}>Aucune course planifiée par tes amis pour l'instant.</div>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginTop:6,lineHeight:1.45}}>Bientôt — calendrier des courses officielles à venir.</div>
+      </div>
+
+      {/* Section Activités récentes */}
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>⚡ Activités récentes</div>
+      {loading ? (
+        <div style={{padding:"30px 0",textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+      ) : feed.length === 0 ? (
+        <div style={{padding:"22px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,textAlign:"center",border:"1px solid rgba(255,255,255,0.05)"}}>
+          <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif"}}>Aucune activité de tes amis sur les 14 derniers jours.</div>
+        </div>
+      ) : (
+        feed.map(e => <FeedEntry key={e.id} entry={e}/>)
+      )}
+    </div>
+  );
+}
+
 function ActuTab({myProfile,onNotifsChange}){
   const [tab,setTab]=useState("amis");
   const [friends,setFriends]=useState([]);
@@ -4254,7 +4376,7 @@ function ActuTab({myProfile,onNotifsChange}){
           </button>
         ))}
       </div>
-      {tab==="fil"    && <Placeholder title="📰" hint="Bientôt — fil d'activités de tes amis"/>}
+      {tab==="fil"    && <FilPanel myProfile={myProfile}/>}
       {tab==="pronos" && <Placeholder title="🎯" hint="Bientôt — pronostique sur les courses à venir"/>}
       {tab==="defis"  && <Placeholder title="⚔️" hint="Bientôt — défis entre amis"/>}
       {tab==="amis"&&<div>
