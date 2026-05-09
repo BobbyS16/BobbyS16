@@ -2278,22 +2278,43 @@ const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p
 // Mode insert (race=null) ou edit (race={...}).
 // On utilise un <input type="date" min="..."> natif pour le picker date,
 // car le DatePicker maison ne couvre que les années passées (CY-14 → CY).
+// 6 disciplines acceptées sur upcoming_races (cf. CHECK constraint
+// upcoming_races_discipline_check). Couleurs centralisées dans
+// ACTIVITY_BADGE_COLORS (course=jaune / velo=orange / nat=bleu / trail=vert
+// / tri=violet / hyrox=rouge).
 const UPCOMING_DISCIPLINES = [
-  { k:"run",   label:"Run",   icon:"🏃" },
-  { k:"trail", label:"Trail", icon:"⛰️" },
-  { k:"tri",   label:"Tri",   icon:"🏊" },
-  { k:"hyrox", label:"Hyrox", icon:"🔥" },
+  { k:"course",   label:"Course",   icon:"🏃" },
+  { k:"velo",     label:"Vélo",     icon:"🚴" },
+  { k:"natation", label:"Natation", icon:"🏊" },
+  { k:"trail",    label:"Trail",    icon:"⛰️" },
+  { k:"tri",      label:"Tri",      icon:"🤽" },
+  { k:"hyrox",    label:"Hyrox",    icon:"🔥" },
 ];
 
 // Distances proposées par discipline. La dernière entrée est toujours
 // "Autre" qui ouvre la saisie libre. Valeurs en km, label affiché à
 // côté de la valeur quand utile (semi/marathon/IM/etc.).
 const UPCOMING_DISTANCES = {
-  run: [
+  course: [
     { v: 5,       label: "5 km" },
     { v: 10,      label: "10 km" },
     { v: 21.0975, label: "21,1 km — Semi" },
     { v: 42.195,  label: "42,195 km — Marathon" },
+  ],
+  velo: [
+    { v: 30,  label: "30 km" },
+    { v: 60,  label: "60 km" },
+    { v: 100, label: "100 km" },
+    { v: 160, label: "160 km — Cyclo longue" },
+    { v: 200, label: "200 km — Granfondo" },
+  ],
+  natation: [
+    { v: 0.4,  label: "400 m — Sprint" },
+    { v: 0.75, label: "750 m — Olympique" },
+    { v: 1.5,  label: "1,5 km — Eau libre courte" },
+    { v: 3,    label: "3 km" },
+    { v: 5,    label: "5 km" },
+    { v: 10,   label: "10 km — Eau libre longue" },
   ],
   trail: [
     { v: 15,  label: "15 km" },
@@ -2330,11 +2351,11 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
   const todayISO = new Date().toISOString().slice(0, 10);
   const [name, setName] = useState(race?.race_name || "");
   const [date, setDate] = useState(race?.race_date || todayISO);
-  const [discipline, setDiscipline] = useState(race?.discipline || "run");
+  const [discipline, setDiscipline] = useState(race?.discipline || "course");
   // Distance: si la valeur préchargée correspond à un preset de la discipline
   // active on l'aligne dessus (auto-détection edit), sinon mode "custom".
   const initialDistance = race?.distance_km != null ? Number(race.distance_km) : null;
-  const initialPresetMatch = (UPCOMING_DISTANCES[race?.discipline || "run"] || []).find(o => Math.abs(o.v - (initialDistance ?? -1)) < 0.001);
+  const initialPresetMatch = (UPCOMING_DISTANCES[race?.discipline || "course"] || []).find(o => Math.abs(o.v - (initialDistance ?? -1)) < 0.001);
   const [distancePreset, setDistancePreset] = useState(
     initialDistance == null ? "" : (initialPresetMatch ? String(initialPresetMatch.v) : "custom")
   );
@@ -2402,18 +2423,22 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
       />
 
       <Lbl c="Discipline *"/>
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {UPCOMING_DISCIPLINES.map(d=>(
-          <button key={d.k} onClick={()=>{
-            setDiscipline(d.k);
-            // Reset distance au changement de discipline (les presets sont
-            // spécifiques à chaque sport).
-            setDistancePreset("");
-            setDistanceCustom("");
-          }} style={{flex:1,padding:"10px 0",borderRadius:12,border:"none",cursor:"pointer",background:discipline===d.k?"rgba(237,42,55,0.18)":"rgba(255,255,255,0.04)",color:discipline===d.k?"#ED2A37":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:4,border:`1px solid ${discipline===d.k?"rgba(237,42,55,0.4)":"transparent"}`}}>
-            <span>{d.icon}</span><span>{d.label}</span>
-          </button>
-        ))}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:6,marginBottom:14}}>
+        {UPCOMING_DISCIPLINES.map(d=>{
+          const c = ACTIVITY_BADGE_COLORS[d.k] || "#ED2A37";
+          const active = discipline === d.k;
+          return (
+            <button key={d.k} onClick={()=>{
+              setDiscipline(d.k);
+              // Reset distance au changement de discipline (les presets
+              // sont spécifiques à chaque sport).
+              setDistancePreset("");
+              setDistanceCustom("");
+            }} style={{padding:"10px 6px",borderRadius:12,cursor:"pointer",background:active?`${c}22`:"rgba(255,255,255,0.04)",color:active?c:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:5,border:`1px solid ${active?c+"66":"transparent"}`}}>
+              <span>{d.icon}</span><span>{d.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       <Lbl c="Distance *"/>
@@ -4367,35 +4392,42 @@ function fmtRelativeDate(d) {
   return dt.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-// Couleurs des badges discipline en haut à droite des cards d'activité.
-// Cohérent avec la palette PaceRank existante.
+// Couleurs des badges discipline en haut à droite des cards d'activité
+// et des cards de courses à venir. 6 catégories sport (course/velo/
+// natation/trail/tri/hyrox) + un override 'officiel' pour les courses
+// officielles (utilisé sur les ActivityCard du fil, pas pertinent pour
+// les upcoming_races).
 const ACTIVITY_BADGE_COLORS = {
-  run:      "#ED2A37", // Course
-  trail:    "#4ade80", // Trail
-  tri:      "#3B82F6", // Tri (incl. Vélo + Natation comme sous-disciplines)
-  hyrox:    "#FC4C02", // Hyrox
-  officiel: "#FFD700", // Course officielle (toutes disciplines)
+  course:   "#FFD700", // jaune
+  velo:     "#FC4C02", // orange
+  natation: "#3B82F6", // bleu
+  trail:    "#4ade80", // vert
+  tri:      "#A855F7", // violet
+  hyrox:    "#ED2A37", // rouge
+  officiel: "#FFD700", // utilisé sur les ActivityCard pour signaler une
+                       // course officielle, indépendamment du sport
+  run:      "#FFD700", // alias historique → on map run vers course (jaune)
 };
 
 // Renvoie la "famille" d'une activité pour colorer le badge.
 // - Pour un training : basé sur le sport (Course/Vélo/Natation/Trail)
 // - Pour un result : basé sur la discipline (5km/10km/semi/marathon/trail-*/tri-*/hyrox-*)
-// - Si l'activité est officielle, on override par 'officiel' (or).
+// - Si l'activité est officielle, on override par 'officiel' (jaune).
 function activityFamily(entry) {
   const e = entry.data;
   if (entry.kind === "training" && e.is_official_race) return { family: "officiel", label: "Officielle" };
   if (entry.kind === "training") {
-    if (e.sport === "Trail")    return { family: "trail", label: "Trail" };
-    if (e.sport === "Vélo")     return { family: "tri",   label: "Vélo" };
-    if (e.sport === "Natation") return { family: "tri",   label: "Natation" };
-    return { family: "run", label: "Run" };
+    if (e.sport === "Trail")    return { family: "trail",    label: "Trail" };
+    if (e.sport === "Vélo")     return { family: "velo",     label: "Vélo" };
+    if (e.sport === "Natation") return { family: "natation", label: "Natation" };
+    return { family: "course", label: "Course" };
   }
   // result
   const d = e.discipline || "";
   if (d.startsWith("trail")) return { family: "trail", label: "Trail" };
   if (d.startsWith("tri"))   return { family: "tri",   label: "Tri" };
   if (d.startsWith("hyrox")) return { family: "hyrox", label: "Hyrox" };
-  return { family: "officiel", label: "Course" };
+  return { family: "course", label: "Course" };
 }
 
 // Mapping discipline (results) → distance en km (running classics + hyrox).
