@@ -4367,39 +4367,190 @@ function fmtRelativeDate(d) {
   return dt.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-function FeedEntry({ entry }) {
+// Couleurs des badges discipline en haut à droite des cards d'activité.
+// Cohérent avec la palette PaceRank existante.
+const ACTIVITY_BADGE_COLORS = {
+  run:      "#ED2A37", // Course
+  trail:    "#4ade80", // Trail
+  tri:      "#3B82F6", // Tri (incl. Vélo + Natation comme sous-disciplines)
+  hyrox:    "#FC4C02", // Hyrox
+  officiel: "#FFD700", // Course officielle (toutes disciplines)
+};
+
+// Renvoie la "famille" d'une activité pour colorer le badge.
+// - Pour un training : basé sur le sport (Course/Vélo/Natation/Trail)
+// - Pour un result : basé sur la discipline (5km/10km/semi/marathon/trail-*/tri-*/hyrox-*)
+// - Si l'activité est officielle, on override par 'officiel' (or).
+function activityFamily(entry) {
   const e = entry.data;
-  let icon = "📌";
-  let primary = "";
-  let secondary = "";
+  if (entry.kind === "training" && e.is_official_race) return { family: "officiel", label: "Officielle" };
   if (entry.kind === "training") {
-    if (e.is_official_race) {
-      icon = "🏁";
-      primary = e.official_race_name || `${e.sport} officielle`;
-      secondary = `${e.distance} km · ${e.points || 0} pts`;
-    } else {
-      icon = e.sport === "Course" ? "🏃" : e.sport === "Vélo" ? "🚴" : e.sport === "Natation" ? "🏊" : e.sport === "Trail" ? "⛰️" : "🏋️";
-      primary = `${e.sport}${e.distance ? ` · ${e.distance} km` : ""}`;
-      secondary = `${e.points || 0} pts`;
-    }
-  } else {
-    icon = "🏆";
-    const lbl = DISCIPLINES[e.discipline]?.label || e.discipline;
-    primary = `${lbl}${e.race ? ` · ${e.race}` : ""}`;
-    const t = e.time || 0;
-    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
-    secondary = h > 0
-      ? `${h}h${m.toString().padStart(2,"0")}'${s.toString().padStart(2,"0")}"`
-      : `${m}'${s.toString().padStart(2,"0")}"`;
+    if (e.sport === "Trail")    return { family: "trail", label: "Trail" };
+    if (e.sport === "Vélo")     return { family: "tri",   label: "Vélo" };
+    if (e.sport === "Natation") return { family: "tri",   label: "Natation" };
+    return { family: "run", label: "Run" };
   }
+  // result
+  const d = e.discipline || "";
+  if (d.startsWith("trail")) return { family: "trail", label: "Trail" };
+  if (d.startsWith("tri"))   return { family: "tri",   label: "Tri" };
+  if (d.startsWith("hyrox")) return { family: "hyrox", label: "Hyrox" };
+  return { family: "officiel", label: "Course" };
+}
+
+// Mapping discipline (results) → distance en km (running classics + hyrox).
+// Pour trail/tri où la distance varie par épreuve, on retourne null et on
+// affichera "—" dans la stat correspondante.
+function distanceForDiscipline(d) {
+  switch (d) {
+    case "5km": return 5;
+    case "10km": return 10;
+    case "semi": return 21.0975;
+    case "marathon": return 42.195;
+    case "hyrox-open":
+    case "hyrox-pro":
+    case "hyrox-double":
+    case "hyrox-relay": return 8;
+    default: return null;
+  }
+}
+
+// Format durée pour les cards d'activité : "1h23" / "23'45"
+function fmtCardDuration(seconds) {
+  if (seconds == null || isNaN(seconds)) return "—";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}h${m.toString().padStart(2,"0")}`;
+  return `${m}'${s.toString().padStart(2,"0")}`;
+}
+
+// Allure / vitesse selon le sport pour les cards d'activité.
+//   Course/Trail/Run → min:sec / km
+//   Vélo → km/h
+//   Natation → min:sec / 100m
+function fmtCardPace(distanceKm, durationSec, sport) {
+  if (!distanceKm || !durationSec) return "—";
+  if (sport === "Vélo") {
+    const kmh = (distanceKm / (durationSec / 3600));
+    return `${kmh.toFixed(1)} km/h`;
+  }
+  if (sport === "Natation") {
+    const sec_per_100m = (durationSec / (distanceKm * 10));
+    const m = Math.floor(sec_per_100m / 60), s = Math.floor(sec_per_100m % 60);
+    return `${m}'${s.toString().padStart(2,"0")}/100m`;
+  }
+  const sec_per_km = durationSec / distanceKm;
+  const m = Math.floor(sec_per_km / 60), s = Math.floor(sec_per_km % 60);
+  return `${m}'${s.toString().padStart(2,"0")}/km`;
+}
+
+// Extrait les 4 stats (Distance / Durée / Allure / Pts) pour une entry.
+function statsForEntry(entry) {
+  const e = entry.data;
+  if (entry.kind === "training") {
+    const distance = e.distance || 0;
+    const duration = e.duration || 0;
+    return {
+      distance: distance ? `${distance} km` : "—",
+      duration: fmtCardDuration(duration),
+      pace:     fmtCardPace(distance, duration, e.sport),
+      points:   `+${e.points || 0}`,
+    };
+  }
+  const d = distanceForDiscipline(e.discipline);
+  const t = e.time || 0;
+  return {
+    distance: d != null ? `${d} km` : (DISCIPLINES[e.discipline]?.label || "—"),
+    duration: fmtCardDuration(t),
+    pace:     d ? fmtCardPace(d, t, "Course") : "—",
+    points:   "+" + (e.points || calcPoints?.(e.discipline, e.time, e.elevation) || 0),
+  };
+}
+
+// StatCell — 1 case du grid 4-colonnes
+function StatCell({ label, value, valueColor }) {
   return (
-    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.04)"}}>
-      <Avatar profile={entry.user} size={34}/>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          <span style={{marginRight:4}}>{icon}</span>{shortName(entry.user?.name)} — {primary}
+    <div style={{textAlign:"center",padding:"8px 4px"}}>
+      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:10,letterSpacing:1.2,textTransform:"uppercase",color:"rgba(240,237,232,0.4)",fontWeight:700,marginBottom:4}}>{label}</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:0.5,color:valueColor || "#F0EDE8",lineHeight:1}}>{value}</div>
+    </div>
+  );
+}
+
+// FeedCard — card d'une activité (training ou result) dans le fil ACTU.
+// Ref visuelle : pacerank-activites-recentes.html.
+// (Le nom ActivityCard est déjà pris ailleurs dans App.jsx pour un autre
+// composant interactif lié au profil — d'où le suffix Card.)
+function FeedCard({ entry, firstComment }) {
+  const e = entry.data;
+  const fam = activityFamily(entry);
+  const badgeColor = ACTIVITY_BADGE_COLORS[fam.family] || ACTIVITY_BADGE_COLORS.run;
+  const stats = statsForEntry(entry);
+  const title = entry.kind === "training"
+    ? (e.is_official_race ? (e.official_race_name || "Course officielle") : (e.title || `Sortie ${e.sport || ""}`.trim()))
+    : (DISCIPLINES[e.discipline]?.label || e.discipline) + (e.race ? ` · ${e.race}` : "");
+
+  return (
+    <div style={{background:"#0E0E0E",border:"1px solid #232323",borderRadius:20,marginBottom:12,overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 10px",position:"relative"}}>
+        <Avatar profile={entry.user} size={38}/>
+        <div style={{flex:1,minWidth:0,paddingRight:64}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(entry.user?.name)}</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.45)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{title} · {fmtRelativeDate(entry.date)}</div>
         </div>
-        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{secondary} · {fmtRelativeDate(entry.date)}</div>
+        {/* Badge discipline top-right */}
+        <div style={{position:"absolute",top:14,right:14,padding:"4px 10px",borderRadius:99,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}66`,color:badgeColor,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase"}}>{fam.label}</div>
+      </div>
+
+      {/* Photo optionnelle (16/10) */}
+      {e.photo_url && (
+        <div style={{width:"100%",aspectRatio:"16 / 10",overflow:"hidden",background:"#0a0a0a"}}>
+          <img src={e.photo_url} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+        </div>
+      )}
+
+      {/* Stats 4-col grid */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",borderTop:e.photo_url?"1px solid #232323":"none"}}>
+        <StatCell label="Distance" value={stats.distance}/>
+        <StatCell label="Durée"    value={stats.duration}/>
+        <StatCell label="Allure"   value={stats.pace}/>
+        <StatCell label="Pts"      value={stats.points} valueColor="#ED2A37"/>
+      </div>
+
+      {/* 1er commentaire inline */}
+      {firstComment && (
+        <div style={{borderTop:"1px solid #232323",padding:"10px 14px",display:"flex",alignItems:"flex-start",gap:8,background:"rgba(255,255,255,0.015)"}}>
+          <div style={{fontSize:14,flexShrink:0,marginTop:1}}>💬</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.85)",lineHeight:1.4}}>
+              <span style={{fontWeight:700,color:"#F0EDE8"}}>{shortName(firstComment.author?.name)}</span>{" "}{firstComment.content}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// PrognoCard — placeholder (pas encore brancher dans le feed). Sera wired
+// quand la feature pronostics arrivera (sem 7-8 du roadmap). Bordure
+// dorée #FFD700 pour la différenciation visuelle dans le fil mixte.
+function PrognoCard({ entry, firstComment }) {
+  const e = entry?.data || {};
+  return (
+    <div style={{background:"#0E0E0E",border:"1px solid #FFD700",borderRadius:20,marginBottom:12,overflow:"hidden",boxShadow:"0 0 0 1px rgba(255,215,0,0.08), 0 4px 18px rgba(255,215,0,0.06)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 10px",position:"relative"}}>
+        <Avatar profile={entry?.user} size={38}/>
+        <div style={{flex:1,minWidth:0,paddingRight:64}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1}}>{shortName(entry?.user?.name)}</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.45)",marginTop:2}}>{e.race_name || "Course à venir"} · pronostics ouverts</div>
+        </div>
+        <div style={{position:"absolute",top:14,right:14,padding:"4px 10px",borderRadius:99,background:"rgba(255,215,0,0.12)",border:"1px solid rgba(255,215,0,0.45)",color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase"}}>Prono</div>
+      </div>
+      <div style={{padding:"4px 14px 14px",fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.55)",lineHeight:1.5}}>
+        Carte pronostic — bientôt disponible.
       </div>
     </div>
   );
@@ -4407,6 +4558,7 @@ function FeedEntry({ entry }) {
 
 function FilPanel({ myProfile }) {
   const [feed, setFeed] = useState([]);
+  const [commentsByActivity, setCommentsByActivity] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -4423,11 +4575,11 @@ function FilPanel({ myProfile }) {
       const sinceISO = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString().slice(0, 10);
       const [trR, reR, prR] = await Promise.all([
         supabase.from("trainings")
-          .select("id,user_id,sport,distance,date,points,is_official_race,official_race_name")
+          .select("id,user_id,sport,duration,distance,date,points,is_official_race,official_race_name,title,photo_url")
           .in("user_id", friendIds).gte("date", sinceISO)
           .order("date", { ascending: false }).limit(40),
         supabase.from("results")
-          .select("id,user_id,discipline,time,race,year,race_date")
+          .select("id,user_id,discipline,time,race,year,race_date,elevation,photo_url")
           .in("user_id", friendIds).gte("race_date", sinceISO)
           .order("race_date", { ascending: false }).limit(40),
         supabase.from("profiles")
@@ -4435,18 +4587,55 @@ function FilPanel({ myProfile }) {
       ]);
       const byId = Object.fromEntries((prR.data || []).map(p => [p.id, p]));
       const trEntries = (trR.data || []).map(t => ({
-        kind: "training", id: "t_" + t.id, user: byId[t.user_id],
+        kind: "training", id: "t_" + t.id, activityId: t.id, user: byId[t.user_id],
         date: t.date, sortKey: new Date(t.date).getTime(), data: t,
       }));
       const reEntries = (reR.data || []).map(r => ({
-        kind: "result", id: "r_" + r.id, user: byId[r.user_id],
+        kind: "result", id: "r_" + r.id, activityId: r.id, user: byId[r.user_id],
         date: r.race_date, sortKey: new Date(r.race_date).getTime(), data: r,
       }));
       const merged = [...trEntries, ...reEntries]
         .filter(e => e.user)
         .sort((a, b) => b.sortKey - a.sortKey)
         .slice(0, 25);
-      if (!cancel) { setFeed(merged); setLoading(false); }
+
+      // Pull tous les commentaires des activités du feed en 1 query, on
+      // récupère le 1er (oldest) par (activity_type, activity_id) côté JS.
+      const trIds = merged.filter(e => e.kind === "training").map(e => e.activityId);
+      const reIds = merged.filter(e => e.kind === "result").map(e => e.activityId);
+      const idsByType = [];
+      if (trIds.length) idsByType.push(["training", trIds]);
+      if (reIds.length) idsByType.push(["result", reIds]);
+
+      const commentMap = {};
+      if (idsByType.length > 0) {
+        const queries = idsByType.map(([atype, ids]) =>
+          supabase.from("activity_comments")
+            .select("id,user_id,activity_type,activity_id,content,created_at")
+            .eq("activity_type", atype).in("activity_id", ids)
+            .order("created_at", { ascending: true })
+        );
+        const responses = await Promise.all(queries);
+        const allComments = responses.flatMap(r => r.data || []);
+        // Charger les profils des auteurs (tous d'un coup)
+        const authorIds = [...new Set(allComments.map(c => c.user_id))];
+        let authorMap = {};
+        if (authorIds.length > 0) {
+          const { data: authors } = await supabase.from("profiles")
+            .select("id,name,avatar").in("id", authorIds);
+          authorMap = Object.fromEntries((authors || []).map(p => [p.id, p]));
+        }
+        for (const c of allComments) {
+          const key = `${c.activity_type}:${c.activity_id}`;
+          if (!commentMap[key]) commentMap[key] = { ...c, author: authorMap[c.user_id] };
+        }
+      }
+
+      if (!cancel) {
+        setFeed(merged);
+        setCommentsByActivity(commentMap);
+        setLoading(false);
+      }
     };
     load();
     return () => { cancel = true; };
@@ -4470,7 +4659,11 @@ function FilPanel({ myProfile }) {
           <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif"}}>Aucune activité de tes amis sur les 14 derniers jours.</div>
         </div>
       ) : (
-        feed.map(e => <FeedEntry key={e.id} entry={e}/>)
+        feed.map(e => {
+          const akind = e.kind === "training" ? "training" : "result";
+          const c = commentsByActivity[`${akind}:${e.activityId}`];
+          return <FeedCard key={e.id} entry={e} firstComment={c}/>;
+        })
       )}
     </div>
   );
