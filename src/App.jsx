@@ -5668,18 +5668,6 @@ function ActuTab({myProfile,onNotifsChange}){
     const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).eq("read",false).order("created_at",{ascending:false});
     setNotifs(data||[]);
   };
-  const dismissNotif=async id=>{
-    await supabase.from("notifications").update({read:true}).eq("id",id);
-    setNotifs(n=>n.filter(x=>x.id!==id));
-    onNotifsChange&&onNotifsChange();
-  };
-  const markAllNotifsRead=async()=>{
-    if(notifs.length===0)return;
-    const{data:{user}}=await supabase.auth.getUser();
-    await supabase.from("notifications").update({read:true}).eq("user_id",user.id).eq("read",false);
-    setNotifs([]);
-    onNotifsChange&&onNotifsChange();
-  };
   const handleSearch=async q=>{
     setSearch(q);if(q.length<2){setSearchRes([]);return;}
     const{data:{user}}=await supabase.auth.getUser();
@@ -5747,32 +5735,6 @@ function ActuTab({myProfile,onNotifsChange}){
           </div>);
         })}
 
-        {/* Notifs in-app (toujours en haut quand il y en a) */}
-        {notifs.length>0&&<div style={{marginBottom:14,marginTop:6}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700}}>🔔 Notifications</div>
-            <button onClick={markAllNotifsRead} style={{background:"none",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:11,cursor:"pointer",fontWeight:600}}>Tout marquer lu</button>
-          </div>
-          {notifs.map(n=>{
-            const txt = renderNotifLabel(n);
-            const hasActor = NOTIF_HAS_ACTOR[n.type] !== false;
-            const icon = NOTIF_ICON[n.type] || "🔔";
-            return (
-              <div key={n.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:"1px solid rgba(230,57,70,0.2)"}}>
-                {hasActor && n.from_user
-                  ? <div onClick={()=>setOpenFriend(n.from_user)} style={{cursor:"pointer"}}><Avatar profile={n.from_user} size={32}/></div>
-                  : <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{icon}</div>}
-                <div onClick={()=>hasActor && n.from_user && setOpenFriend(n.from_user)} style={{flex:1,minWidth:0,cursor:hasActor && n.from_user?"pointer":"default"}}>
-                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8"}}>
-                    {hasActor && <><strong>{n.from_user?.name||"Quelqu'un"}</strong>{" "}</>}
-                    {txt}
-                  </div>
-                </div>
-                <button onClick={()=>dismissNotif(n.id)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:12}}>✕</button>
-              </div>
-            );
-          })}
-        </div>}
 
         {/* 2. Bulle Inviter (en pointillé, layout horizontal) */}
         <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",borderRadius:16,background:"rgba(237,42,55,0.06)",border:"1.5px dashed rgba(237,42,55,0.4)",marginBottom:20}}>
