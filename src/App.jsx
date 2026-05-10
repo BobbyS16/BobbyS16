@@ -1349,6 +1349,174 @@ function Avatar({profile,size=48,highlight=false}){
   );
 }
 
+// ── DÉTECTION NOTIFS DE SCORE (Phase B) ───────────────────────────────────────
+// Lancée après l'insert d'un result. Elle détecte 3 conditions et émet les
+// notifs correspondantes via la RPC emit_user_notification :
+//
+//  - friend_overtake : un ami a été dépassé (before < friend.pts < after)
+//  - lost_podium     : l'user vient de perdre son podium ligue (rang 1-3 → 4+)
+//  - league_overtake : sortie du top 5 ligue (rang 4-5 → 6+, exclusif du podium)
+//  - level_up_imminent : on traverse les 50 pts du prochain milestone (1k, 2k…)
+//
+// Le before/after total est passé en argument — calculé par l'appelant à partir
+// de toutes les sources (results, trainings, raceBonusPts, trainingBonusPts,
+// point_bonuses) pour rester aligné avec le leaderboard.
+async function runScoreNotifsDetection({ userId, beforeTotal, afterTotal }) {
+  if (!userId) return;
+  try {
+    // 1) Trigger 4 — friend_overtake
+    const fsRes = await supabase.from("friendships")
+      .select("friend_id").eq("user_id", userId).eq("status", "accepted");
+    const friendIds = (fsRes.data || []).map(f => f.friend_id);
+
+    if (friendIds.length > 0) {
+      const [{ data: fProfiles }, { data: fResults }, { data: fTrainings }, { data: fBonuses }] = await Promise.all([
+        supabase.from("profiles").select("id,name").in("id", friendIds),
+        supabase.from("results").select("*").in("user_id", friendIds),
+        supabase.from("trainings").select("user_id,date,sport,distance,duration,points").in("user_id", friendIds),
+        supabase.from("point_bonuses").select("user_id,points").in("user_id", friendIds),
+      ]);
+      const fBonusByUser = (fBonuses || []).reduce((acc, b) => { acc[b.user_id] = (acc[b.user_id]||0) + (b.points||0); return acc; }, {});
+      const friendsWithPts = (fProfiles || []).map(p => {
+        const fAllRes = (fResults || []).filter(r => r.user_id === p.id);
+        const fSeasonRes = fAllRes.filter(r => rYear(r) === CY);
+        const fSeasonTrs = (fTrainings || []).filter(t => t.user_id === p.id && new Date(t.date).getFullYear() === CY);
+        const pts = sumBestPts(fSeasonRes)
+                  + fSeasonTrs.reduce((s,t) => s + effectiveTrainingPts(t), 0)
+                  + raceBonusPts(fSeasonRes, fAllRes)
+                  + trainingBonusPts(fSeasonTrs)
+                  + (fBonusByUser[p.id] || 0);
+        return { id: p.id, name: p.name, pts };
+      });
+
+      const myProf = (await supabase.from("profiles").select("id,name").eq("id", userId).maybeSingle()).data;
+      const actorName = myProf?.name || "Quelqu'un";
+
+      for (const f of friendsWithPts) {
+        if (beforeTotal < f.pts && afterTotal > f.pts) {
+          console.log("[score-notifs] friend_overtake →", f.id, f.name);
+          await supabase.rpc("emit_user_notification", {
+            p_target_user_id: f.id,
+            p_type: "friend_overtake",
+            p_payload: {
+              actor_id: userId,
+              actor_name: actorName,
+              actor_score: afterTotal,
+              friend_score: f.pts,
+            },
+          });
+        }
+      }
+
+      // 2) Trigger 5 — ligue : podium / top 5
+      const myLeagueRow = (await supabase.from("user_leagues")
+        .select("current_league,league_group_id").eq("user_id", userId).maybeSingle()).data;
+      if (myLeagueRow) {
+        let lq = supabase.from("user_leagues").select("user_id").eq("current_league", myLeagueRow.current_league);
+        lq = myLeagueRow.league_group_id ? lq.eq("league_group_id", myLeagueRow.league_group_id) : lq.is("league_group_id", null);
+        const { data: leagueRows } = await lq;
+        const memberIds = (leagueRows || []).map(r => r.user_id).filter(id => id !== userId);
+        if (memberIds.length >= 3) {
+          // Charge les data de tous les membres de la ligue (sauf moi qu'on a déjà)
+          const [{ data: lProfiles }, { data: lResults }, { data: lTrainings }, { data: lBonuses }] = await Promise.all([
+            supabase.from("profiles").select("id,name").in("id", memberIds),
+            supabase.from("results").select("*").in("user_id", memberIds),
+            supabase.from("trainings").select("user_id,date,sport,distance,duration,points").in("user_id", memberIds),
+            supabase.from("point_bonuses").select("user_id,points").in("user_id", memberIds),
+          ]);
+          const lBonusByUser = (lBonuses || []).reduce((acc, b) => { acc[b.user_id] = (acc[b.user_id]||0) + (b.points||0); return acc; }, {});
+          const others = (lProfiles || []).map(p => {
+            const allRes = (lResults || []).filter(r => r.user_id === p.id);
+            const seasonRes = allRes.filter(r => rYear(r) === CY);
+            const seasonTrs = (lTrainings || []).filter(t => t.user_id === p.id && new Date(t.date).getFullYear() === CY);
+            const pts = sumBestPts(seasonRes)
+                      + seasonTrs.reduce((s,t) => s + effectiveTrainingPts(t), 0)
+                      + raceBonusPts(seasonRes, allRes)
+                      + trainingBonusPts(seasonTrs)
+                      + (lBonusByUser[p.id] || 0);
+            return { id: p.id, name: p.name, pts };
+          });
+          const leagueLabel = myLeagueRow.current_league.charAt(0).toUpperCase() + myLeagueRow.current_league.slice(1);
+          const sorted = (asMe) => {
+            const all = [...others, { id: userId, name: actorName, pts: asMe }];
+            return all.sort((a,b) => b.pts - a.pts).map((p,i) => ({ ...p, rank: i+1 }));
+          };
+          const before = sorted(beforeTotal);
+          const after = sorted(afterTotal);
+          const rankBeforeById = Object.fromEntries(before.map(p => [p.id, p.rank]));
+          const rankAfterById = Object.fromEntries(after.map(p => [p.id, p.rank]));
+
+          for (const member of others) {
+            const oldR = rankBeforeById[member.id];
+            const newR = rankAfterById[member.id];
+            if (!oldR || !newR || newR <= oldR) continue;
+            // Priorité : podium > top5
+            if (oldR <= 3 && newR >= 4) {
+              console.log("[score-notifs] lost_podium →", member.id, oldR, "→", newR);
+              await supabase.rpc("emit_user_notification", {
+                p_target_user_id: member.id,
+                p_type: "lost_podium",
+                p_payload: {
+                  league: myLeagueRow.current_league,
+                  league_label: leagueLabel,
+                  old_rank: oldR,
+                  new_rank: newR,
+                  league_size: after.length,
+                  actor_id: userId,
+                  actor_name: actorName,
+                },
+              });
+            } else if (oldR <= 5 && newR >= 6) {
+              console.log("[score-notifs] league_overtake →", member.id, oldR, "→", newR);
+              await supabase.rpc("emit_user_notification", {
+                p_target_user_id: member.id,
+                p_type: "league_overtake",
+                p_payload: {
+                  league: myLeagueRow.current_league,
+                  league_label: leagueLabel,
+                  league_name: leagueLabel,
+                  old_rank: oldR,
+                  new_rank: newR,
+                  actor_id: userId,
+                  actor_name: actorName,
+                },
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 3) Trigger 6 — level_up_imminent (self-notif)
+    const POINTS_MILESTONES_LOCAL = [1000, 2000, 5000, 10000, 20000, 50000];
+    const nextMilestone = POINTS_MILESTONES_LOCAL.find(m => m > beforeTotal);
+    if (nextMilestone) {
+      const beforeRemaining = nextMilestone - beforeTotal;
+      const afterRemaining = nextMilestone - afterTotal;
+      if (beforeRemaining > 50 && afterRemaining > 0 && afterRemaining <= 50) {
+        const dup = await supabase.from("notifications")
+          .select("id").eq("user_id", userId).eq("type", "level_up_imminent")
+          .filter("payload->>next_milestone", "eq", String(nextMilestone))
+          .limit(1);
+        if (!dup.data || dup.data.length === 0) {
+          console.log("[score-notifs] level_up_imminent →", afterRemaining, "pts du cap", nextMilestone);
+          await supabase.rpc("emit_user_notification", {
+            p_target_user_id: userId,
+            p_type: "level_up_imminent",
+            p_payload: {
+              current_points: afterTotal,
+              next_milestone: nextMilestone,
+              pts_remaining: afterRemaining,
+            },
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[score-notifs] detection failed", e);
+  }
+}
+
 // ── RESULT MODAL ──────────────────────────────────────────────────────────────
 function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
   const [discipline,setDisc]=useState(existing?.discipline||initialDiscipline||"10km");
@@ -1387,6 +1555,26 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
     setLoading(false);
     onSave();
   };
+  // Calcule mon total saison (results + trainings + bonus saison + point_bonuses).
+  // Utilisé pour capturer beforeTotal AVANT l'INSERT et afterTotal APRÈS,
+  // afin d'alimenter runScoreNotifsDetection().
+  const computeMyTotal = async () => {
+    const [{ data: r }, { data: t }, { data: b }] = await Promise.all([
+      supabase.from("results").select("*").eq("user_id", userId),
+      supabase.from("trainings").select("*").eq("user_id", userId),
+      supabase.from("point_bonuses").select("points").eq("user_id", userId),
+    ]);
+    const allRes = r || [], allTrs = t || [];
+    const seasonRes = allRes.filter(x => rYear(x) === CY);
+    const seasonTrs = allTrs.filter(x => new Date(x.date).getFullYear() === CY);
+    const bonusPts = (b || []).reduce((s, row) => s + (row.points || 0), 0);
+    return sumBestPts(seasonRes)
+         + seasonTrs.reduce((s, x) => s + effectiveTrainingPts(x), 0)
+         + raceBonusPts(seasonRes, allRes)
+         + trainingBonusPts(seasonTrs)
+         + bonusPts;
+  };
+
   const handleSave=async()=>{
     const[h,m,s]=timeStr.split(":").map(Number);const t=h*3600+m*60+s;
     if(!t){setError("Sélectionne un temps valide");return;}
@@ -1394,6 +1582,12 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
     const year=raceDate?parseInt(raceDate.slice(0,4)):CY;
     const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null,elevation:hasElevation&&elevation?parseInt(elevation)||null:null};
     console.log("[result-save]",existing?"UPDATE":"INSERT",existing?.id,payload);
+    // Capture du total AVANT l'INSERT (pour la détection des notifs Phase B).
+    // Sur un UPDATE on skip — la détection cible les nouveaux résultats.
+    let beforeTotal = null;
+    if (!existing) {
+      try { beforeTotal = await computeMyTotal(); } catch(e) { console.warn("[result-save] beforeTotal failed", e); }
+    }
     let err,data;
     if(existing){({error:err,data}=await supabase.from("results").update(payload).eq("id",existing.id).select());}
     else{({error:err,data}=await supabase.from("results").insert({...payload,user_id:userId}).select());}
@@ -1406,6 +1600,14 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
       if (isPR && celebrationsEnabled()) {
         fireCelebration(2200);
         try { navigator.vibrate?.([30,40,30]); } catch {}
+      }
+      // Détection notifs Phase B (overtake / podium / level_up_imminent).
+      // Non-bloquant : si ça échoue, l'insert du result est déjà acquis.
+      if (beforeTotal !== null) {
+        try {
+          const afterTotal = await computeMyTotal();
+          runScoreNotifsDetection({ userId, beforeTotal, afterTotal });
+        } catch(e) { console.warn("[result-save] score-notifs failed", e); }
       }
     }
     onSave();
@@ -1949,7 +2151,8 @@ const NOTIF_ICON = {
   friend_official_race:"🏁",
   friend_pr:           "🏆",
   friend_upcoming_race:"📅",
-  league_overtake:     "📉",
+  league_overtake:     "🏆",
+  lost_podium:         "🥉",
   level_up_imminent:   "⭐",
 };
 // Types qui ont un acteur (from_user_id) et donc affichent "<nom> <verbe>".
@@ -1958,7 +2161,7 @@ const NOTIF_HAS_ACTOR = {
   friend_added: true, like_result: true, like_training: true,
   comment_result: true, comment_training: true, friend_overtake: true,
   friend_official_race: true, friend_pr: true, friend_upcoming_race: true,
-  league_overtake: false, level_up_imminent: false,
+  league_overtake: true, lost_podium: false, level_up_imminent: false,
 };
 function renderNotifLabel(n) {
   // Si payload existe → format v1 (variables dynamiques)
@@ -1972,16 +2175,31 @@ function renderNotifLabel(n) {
         const when = days === 1 ? "demain" : (days > 1 ? `dans ${days} jours` : "bientôt");
         return `court ${p.race_name || "une course"} ${when}`;
       }
-      case "friend_overtake":      return "t'a dépassé au classement saison";
+      case "friend_overtake": {
+        if (p.actor_score && p.friend_score) {
+          return `t'a dépassé : ${p.actor_score} pts contre tes ${p.friend_score} pts`;
+        }
+        return "t'a dépassé au classement saison";
+      }
+      case "lost_podium": {
+        const lg = p.league_label || (p.league ? p.league.charAt(0).toUpperCase()+p.league.slice(1) : "");
+        return `Tu as perdu ton podium — ${p.new_rank || "?"}e place${lg ? ` en ${lg}` : ""}`;
+      }
       case "league_overtake": {
+        const lg = p.league_label || p.league_name || "";
+        if (p.actor_name) return `Tu sors du top 5${lg ? " "+lg : ""} — ${p.actor_name} t'est passé devant`;
         const drop = (p.new_rank||0) - (p.old_rank||0);
-        if (drop > 0) return `Tu as perdu ${drop} place${drop>1?"s":""} dans ta ligue ${p.league_name||""}`.trim();
-        if (drop < 0) return `Tu as gagné ${-drop} place${-drop>1?"s":""} dans ta ligue ${p.league_name||""}`.trim();
+        if (drop > 0) return `Tu as perdu ${drop} place${drop>1?"s":""} dans ta ligue ${lg}`.trim();
+        if (drop < 0) return `Tu as gagné ${-drop} place${-drop>1?"s":""} dans ta ligue ${lg}`.trim();
         return "Changement de rang dans ta ligue";
       }
       case "level_up_imminent": {
-        const remaining = Math.max(0, (p.next_level_points||0) - (p.current_points||0));
-        return `Plus que ${remaining} pts avant ${p.next_level_name||"niveau supérieur"}`;
+        // Phase B payload : { current_points, next_milestone, pts_remaining }
+        const remaining = p.pts_remaining ?? Math.max(0, (p.next_milestone || p.next_level_points || 0) - (p.current_points || 0));
+        const target = p.next_milestone || p.next_level_points;
+        return target
+          ? `Plus que ${remaining} pts avant le cap des ${target} pts`
+          : `Plus que ${remaining} pts avant le niveau supérieur`;
       }
       // legacy types : si jamais un payload est fourni, on retombe sur libellé legacy
       default: return NOTIF_LEGACY_LABEL[n.type] || "";

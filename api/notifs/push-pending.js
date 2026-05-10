@@ -26,7 +26,18 @@ function buildPushContent(notif) {
     case "like_training":        return { title: "❤️ Like",             body: `${fromName} a aimé ton entraînement` };
     case "comment_result":       return { title: "💬 Commentaire",      body: `${fromName} a commenté ta course` };
     case "comment_training":     return { title: "💬 Commentaire",      body: `${fromName} a commenté ton entraînement` };
-    case "friend_overtake":      return { title: "🚀 Dépassé",          body: `${fromName} t'a dépassé au classement saison` };
+    case "friend_overtake": {
+      const after = p.actor_score ?? null;
+      const mine  = p.friend_score ?? null;
+      if (after !== null && mine !== null) {
+        return { title: `📉 ${fromName} t'a dépassé !`, body: `Il est à ${after} pts contre tes ${mine} pts, reprends le dessus` };
+      }
+      return { title: "📉 Dépassé", body: `${fromName} t'a dépassé au classement saison` };
+    }
+    case "lost_podium": {
+      const lg = p.league_label || (p.league ? p.league.charAt(0).toUpperCase()+p.league.slice(1) : "");
+      return { title: "🥉 Tu as perdu ton podium !", body: `Plus que la ${p.new_rank || "?"}e place${lg ? ` en ${lg}` : ""}` };
+    }
     case "friend_official_race": return { title: "🏁 Course officielle", body: `${fromName} a participé à ${p.race_name || "une course"}` };
     case "friend_pr":            return { title: "🏆 Record battu",     body: `${fromName} a battu son record en ${p.discipline || "course"}` };
     case "friend_upcoming_race": {
@@ -35,10 +46,15 @@ function buildPushContent(notif) {
       return { title: `📅 ${fromName} court ${p.race_name || "une course"}`, body: `${when} — fais ton prono !` };
     }
     case "league_overtake": {
+      const lg = p.league_label || p.league_name || "";
+      // Phase B : envoyé quand l'user sort du top 5 (rang 4-5 → 6+).
+      if (p.actor_name) {
+        return { title: `🏆 Tu sors du top 5${lg ? " "+lg : ""}`, body: `${p.actor_name} t'est passé devant` };
+      }
+      // Fallback legacy : payload "old_rank/new_rank" sans actor.
       const drop = (p.new_rank || 0) - (p.old_rank || 0);
-      const lg = p.league_name ? ` (${p.league_name})` : "";
-      if (drop > 0) return { title: "📉 Rang ligue", body: `Tu as perdu ${drop} place${drop>1?"s":""} dans ta ligue${lg}` };
-      if (drop < 0) return { title: "📈 Rang ligue", body: `Tu as gagné ${-drop} place${-drop>1?"s":""} dans ta ligue${lg}` };
+      if (drop > 0) return { title: "📉 Rang ligue", body: `Tu as perdu ${drop} place${drop>1?"s":""} dans ta ligue${lg ? " ("+lg+")" : ""}` };
+      if (drop < 0) return { title: "📈 Rang ligue", body: `Tu as gagné ${-drop} place${-drop>1?"s":""} dans ta ligue${lg ? " ("+lg+")" : ""}` };
       return { title: "📊 Rang ligue", body: "Changement de rang dans ta ligue" };
     }
     case "level_up_imminent": {
@@ -172,8 +188,8 @@ export default async function handler(req, res) {
         skipped++;
       } else {
         stampNormal.push(n.id);
-        // Mise à jour du map pour rate-limiter les notifs suivantes du même
-        // user dans le même batch.
+        // On met à jour le map pour rate-limiter les notifs suivantes du
+        // même user dans le même batch.
         lastPushByUser[recipient.id] = Date.now();
         pushed++;
       }
