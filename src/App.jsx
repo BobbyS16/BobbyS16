@@ -5113,6 +5113,17 @@ function FilPanel({ myProfile }) {
   );
 }
 
+// SectionHeader — entête de section dans le sub-tab AMIS, format
+// "● TITRE (N)" en uppercase Bebas, point rouge à gauche.
+function SectionHeader({ label }) {
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+      <span style={{width:6,height:6,borderRadius:"50%",background:"#ED2A37",display:"inline-block"}}/>
+      <span style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.65)",textTransform:"uppercase"}}>{label}</span>
+    </div>
+  );
+}
+
 function ActuTab({myProfile,onNotifsChange}){
   const [tab,setTab]=useState("fil");
   const [friends,setFriends]=useState([]);
@@ -5133,9 +5144,34 @@ function ActuTab({myProfile,onNotifsChange}){
     const{data:fs}=await supabase.from("friendships").select("*").eq("user_id",user.id).eq("status","accepted");
     if(!fs||fs.length===0){setFriends([]);return;}
     const ids=fs.map(f=>f.friend_id);
-    const{data:profiles}=await supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids);
+    const allIds=[user.id, ...ids];
+    // Charge profils + results + trainings pour calculer pts saison + rang
+    // de chaque ami dans le groupe (moi + amis).
+    const [{data:profiles}, {data:res}, {data:trs}] = await Promise.all([
+      supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids),
+      supabase.from("results").select("*").in("user_id",allIds),
+      supabase.from("trainings").select("*").in("user_id",allIds),
+    ]);
     const byId=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));
-    setFriends(fs.map(f=>({...f,friend:byId[f.friend_id]||null})));
+    const ptsByUser={};
+    for (const uid of allIds) {
+      const uRes=(res||[]).filter(r=>r.user_id===uid);
+      const uTrs=(trs||[]).filter(t=>t.user_id===uid);
+      const seasonRes=uRes.filter(r=>rYear(r)===CY);
+      const seasonTrs=uTrs.filter(t=>new Date(t.date).getFullYear()===CY);
+      const racePts=sumBestPts(seasonRes);
+      const trainPts=seasonTrs.reduce((s,t)=>s+effectiveTrainingPts(t),0);
+      const bonusPts=raceBonusPts(seasonRes,uRes)+trainingBonusPts(seasonTrs);
+      ptsByUser[uid]=racePts+trainPts+bonusPts;
+    }
+    const sorted=[...allIds].sort((a,b)=>(ptsByUser[b]||0)-(ptsByUser[a]||0));
+    const rankByUser=Object.fromEntries(sorted.map((uid,i)=>[uid,i+1]));
+    setFriends(fs.map(f=>({
+      ...f,
+      friend: byId[f.friend_id]||null,
+      pts:    ptsByUser[f.friend_id]||0,
+      rank:   rankByUser[f.friend_id],
+    })));
   };
   // Charge les demandes pending (incoming reçues + outgoing envoyées). 2 queries
   // sur friendships.user_id = me, séparées par status. Profils résolus en 1 batch.
@@ -5309,61 +5345,70 @@ function ActuTab({myProfile,onNotifsChange}){
           })}
         </div>}
 
-        {/* 2. Bulle Inviter (en pointillé) */}
-        <button onClick={handleInvite} style={{width:"100%",padding:"16px 14px",borderRadius:16,background:"transparent",border:"1.5px dashed rgba(255,255,255,0.2)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,marginBottom:18,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-          <span style={{fontSize:18}}>✉️</span>
-          <span>{inviteCopied ? "✓ Lien copié" : "Inviter des amis"}</span>
-        </button>
+        {/* 2. Bulle Inviter (en pointillé, layout horizontal) */}
+        <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",borderRadius:16,background:"rgba(237,42,55,0.06)",border:"1.5px dashed rgba(237,42,55,0.4)",marginBottom:20}}>
+          <button onClick={handleInvite} aria-label="Inviter" style={{flexShrink:0,width:46,height:46,borderRadius:"50%",background:"#ED2A37",border:"none",color:"#fff",fontSize:24,fontFamily:"'Bebas Neue'",lineHeight:1,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>+</button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1.2,color:"#F0EDE8",lineHeight:1.1}}>INVITER DES AMIS</div>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.5)",marginTop:3,lineHeight:1.3}}>Plus d'amis = plus de pronos & défis</div>
+          </div>
+          <button onClick={handleInvite} style={{flexShrink:0,padding:"8px 14px",borderRadius:10,background:"#ED2A37",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,letterSpacing:0.6,textTransform:"uppercase"}}>{inviteCopied ? "✓ Copié" : "Partager"}</button>
+        </div>
 
         {/* 3. Demandes d'amis en attente (incoming) */}
-        {pendingIncoming.length>0 && <div style={{marginBottom:18}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>📬 Demandes d'amis ({pendingIncoming.length})</div>
+        {pendingIncoming.length>0 && <div style={{marginBottom:20}}>
+          <SectionHeader label={`Demandes en attente (${pendingIncoming.length})`}/>
           {pendingIncoming.map(r=>(
-            <div key={r.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(74,222,128,0.06)",borderRadius:14,marginBottom:7,border:"1px solid rgba(74,222,128,0.2)"}}>
-              <div onClick={()=>r.friend && setOpenFriend(r.friend)} style={{cursor:"pointer"}}><Avatar profile={r.friend} size={36}/></div>
+            <div key={r.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.06)"}}>
+              <div onClick={()=>r.friend && setOpenFriend(r.friend)} style={{cursor:"pointer"}}><Avatar profile={r.friend} size={40}/></div>
               <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>r.friend && setOpenFriend(r.friend)}>
                 <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.friend?.name || "Anonyme"}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.45)"}}>veut t'ajouter en ami{r.friend?.city?` · ${r.friend.city}`:""}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",marginTop:2}}>Veut être ton ami</div>
               </div>
-              <button onClick={()=>acceptFriend(r.friend_id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(74,222,128,0.18)",color:"#4ADE80",border:"1px solid rgba(74,222,128,0.4)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>✓ Accepter</button>
-              <button onClick={()=>declineFriend(r.friend_id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.6)",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>✕</button>
+              <button onClick={()=>declineFriend(r.friend_id)} style={{padding:"6px 11px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.65)",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:10,letterSpacing:0.6,textTransform:"uppercase"}}>Refuser</button>
+              <button onClick={()=>acceptFriend(r.friend_id)} style={{padding:"6px 11px",borderRadius:10,background:"#ED2A37",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:10,letterSpacing:0.6,textTransform:"uppercase"}}>Accepter</button>
             </div>
           ))}
         </div>}
 
         {/* 4. Suggestions d'amis */}
-        {suggestions.length>0 && <div style={{marginBottom:18}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>✨ Suggestions</div>
+        {suggestions.length>0 && <div style={{marginBottom:20}}>
+          <SectionHeader label={`Suggestions (${suggestions.length})`}/>
           {suggestions.map(p=>{
             const isPendingOut=pendingOutgoing.some(po=>po.friend_id===p.id);
             return (
-              <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
-                <div onClick={()=>setOpenFriend(p)} style={{cursor:"pointer"}}><Avatar profile={p} size={36}/></div>
+              <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)"}}>
+                <div onClick={()=>setOpenFriend(p)} style={{cursor:"pointer"}}><Avatar profile={p} size={40}/></div>
                 <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>setOpenFriend(p)}>
                   <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
-                  <div style={{fontSize:11,color:"rgba(240,237,232,0.4)"}}>{p.city||""}</div>
+                  <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",marginTop:2}}>{p.city||""}</div>
                 </div>
                 {isPendingOut
-                  ? <button onClick={()=>declineFriend(p.id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.5)",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>Demande envoyée</button>
-                  : <button onClick={()=>addFriend(p.id)} style={{padding:"6px 10px",borderRadius:10,background:"rgba(230,57,70,0.15)",color:"#E63946",border:"1px solid rgba(230,57,70,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>+ Ajouter</button>}
+                  ? <button onClick={()=>declineFriend(p.id)} style={{padding:"6px 11px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.5)",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:10,letterSpacing:0.6,textTransform:"uppercase"}}>Envoyée</button>
+                  : <button onClick={()=>addFriend(p.id)} style={{padding:"6px 11px",borderRadius:10,background:"#ED2A37",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:10,letterSpacing:0.6,textTransform:"uppercase"}}>+ Ajouter</button>}
               </div>
             );
           })}
         </div>}
 
-        {/* 5. Liste des amis (existante) */}
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>👥 Mes amis{friends.length>0?` (${friends.length})`:""}</div>
+        {/* 5. Mes amis (avec pts + rang dans le groupe me+amis) */}
+        <SectionHeader label={`Mes amis${friends.length>0?` (${friends.length})`:""}`}/>
         {friends.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun ami pour l'instant</div>}
         {friends.map(f=>{
           const dmId=[myProfile?.id,f.friend_id].sort().join("_");
+          const lv=getSeasonLevel(f.pts||0);
+          const rankColor=f.rank===1?"#FFD700":"rgba(237,42,55,0.65)";
+          const rankLabel=f.rank===1?"1ER":(f.rank?`${f.rank}E`:"");
           return(
-            <div key={f.id} onClick={()=>setChat({type:"dm",id:dmId,title:f.friend?.name||"Message",friendId:f.friend_id})} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 4px",borderBottom:"1px solid rgba(255,255,255,0.04)",cursor:"pointer"}}>
-              <Avatar profile={f.friend} size={36}/>
+            <div key={f.id} onClick={()=>setChat({type:"dm",id:dmId,title:f.friend?.name||"Message",friendId:f.friend_id})} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)",cursor:"pointer"}}>
+              <Avatar profile={f.friend} size={42}/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.friend?.name||"Anonyme"}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:1}}><CategoryTooltip birthYear={f.friend?.birth_year}/>{getAgeCat(f.friend?.birth_year)&&f.friend?.city?" · ":""}{f.friend?.city||""}</div>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.friend?.name||"Anonyme"}</div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",marginTop:2}}>{(f.pts||0).toLocaleString("fr-FR")} pts · <span style={{color:lv.color,fontWeight:700}}>{lv.label}</span></div>
               </div>
-              <div style={{color:"rgba(240,237,232,0.3)",fontSize:18,flexShrink:0}}>›</div>
+              {rankLabel && (
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:0.6,color:rankColor,flexShrink:0,paddingLeft:6}}>{rankLabel}</div>
+              )}
             </div>
           );
         })}
