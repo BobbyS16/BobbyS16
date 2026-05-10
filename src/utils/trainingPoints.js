@@ -5,7 +5,7 @@
 const DISCIPLINE_COEF = {
   running:  1.0,
   trail:    1.0,
-  cycling:  0.75,
+  cycling:  0.6,
   swimming: 1.15,
 };
 
@@ -65,7 +65,7 @@ export function calculateTrainingPoints({
   } else if (discipline === "cycling") {
     if (elevation_gain_m == null) throw new Error("elevation_gain_m obligatoire pour cycling");
     const pente_pct = (elevation_gain_m / (distance_km * 1000)) * 100;
-    const bonus = pente_pct * 0.05;
+    const bonus = pente_pct * 0.04;
     adjustedIntensity = baseIntensity * (1 + bonus);
   }
 
@@ -81,7 +81,7 @@ const TESTS = [
   { name: "Course 60min, pace 360",        expected: 26, params: { discipline:"running",  duration_min:60,  distance_km:10, elevation_gain_m:0,    pace_or_speed:360 } },
   { name: "Course 45min, pace 270",        expected: 38, params: { discipline:"running",  duration_min:45,  distance_km:10, elevation_gain_m:0,    pace_or_speed:270 } },
   { name: "Trail 105min, 1000m D+, p420",  expected: 68, params: { discipline:"trail",    duration_min:105, distance_km:15, elevation_gain_m:1000, pace_or_speed:420 } },
-  { name: "Vélo 120min, 1200m D+, v30",    expected: 91, params: { discipline:"cycling",  duration_min:120, distance_km:60, elevation_gain_m:1200, pace_or_speed:30  } },
+  { name: "Vélo 120min, 1200m D+, v30",    expected: 70, params: { discipline:"cycling",  duration_min:120, distance_km:60, elevation_gain_m:1200, pace_or_speed:30  } },
   { name: "Natation 25min, pace 150",      expected: 13, params: { discipline:"swimming", duration_min:25,  distance_km:1,  elevation_gain_m:null, pace_or_speed:150 } },
 ];
 

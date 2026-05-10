@@ -2016,7 +2016,7 @@ function HowItWorksModal({onClose}){
         <P><span style={{color:"#F0EDE8",fontWeight:700}}>Intensité (RPE 1-10)</span> : déterminée automatiquement à partir de ton allure (course/trail), de ta vitesse moyenne (vélo) ou de ton pace (natation). Plus c'est rapide, plus l'intensité est élevée.</P>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Coefficient par discipline</div>
         <Bullet emoji="🏃" bold="Course / Trail ">→ ×1.0</Bullet>
-        <Bullet emoji="🚴" bold="Vélo ">→ ×0.75 (moins traumatisant)</Bullet>
+        <Bullet emoji="🚴" bold="Vélo ">→ ×0.6 (moins traumatisant musculairement)</Bullet>
         <Bullet emoji="🏊" bold="Natation ">→ ×1.15 (coût énergétique élevé)</Bullet>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Bonus dénivelé (Trail et Vélo)</div>
         <Bullet emoji="⛰️" bold="Trail ">: chaque 100 m de D+ par km augmente l'intensité</Bullet>
@@ -2025,9 +2025,9 @@ function HowItWorksModal({onClose}){
         <Bullet emoji="🏃" bold="Footing 10 km en 1h ">→ <span style={{color:"#E63946",fontWeight:700}}>~26 pts</span></Bullet>
         <Bullet emoji="⚡" bold="10 km tempo en 45 min ">→ <span style={{color:"#E63946",fontWeight:700}}>~38 pts</span></Bullet>
         <Bullet emoji="⛰️" bold="Trail 15 km / 1h45 / 1000 m D+ ">→ <span style={{color:"#E63946",fontWeight:700}}>~68 pts</span></Bullet>
-        <Bullet emoji="🚴" bold="Vélo 60 km / 2h / 1200 m D+ ">→ <span style={{color:"#E63946",fontWeight:700}}>~91 pts</span></Bullet>
+        <Bullet emoji="🚴" bold="Vélo 60 km / 2h / 1200 m D+ ">→ <span style={{color:"#E63946",fontWeight:700}}>~70 pts</span></Bullet>
         <Bullet emoji="🏊" bold="Natation 1 km en 25 min ">→ <span style={{color:"#E63946",fontWeight:700}}>~13 pts</span></Bullet>
-        <P><span style={{color:"#F0EDE8",fontWeight:700,display:"block",marginTop:14,marginBottom:4}}>Pourquoi les entraînements rapportent moins que les courses ?</span>PaceRank valorise la compétition. Une course officielle peut rapporter <span style={{color:"#FFD700",fontWeight:700}}>5 à 10 fois plus</span> qu'un entraînement équivalent. L'entraînement régulier reste essentiel pour progresser et accumuler des points sur l'année, mais les courses restent les moments forts du classement.</P>
+        <P><span style={{color:"#F0EDE8",fontWeight:700,display:"block",marginTop:14,marginBottom:4}}>Pourquoi les points d'entraînement sont volontairement plus bas que les courses officielles ?</span>PaceRank valorise la compétition. Une course officielle peut rapporter <span style={{color:"#FFD700",fontWeight:700}}>5 à 10 fois plus</span> qu'un entraînement équivalent. L'entraînement régulier reste essentiel pour progresser et accumuler des points sur l'année, mais les courses restent les moments forts du classement.</P>
       </Section>
 
       <Section title="3 · Niveaux par course">
