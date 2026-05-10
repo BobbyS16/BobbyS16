@@ -4177,7 +4177,7 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
                 }
                 if (prTime != null) {
                   return (
-                    <div key={fmt.label} onClick={onClickPr} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,255,255,0.02))",border:"1px solid rgba(255,215,0,0.2)",borderRadius:14,marginBottom:8,cursor:"pointer"}}>
+                    <button key={fmt.label} type="button" onClick={()=>{console.log("[stats] PR click",fmt.label);onClickPr&&onClickPr();}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,255,255,0.02))",border:"1px solid rgba(255,215,0,0.2)",borderRadius:14,marginBottom:8,cursor:"pointer",width:"100%",textAlign:"left",font:"inherit",color:"inherit",touchAction:"manipulation"}}>
                       <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,215,0,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
                         {prIcon}
                       </div>
@@ -4191,7 +4191,7 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
                         <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#FFD700",letterSpacing:1,lineHeight:1}}>{fmtTime(Math.round(prTime))}</div>
                         <div style={{fontSize:9,color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginTop:3}}>{isSwimProj?"RECORD ✦":"RECORD"}</div>
                       </div>
-                    </div>
+                    </button>
                   );
                 }
                 return (
@@ -4247,7 +4247,7 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
                 const src = pred.source;
                 const srcLabel = `${(parseFloat(src.distance)||0).toFixed(1)} km en ${fmtTime(parseInt(src.duration)||0)}${src.date?` · ${fmtFrShortDate(src.date)}`:""}`;
                 return (
-                  <div key={t.disc} onClick={()=>setEditRun(src)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"linear-gradient(135deg, rgba(74,144,217,0.06), rgba(255,255,255,0.02))",border:"1px solid rgba(74,144,217,0.2)",borderRadius:14,marginBottom:8,cursor:"pointer"}}>
+                  <button key={t.disc} type="button" onClick={()=>{console.log("[stats] prediction click",t.disc,src?.id);setEditRun(src);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"linear-gradient(135deg, rgba(74,144,217,0.06), rgba(255,255,255,0.02))",border:"1px solid rgba(74,144,217,0.2)",borderRadius:14,marginBottom:8,cursor:"pointer",width:"100%",textAlign:"left",font:"inherit",color:"inherit",touchAction:"manipulation"}}>
                     <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(74,144,217,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{t.icon}</div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",letterSpacing:0.5}}>{t.label}</div>
@@ -4262,7 +4262,7 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
                       <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#4A90D9",letterSpacing:1,lineHeight:1}}>{fmtTime(predTime)}</div>
                       <div style={{fontSize:9,color:"#4A90D9",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginTop:3}}>PRÉDICTION</div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
