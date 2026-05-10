@@ -5397,18 +5397,17 @@ function ActuTab({myProfile,onNotifsChange}){
         {friends.map(f=>{
           const dmId=[myProfile?.id,f.friend_id].sort().join("_");
           const lv=getSeasonLevel(f.pts||0);
-          const rankColor=f.rank===1?"#FFD700":"rgba(237,42,55,0.65)";
-          const rankLabel=f.rank===1?"1ER":(f.rank?`${f.rank}E`:"");
+          const r=Number(f.rank)||0;
+          const rankColor=r===1?"#FFD700":"rgba(237,42,55,0.7)";
+          const rankLabel=r===1?"1ER":(r>0?`${r}E`:"–");
           return(
             <div key={f.id} onClick={()=>setChat({type:"dm",id:dmId,title:f.friend?.name||"Message",friendId:f.friend_id})} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:7,border:"1px solid rgba(255,255,255,0.05)",cursor:"pointer"}}>
               <Avatar profile={f.friend} size={42}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.friend?.name||"Anonyme"}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",marginTop:2}}>{(f.pts||0).toLocaleString("fr-FR")} pts · <span style={{color:lv.color,fontWeight:700}}>{lv.label}</span></div>
+                <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(f.pts||0).toLocaleString("fr-FR")} pts · <span style={{color:lv.color,fontWeight:700}}>{lv.label}</span></div>
               </div>
-              {rankLabel && (
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:0.6,color:rankColor,flexShrink:0,paddingLeft:6}}>{rankLabel}</div>
-              )}
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:0.6,color:rankColor,flexShrink:0,minWidth:38,textAlign:"right"}}>{rankLabel}</div>
             </div>
           );
         })}
