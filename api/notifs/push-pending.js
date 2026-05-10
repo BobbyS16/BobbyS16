@@ -164,7 +164,28 @@ export default async function handler(req, res) {
       continue;
     }
 
-    const { title, body } = buildPushContent(n);
+    let { title, body } = buildPushContent(n);
+    // Filet de sécurité iOS Web Push : Apple drop silencieusement les
+    // pushs si headings ou contents sont vides/null. On force un fallback
+    // générique non-vide même si le builder a renvoyé une chaîne vide.
+    if (!title || !String(title).trim()) title = "PaceRank";
+    if (!body  || !String(body).trim())  body  = "Nouvelle notification";
+
+    // Format aligné sur l'exemple "minimal qui marche" pour iOS Web Push :
+    //   include_external_user_ids (legacy Player Model, bien supporté pour iOS)
+    //   headings.en + contents.en (Apple ignore parfois les autres locales)
+    //   web_url (champ canonique Web Push, OneSignal redirige au tap)
+    // On garde data {notification_id, type} pour les deeplinks PWA.
+    const oneSignalBody = {
+      app_id: ONESIGNAL_APP_ID,
+      include_external_user_ids: [recipient.id],
+      headings: { en: title },
+      contents: { en: body },
+      data: { notification_id: n.id, type: n.type },
+      web_url: APP_URL,
+    };
+    console.log("[push-pending] →OneSignal", n.id, JSON.stringify(oneSignalBody));
+
     try {
       const r = await fetch(ONESIGNAL_API, {
         method: "POST",
@@ -172,17 +193,10 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
           Authorization: `Basic ${oneSignalKey}`,
         },
-        body: JSON.stringify({
-          app_id: ONESIGNAL_APP_ID,
-          include_aliases: { external_id: [recipient.id] },
-          target_channel: "push",
-          headings: { en: title, fr: title },
-          contents: { en: body, fr: body },
-          data: { notification_id: n.id, type: n.type },
-          url: APP_URL,
-        }),
+        body: JSON.stringify(oneSignalBody),
       });
       const json = await r.json().catch(() => ({}));
+      console.log("[push-pending] ←OneSignal", n.id, "status", r.status, "json", JSON.stringify(json));
       const errMsg = Array.isArray(json.errors) ? json.errors.join(" | ") : (json.errors?.invalid_external_user_ids ? "external_id not found" : "");
       if (!r.ok) {
         console.error("[push-pending] OneSignal http error", n.id, r.status, json);
@@ -193,6 +207,11 @@ export default async function handler(req, res) {
         stampSoftError.push(n.id);
         skipped++;
       } else {
+        // Sanity check : si recipients = 0 dans la réponse, le push n'a pas
+        // été délivré (audience filter n'a matché personne).
+        if (json.recipients !== undefined && json.recipients === 0) {
+          console.warn("[push-pending] OneSignal accepted but recipients=0", n.id, "external_id", recipient.id);
+        }
         stampNormal.push(n.id);
         // On met à jour le map pour rate-limiter les notifs suivantes du
         // même user dans le même batch.
