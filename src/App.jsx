@@ -2284,13 +2284,11 @@ const shortName=n=>{if(!n)return"Anonyme";const p=n.trim().split(/\s+/);return p
 // Mode insert (race=null) ou edit (race={...}).
 // On utilise un <input type="date" min="..."> natif pour le picker date,
 // car le DatePicker maison ne couvre que les années passées (CY-14 → CY).
-// Disciplines proposées dans le modal de déclaration. Vélo et Natation
-// sont retirés (peu de courses officielles dans ces 2 sports en France).
-// Le CHECK constraint DB accepte toujours les 6 valeurs (course/velo/
-// natation/trail/tri/hyrox) au cas où on les ré-ajouterait — d'éventuelles
-// rows existantes en velo/natation continueraient de s'afficher.
+// Disciplines proposées dans le modal de déclaration. Limité à 4 valeurs
+// (run/trail/tri/hyrox) — c'est ce que le CHECK constraint DB accepte
+// désormais (alignement sur le reste de l'app).
 const UPCOMING_DISCIPLINES = [
-  { k:"course", label:"Course", icon:"🏃" },
+  { k:"run",    label:"Course", icon:"🏃" },
   { k:"trail",  label:"Trail",  icon:"⛰️" },
   { k:"tri",    label:"Tri",    icon:"🏊" },
   { k:"hyrox",  label:"Hyrox",  icon:"🔥" },
