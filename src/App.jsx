@@ -3668,7 +3668,7 @@ function fmtFrShortDate(d) {
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function buildMonthlyPoints(results) {
+function buildMonthlyPoints(results, trainings = []) {
   const now=new Date();
   const months=[];
   for (let i=11; i>=0; i--) {
@@ -3687,9 +3687,14 @@ function buildMonthlyPoints(results) {
     const m=months.find(x=>x.key===date.slice(0,7));
     if(m) m.value+=calcPoints(r.discipline,r.time,r.elevation);
   });
+  trainings.forEach(t=>{
+    if(!t.date)return;
+    const m=months.find(x=>x.key===t.date.slice(0,7));
+    if(m) m.value+=effectiveTrainingPts(t);
+  });
   return months;
 }
-function buildPrev12Total(results) {
+function buildPrev12Total(results, trainings = []) {
   const now=new Date();
   const start=new Date(now.getFullYear(), now.getMonth()-23, 1);
   const end=new Date(now.getFullYear(), now.getMonth()-11, 1);
@@ -3699,6 +3704,11 @@ function buildPrev12Total(results) {
     if(!date)return;
     const d=new Date(date);
     if(d>=start && d<end) total+=calcPoints(r.discipline,r.time,r.elevation);
+  });
+  trainings.forEach(t=>{
+    if(!t.date)return;
+    const d=new Date(t.date);
+    if(d>=start && d<end) total+=effectiveTrainingPts(t);
   });
   return total;
 }
@@ -3773,8 +3783,7 @@ function buildRacePredictions(runTrainings) {
 
 function PerfTab({userId, refreshKey, onActivityChange}) {
   const [results, setResults] = useState([]);
-  const [swimTrainings, setSwimTrainings] = useState([]);
-  const [runTrainings, setRunTrainings] = useState([]);
+  const [allTrainings, setAllTrainings] = useState([]);
   const [editResult, setEditResult] = useState(null);
   const [editSwim, setEditSwim] = useState(null);
   const [editRun, setEditRun] = useState(null);
@@ -3782,6 +3791,15 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
   const [progDisc, setProgDisc] = useState("points");
   const [progFormat, setProgFormat] = useState("all");
   const season = CY;
+
+  const swimTrainings = useMemo(
+    () => allTrainings.filter(t => t.sport === "Natation"),
+    [allTrainings]
+  );
+  const runTrainings = useMemo(
+    () => allTrainings.filter(t => t.sport === "Run"),
+    [allTrainings]
+  );
 
   const onSelectProgDisc = (key) => {
     setProgDisc(key);
@@ -3792,20 +3810,17 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
     if (!userId) return;
     Promise.all([
       supabase.from("results").select("*").eq("user_id", userId).order("race_date", {ascending:false}),
-      supabase.from("trainings").select("*").eq("user_id", userId).eq("sport", "Natation").order("date", {ascending:false}),
-      supabase.from("trainings").select("*").eq("user_id", userId).eq("sport", "Run").order("date", {ascending:false}),
-    ]).then(([{data:r},{data:t},{data:rt}]) => {
+      supabase.from("trainings").select("*").eq("user_id", userId).order("date", {ascending:false}),
+    ]).then(([{data:r},{data:t}]) => {
       setResults(r || []);
-      setSwimTrainings(t || []);
-      setRunTrainings(rt || []);
+      setAllTrainings(t || []);
     });
   }, [userId, refreshKey]);
 
   const reload = () => Promise.all([
     supabase.from("results").select("*").eq("user_id",userId).order("race_date",{ascending:false}),
-    supabase.from("trainings").select("*").eq("user_id",userId).eq("sport","Natation").order("date",{ascending:false}),
-    supabase.from("trainings").select("*").eq("user_id",userId).eq("sport","Run").order("date",{ascending:false}),
-  ]).then(([{data:r},{data:t},{data:rt}]) => { setResults(r||[]); setSwimTrainings(t||[]); setRunTrainings(rt||[]); });
+    supabase.from("trainings").select("*").eq("user_id",userId).order("date",{ascending:false}),
+  ]).then(([{data:r},{data:t}]) => { setResults(r||[]); setAllTrainings(t||[]); });
 
   const swimRecords = useMemo(() => {
     const map = {};
@@ -3850,9 +3865,9 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
     return [...seasonResults].sort((a,b) => calcPoints(b.discipline,b.time,b.elevation) - calcPoints(a.discipline,a.time,a.elevation))[0];
   }, [seasonResults]);
 
-  const monthlyData = useMemo(() => buildMonthlyPoints(results), [results]);
+  const monthlyData = useMemo(() => buildMonthlyPoints(results, allTrainings), [results, allTrainings]);
   const last12Total = useMemo(() => monthlyData.reduce((s, m) => s + m.value, 0), [monthlyData]);
-  const prev12Total = useMemo(() => buildPrev12Total(results), [results]);
+  const prev12Total = useMemo(() => buildPrev12Total(results, allTrainings), [results, allTrainings]);
   const yoyDelta = prev12Total > 0 ? ((last12Total / prev12Total - 1) * 100) : null;
   const bestMonth = useMemo(() => monthlyData.reduce((b,m) => m.value > (b?.value||0) ? m : b, null), [monthlyData]);
 
