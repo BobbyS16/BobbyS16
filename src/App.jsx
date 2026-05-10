@@ -2650,6 +2650,7 @@ function JoinGroupModal({userId, prefilledCode = "", onJoined, onClose}) {
 
 function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner,onOpenLeague}){
   const [showNotifs,setShowNotifs]=useState(false);
+  const [showHelp,setShowHelp]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
@@ -2907,6 +2908,9 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             {notifCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:"2px solid #0e0e0e",boxSizing:"content-box"}}>{notifCount>9?"9+":notifCount}</span>}
           </button>
           )}
+          <button onClick={()=>setShowHelp(true)} aria-label="Comment ça marche" style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
+            ❓
+          </button>
         </div>
       </div>
       </div>
@@ -3079,6 +3083,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       {showJoinGroup&&<JoinGroupModal userId={userId} prefilledCode={typeof showJoinGroup==="object"?showJoinGroup.prefilledCode:""} onJoined={(g)=>{setShowJoinGroup(false); loadMyGroups(); setSelectedGroupId(g.id); setRankFilter("groupes");}} onClose={()=>setShowJoinGroup(false)}/>}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange} inAppEnabled={profile?.in_app_enabled !== false} onNavigateLeague={onOpenLeague} onNavigateProfile={onOpenProfile}/>}
+      {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
       {classifModalOpen && pendingClassif.length>0 && (
         <RaceClassificationModal
           pending={pendingClassif}
@@ -5645,7 +5650,6 @@ function BadgesByCategory({badges}){
 function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePush,onDisablePush}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
-  const [showHelp,setShowHelp]=useState(false);
   const [friendCount,setFriendCount]=useState(0);
   const [trainings,setTrainings]=useState([]);
   const [groupsCreated,setGroupsCreated]=useState(0);
@@ -5981,36 +5985,6 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
         </button>
       </div>
 
-      <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
-        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>🔔 Notifications</div>
-        <button
-          onClick={()=>{
-            // One-way data flow : on agit sur OneSignal (source unique de
-            // vérité), le listener du hook synchronise la DB. Aucune écriture
-            // directe de profile.push_enabled ici.
-            if(pushOptedIn) onDisablePush?.(); else onEnablePush?.();
-          }}
-          style={{width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",border:"none",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,display:"flex",alignItems:"center",justifyContent:"space-between",touchAction:"manipulation"}}
-        >
-          <span style={{flex:1,textAlign:"left"}}>Notifications push</span>
-          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:pushOptedIn?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <span style={{position:"absolute",top:2,left:pushOptedIn?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
-          </span>
-        </button>
-        <button
-          onClick={async()=>{
-            const next = profile?.in_app_enabled===false;
-            try{ await supabase.from("profiles").update({in_app_enabled:next}).eq("id",profile.id); onRefresh&&onRefresh(); }catch(e){console.error("[in_app_enabled] update failed",e);}
-          }}
-          style={{width:"100%",padding:"10px 12px",borderRadius:10,background:"transparent",border:"none",borderTop:"1px solid rgba(255,255,255,0.06)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,display:"flex",alignItems:"center",justifyContent:"space-between",touchAction:"manipulation",marginTop:4}}
-        >
-          <span style={{flex:1,textAlign:"left"}}>Notifications dans l'app</span>
-          <span aria-hidden="true" style={{width:36,height:20,borderRadius:999,background:profile?.in_app_enabled!==false?"#4ADE80":"rgba(255,255,255,0.12)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <span style={{position:"absolute",top:2,left:profile?.in_app_enabled!==false?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
-          </span>
-        </button>
-      </div>
-      <button onClick={()=>setShowHelp(true)} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>❓ Comment ça marche</button>
       <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{display:"block",width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10,textAlign:"center",textDecoration:"none",boxSizing:"border-box"}}>🔒 Confidentialité</a>
       <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🚪 Se déconnecter</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,marginBottom:14}}>Supprimer mon compte</button>
@@ -6020,7 +5994,6 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
       {showPhoto&&profile?.avatar&&<PhotoViewer src={profile.avatar} onClose={()=>setShowPhoto(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
-      {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
       {editResult&&<ResultModal existing={editResult} userId={profile.id} onSave={()=>{setEditResult(null);onRefresh();}} onClose={()=>setEditResult(null)}/>}
       {upcomingModal&&<UpcomingRaceModal userId={profile.id} race={upcomingModal==="new"?null:upcomingModal} onSaved={()=>{setUpcomingModal(null);loadUpcomingRaces();setProfileToast("Course déclarée 🏁");}} onClose={()=>setUpcomingModal(null)}/>}
       {showStravaPending&&(
