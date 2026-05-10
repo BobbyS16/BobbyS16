@@ -6406,38 +6406,6 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
         </button>
       </div>
 
-      {/* Mes courses à venir — gestion CRUD depuis le profil. Le bouton "+"
-          du Home reste un point d'entrée alternatif ; les deux ouvrent le
-          même UpcomingRaceModal. */}
-      <div style={{padding:"12px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,marginBottom:10}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700}}>📅 Mes courses à venir</div>
-          <button onClick={()=>setUpcomingModal("new")} style={{padding:"6px 11px",borderRadius:10,background:"rgba(237,42,55,0.15)",color:"#ED2A37",border:"1px solid rgba(237,42,55,0.35)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,letterSpacing:0.4}}>+ Déclarer</button>
-        </div>
-        {upcomingRaces.length === 0 ? (
-          <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5,padding:"10px 0",textAlign:"center"}}>Pas de course prévue. Ajoute ta prochaine course pour que tes amis pronostiquent !</div>
-        ) : (
-          upcomingRaces.map(r => {
-            const dispDef = UPCOMING_DISCIPLINES.find(d => d.k === r.discipline) || {label:r.discipline, icon:"🏁"};
-            const dt = new Date(r.race_date);
-            const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
-            return (
-              <div key={r.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
-                <div style={{fontSize:22,flexShrink:0,width:28,textAlign:"center"}}>{dispDef.icon}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race_name}</div>
-                  <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                    {dStr} · {dispDef.label} · {r.distance_km} km{r.target_time ? ` · 🎯 ${intervalToHHMMSS(r.target_time)}` : ""}
-                  </div>
-                </div>
-                <button onClick={()=>setUpcomingModal(r)} aria-label="Modifier" style={{padding:"6px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:12,fontFamily:"'Barlow',sans-serif",fontWeight:700,flexShrink:0}}>✏️</button>
-                <button onClick={()=>handleDeleteUpcoming(r.id)} aria-label="Supprimer" style={{padding:"6px 9px",borderRadius:10,background:"rgba(230,57,70,0.1)",color:"#E63946",border:"none",cursor:"pointer",fontSize:12,fontFamily:"'Barlow',sans-serif",fontWeight:700,flexShrink:0}}>🗑️</button>
-              </div>
-            );
-          })
-        )}
-      </div>
-
       <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{display:"block",width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10,textAlign:"center",textDecoration:"none",boxSizing:"border-box"}}>🔒 Confidentialité</a>
       <button onClick={async()=>{await supabase.auth.signOut();}} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginBottom:10}}>🚪 Se déconnecter</button>
       <button onClick={()=>setDelAcc(true)} style={{width:"100%",padding:"11px 0",borderRadius:14,background:"transparent",border:"1px solid rgba(230,57,70,0.2)",color:"rgba(230,57,70,0.5)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:13,marginBottom:14}}>Supprimer mon compte</button>
