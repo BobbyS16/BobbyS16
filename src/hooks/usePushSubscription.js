@@ -1,16 +1,16 @@
 // usePushSubscription
 //
 // Source unique de vérité pour l'état push : OneSignal.User.PushSubscription.optedIn.
-// La DB profile.push_enabled est synchronisée DEPUIS le SDK via le listener
-// "change" — jamais l'inverse. Aucun handler UI ne doit écrire push_enabled
-// directement.
+// La gestion push se fait désormais via Réglages iOS (pas de toggle in-app).
+// La colonne profiles.push_enabled n'est plus lue/écrite côté front.
 //
 // Responsabilités :
 //   - login(profile.id) idempotent dès que profile.id est connu
 //   - logout au SIGNED_OUT Supabase
-//   - listener change → setState(optedIn) + sync DB push_enabled
-//   - actions optIn/optOut iOS-safe (OneSignalDeferred.push en premier,
-//     pas d'await préalable qui détacherait le user-gesture)
+//   - listener change → setState(optedIn) pour piloter la bannière violette
+//   - action optIn iOS-safe (OneSignalDeferred.push en premier, pas d'await
+//     préalable qui détacherait le user-gesture)
+//   - action optOut conservée mais sans consumers actuels.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../supabase";
@@ -44,15 +44,10 @@ export function usePushSubscription(profile) {
       } catch {}
 
       const handler = (event) => {
-        const next = !!event?.current?.optedIn;
-        setOptedIn(next);
-        supabase
-          .from("profiles")
-          .update({ push_enabled: next })
-          .eq("id", profile.id)
-          .then(({ error }) => {
-            if (error) console.warn("[push_enabled sync]", error);
-          });
+        // On garde uniquement l'état local pour piloter la bannière violette.
+        // Plus de sync vers profiles.push_enabled — la gestion est gérée
+        // par OneSignal + Réglages iOS.
+        setOptedIn(!!event?.current?.optedIn);
       };
       try {
         OneSignal.User.PushSubscription.addEventListener("change", handler);

@@ -2209,7 +2209,7 @@ function renderNotifLabel(n) {
   return NOTIF_LEGACY_LABEL[n.type] || "";
 }
 
-function NotificationsModal({onClose,onNotifsChange,inAppEnabled=true,onNavigateLeague,onNavigateProfile}){
+function NotificationsModal({onClose,onNotifsChange,onNavigateLeague,onNavigateProfile}){
   const [notifs,setNotifs]=useState([]);
   const [loading,setLoading]=useState(true);
   const [openFriend,setOpenFriend]=useState(null);
@@ -2223,7 +2223,7 @@ function NotificationsModal({onClose,onNotifsChange,inAppEnabled=true,onNavigate
     const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).order("created_at",{ascending:false}).limit(100);
     setNotifs(data||[]);setLoading(false);
   };
-  useEffect(()=>{ if(inAppEnabled) load(); else setLoading(false); },[inAppEnabled]);
+  useEffect(()=>{ load(); },[]);
   const markRead=async id=>{
     await supabase.from("notifications").update({read:true}).eq("id",id);
     setNotifs(n=>n.map(x=>x.id===id?{...x,read:true}:x));
@@ -2250,9 +2250,7 @@ function NotificationsModal({onClose,onNotifsChange,inAppEnabled=true,onNavigate
         <div style={{fontFamily:"'Bebas Neue'",fontSize:26,letterSpacing:1,color:"#F0EDE8"}}>🔔 Notifications</div>
         {hasUnread&&<button onClick={markAll} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:10,padding:"7px 11px",color:"rgba(240,237,232,0.65)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,cursor:"pointer"}}>Tout marquer lu</button>}
       </div>
-      {!inAppEnabled
-        ? <div style={{textAlign:"center",color:"rgba(240,237,232,0.45)",padding:"40px 12px",fontFamily:"'Barlow',sans-serif",fontSize:13,lineHeight:1.5}}>Notifications dans l'app désactivées.<br/>Réactive-les depuis ton profil pour voir l'historique.</div>
-        : loading?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Chargement…</div>
+      {loading?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Chargement…</div>
         : notifs.length===0
           ? <div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune notification 🎉</div>
           : notifs.map(n=>{
@@ -3131,12 +3129,10 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
           <div style={{fontSize:"clamp(9px, 2.2vw, 11px)",color:"#F0EDE8",letterSpacing:3,fontFamily:"'Barlow',sans-serif",fontWeight:600,marginTop:4}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {profile?.in_app_enabled !== false && (
           <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
             🔔
             {notifCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:"2px solid #0e0e0e",boxSizing:"content-box"}}>{notifCount>9?"9+":notifCount}</span>}
           </button>
-          )}
           <button onClick={()=>setShowHelp(true)} aria-label="Comment ça marche" style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
             ❓
           </button>
@@ -3318,7 +3314,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       {showJoinGroup&&<JoinGroupModal userId={userId} prefilledCode={typeof showJoinGroup==="object"?showJoinGroup.prefilledCode:""} onJoined={(g)=>{setShowJoinGroup(false); loadMyGroups(); setSelectedGroupId(g.id); setRankFilter("groupes");}} onClose={()=>setShowJoinGroup(false)}/>}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       {openFriendBreakdown&&<FriendPointsBreakdownModal friend={openFriendBreakdown} myId={profile?.id} onClose={()=>setOpenFriendBreakdown(null)}/>}
-      {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange} inAppEnabled={profile?.in_app_enabled !== false} onNavigateLeague={onOpenLeague} onNavigateProfile={onOpenProfile}/>}
+      {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange} onNavigateLeague={onOpenLeague} onNavigateProfile={onOpenProfile}/>}
       {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
       {classifModalOpen && pendingClassif.length>0 && (
         <RaceClassificationModal
@@ -5732,7 +5728,7 @@ function ActuTab({myProfile,onNotifsChange}){
         {[["fil","FIL"],["pronos","PRONOS"],["amis","AMIS"],["defis","DÉFIS"]].map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} style={{flex:1,height:36,borderRadius:18,border:"none",cursor:"pointer",background:tab===k?"#ED2A37":"rgba(255,255,255,0.06)",color:tab===k?"#fff":"rgba(240,237,232,0.55)",fontFamily:"'Bebas Neue'",fontWeight:400,fontSize:14,letterSpacing:1.5,position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
             {l}
-            {k==="amis"&&myProfile?.in_app_enabled!==false&&notifs.length>0&&<span style={{position:"absolute",top:4,right:6,background:tab===k?"#fff":"#E63946",color:tab===k?"#E63946":"#fff",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1}}>{notifs.length>9?"9+":notifs.length}</span>}
+            {k==="amis"&&notifs.length>0&&<span style={{position:"absolute",top:4,right:6,background:tab===k?"#fff":"#E63946",color:tab===k?"#E63946":"#fff",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1}}>{notifs.length>9?"9+":notifs.length}</span>}
           </button>
         ))}
       </div>
@@ -5760,7 +5756,7 @@ function ActuTab({myProfile,onNotifsChange}){
         })}
 
         {/* Notifs in-app (toujours en haut quand il y en a) */}
-        {myProfile?.in_app_enabled!==false && notifs.length>0&&<div style={{marginBottom:14,marginTop:6}}>
+        {notifs.length>0&&<div style={{marginBottom:14,marginTop:6}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700}}>🔔 Notifications</div>
             <button onClick={markAllNotifsRead} style={{background:"none",border:"none",color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontSize:11,cursor:"pointer",fontWeight:600}}>Tout marquer lu</button>
@@ -6045,7 +6041,7 @@ function FriendPointsBreakdownModal({ friend, myId, onClose }) {
 }
 
 // ── PROFILE MODAL ─────────────────────────────────────────────────────────────
-function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePush,onDisablePush}){
+function ProfileModal({profile,results,onRefresh,onClose}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
   const [friendCount,setFriendCount]=useState(0);
@@ -7206,8 +7202,7 @@ export default function App(){
 
   useEffect(()=>{if(session){loadProfile();loadResults();loadNotifCount();}},[session]);
 
-  const { optedIn: pushOptedIn, optIn: enablePush, optOut: disablePush } =
-    usePushSubscription(profile);
+  const { optedIn: pushOptedIn, optIn: enablePush } = usePushSubscription(profile);
 
   const dismissPushBanner=useCallback(async()=>{
     const nowIso = new Date().toISOString();
@@ -7450,7 +7445,7 @@ export default function App(){
       {addMode==="result"&&<ResultModal userId={profile?.id} initialDiscipline={pendingResultDisc} onSave={()=>{setAddMode(null);setPendingResultDisc(null);refresh();}} onClose={()=>{setAddMode(null);setPendingResultDisc(null);}}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
       {addMode==="upcoming"&&<UpcomingRaceModal userId={profile?.id} onSaved={()=>{setAddMode(null);}} onClose={()=>setAddMode(null)}/>}
-      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)} pushOptedIn={pushOptedIn} onEnablePush={enablePush} onDisablePush={disablePush}/>}
+      {showProfile&&<ProfileModal profile={profile} results={results} onRefresh={refresh} onClose={()=>setShowProfile(false)}/>}
       <CelebrationQueueRenderer queue={celebQueue} paused={celebPaused} onClose={closeCurrentCelebration} onViewRanking={()=>setTab("ranking")}/>
       {overtakenDetail && overtakenBanner && <OvertakenDetailModal overtakes={overtakenBanner.overtakes} profiles={overtakenBanner.profiles} onClose={()=>setOvertakenDetail(false)} onAddActivity={()=>{setOvertakenDetail(false);setAddMode("training");}}/>}
       <InstallPrompt/>

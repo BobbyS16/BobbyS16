@@ -5,8 +5,9 @@
 //  - pg_cron toutes les minutes (filet de sécurité pour les pushs ratés)
 //
 // Idempotent : scanne notifications.pushed_at IS NULL des dernières 24h,
-// envoie un push OneSignal au destinataire si profiles.push_enabled = true,
-// puis stamp pushed_at = now() pour ne plus retraiter.
+// envoie un push OneSignal au destinataire (la livraison effective est gérée
+// par OneSignal selon l'opt-out OS du device), puis stamp pushed_at = now()
+// pour ne plus retraiter.
 //
 // Auth : header x-pacerank-secret == process.env.NOTIFS_DISPATCH_SECRET.
 
@@ -110,9 +111,12 @@ export default async function handler(req, res) {
   }
 
   const recipientIds = [...new Set(notifs.map(n => n.user_id))];
+  // On ne lit plus profiles.push_enabled : le toggle in-app a été retiré, la
+  // livraison est désormais gérée par OneSignal + opt-out OS du device. On
+  // garde quand même la lookup par id pour valider l'existence du profil.
   const { data: recipients } = await supabase
     .from("profiles")
-    .select("id, name, push_enabled")
+    .select("id, name")
     .in("id", recipientIds);
   const byId = Object.fromEntries((recipients || []).map(r => [r.id, r]));
 
@@ -136,14 +140,16 @@ export default async function handler(req, res) {
 
   // Stamps groupés : on regroupe les ids par push_skipped_reason pour 1 update / cas.
   const stampNormal = [];     // push réel parti → pushed_at = now, reason = NULL
-  const stampDisabled = [];   // push_enabled=false ou recipient introuvable
+  const stampDisabled = [];   // recipient introuvable (profil supprimé)
   const stampRateLimit = [];  // skip parce que <1h depuis dernier push
   const stampSoftError = [];  // OneSignal a renvoyé une erreur soft (ex: external_id introuvable)
   let pushed = 0, skipped = 0, failed = 0;
 
   for (const n of notifs) {
     const recipient = byId[n.user_id];
-    if (!recipient || recipient.push_enabled === false) {
+    if (!recipient) {
+      // Profil introuvable (ex: user supprimé) → on stamp pour ne plus
+      // retraiter mais on n'envoie pas.
       stampDisabled.push(n.id);
       skipped++;
       continue;
