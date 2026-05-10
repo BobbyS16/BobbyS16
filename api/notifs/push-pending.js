@@ -124,18 +124,24 @@ export default async function handler(req, res) {
   // IS NULL = vraie sortie OneSignal). Les rows skipped pour rate_limit ou
   // push_disabled ne comptent pas dans la fenêtre, sinon on bloquerait
   // indéfiniment l'utilisateur après le premier skip.
+  // Bypass possible via NOTIFS_BYPASS_RATE_LIMIT=true (utile pour tester
+  // le pipeline sans attendre 1h entre chaque push).
   const RATE_LIMIT_MS = 60 * 60 * 1000;
-  const cutoff = new Date(Date.now() - RATE_LIMIT_MS).toISOString();
-  const { data: recentPushes } = await supabase
-    .from("notifications")
-    .select("user_id, pushed_at")
-    .in("user_id", recipientIds)
-    .is("push_skipped_reason", null)
-    .gt("pushed_at", cutoff)
-    .order("pushed_at", { ascending: false });
+  const bypassRateLimit = process.env.NOTIFS_BYPASS_RATE_LIMIT === "true";
+  if (bypassRateLimit) console.warn("[push-pending] ⚠️ rate-limit BYPASS via NOTIFS_BYPASS_RATE_LIMIT=true");
   const lastPushByUser = {};
-  for (const row of (recentPushes || [])) {
-    if (!lastPushByUser[row.user_id]) lastPushByUser[row.user_id] = new Date(row.pushed_at).getTime();
+  if (!bypassRateLimit) {
+    const cutoff = new Date(Date.now() - RATE_LIMIT_MS).toISOString();
+    const { data: recentPushes } = await supabase
+      .from("notifications")
+      .select("user_id, pushed_at")
+      .in("user_id", recipientIds)
+      .is("push_skipped_reason", null)
+      .gt("pushed_at", cutoff)
+      .order("pushed_at", { ascending: false });
+    for (const row of (recentPushes || [])) {
+      if (!lastPushByUser[row.user_id]) lastPushByUser[row.user_id] = new Date(row.pushed_at).getTime();
+    }
   }
 
   // Stamps groupés : on regroupe les ids par push_skipped_reason pour 1 update / cas.
@@ -214,8 +220,8 @@ export default async function handler(req, res) {
         }
         stampNormal.push(n.id);
         // On met à jour le map pour rate-limiter les notifs suivantes du
-        // même user dans le même batch.
-        lastPushByUser[recipient.id] = Date.now();
+        // même user dans le même batch (sauf si bypass actif).
+        if (!bypassRateLimit) lastPushByUser[recipient.id] = Date.now();
         pushed++;
       }
     } catch (e) {
