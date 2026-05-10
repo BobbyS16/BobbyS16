@@ -100,18 +100,48 @@ export default async function handler(req, res) {
     .in("id", recipientIds);
   const byId = Object.fromEntries((recipients || []).map(r => [r.id, r]));
 
-  const stamp = [];
+  // Rate-limit : on charge le dernier push réel par user (push_skipped_reason
+  // IS NULL = vraie sortie OneSignal). Les rows skipped pour rate_limit ou
+  // push_disabled ne comptent pas dans la fenêtre, sinon on bloquerait
+  // indéfiniment l'utilisateur après le premier skip.
+  const RATE_LIMIT_MS = 60 * 60 * 1000;
+  const cutoff = new Date(Date.now() - RATE_LIMIT_MS).toISOString();
+  const { data: recentPushes } = await supabase
+    .from("notifications")
+    .select("user_id, pushed_at")
+    .in("user_id", recipientIds)
+    .is("push_skipped_reason", null)
+    .gt("pushed_at", cutoff)
+    .order("pushed_at", { ascending: false });
+  const lastPushByUser = {};
+  for (const row of (recentPushes || [])) {
+    if (!lastPushByUser[row.user_id]) lastPushByUser[row.user_id] = new Date(row.pushed_at).getTime();
+  }
+
+  // Stamps groupés : on regroupe les ids par push_skipped_reason pour 1 update / cas.
+  const stampNormal = [];     // push réel parti → pushed_at = now, reason = NULL
+  const stampDisabled = [];   // push_enabled=false ou recipient introuvable
+  const stampRateLimit = [];  // skip parce que <1h depuis dernier push
+  const stampSoftError = [];  // OneSignal a renvoyé une erreur soft (ex: external_id introuvable)
   let pushed = 0, skipped = 0, failed = 0;
 
   for (const n of notifs) {
     const recipient = byId[n.user_id];
-    // Recipient introuvable ou push désactivé → on stamp pour ne plus retraiter,
-    // mais on ne push pas. La notif reste visible in-app si in_app_enabled = true.
     if (!recipient || recipient.push_enabled === false) {
-      stamp.push(n.id);
+      stampDisabled.push(n.id);
       skipped++;
       continue;
     }
+
+    // Rate-limit : si l'user a reçu un push dans la dernière heure, on skippe.
+    const lastTs = lastPushByUser[recipient.id] || 0;
+    if (lastTs && (Date.now() - lastTs) < RATE_LIMIT_MS) {
+      console.log("[push-pending] rate-limited", n.id, "user", recipient.id, "last push", new Date(lastTs).toISOString());
+      stampRateLimit.push(n.id);
+      skipped++;
+      continue;
+    }
+
     const { title, body } = buildPushContent(n);
     try {
       const r = await fetch(ONESIGNAL_API, {
@@ -135,15 +165,16 @@ export default async function handler(req, res) {
       if (!r.ok) {
         console.error("[push-pending] OneSignal http error", n.id, r.status, json);
         failed++;
-        // 4xx → on stamp (config invalide, ne re-tentera pas indéfiniment)
-        if (r.status >= 400 && r.status < 500) stamp.push(n.id);
+        if (r.status >= 400 && r.status < 500) stampSoftError.push(n.id);
       } else if (errMsg) {
-        // OneSignal renvoie 200 mais avec erreurs (ex: "All included players are not subscribed")
         console.warn("[push-pending] OneSignal soft error", n.id, errMsg);
-        stamp.push(n.id);
+        stampSoftError.push(n.id);
         skipped++;
       } else {
-        stamp.push(n.id);
+        stampNormal.push(n.id);
+        // Mise à jour du map pour rate-limiter les notifs suivantes du même
+        // user dans le même batch.
+        lastPushByUser[recipient.id] = Date.now();
         pushed++;
       }
     } catch (e) {
@@ -153,13 +184,27 @@ export default async function handler(req, res) {
     }
   }
 
-  if (stamp.length > 0) {
+  const nowIso = new Date().toISOString();
+  const updates = [
+    { ids: stampNormal,     reason: null,             label: "normal" },
+    { ids: stampDisabled,   reason: "push_disabled",  label: "disabled" },
+    { ids: stampRateLimit,  reason: "rate_limit",     label: "rate_limit" },
+    { ids: stampSoftError,  reason: "soft_error",     label: "soft_error" },
+  ];
+  for (const u of updates) {
+    if (u.ids.length === 0) continue;
     const { error: uErr } = await supabase
       .from("notifications")
-      .update({ pushed_at: new Date().toISOString() })
-      .in("id", stamp);
-    if (uErr) console.error("[push-pending] stamp failed", uErr);
+      .update({ pushed_at: nowIso, push_skipped_reason: u.reason })
+      .in("id", u.ids);
+    if (uErr) console.error(`[push-pending] stamp ${u.label} failed`, uErr);
   }
 
-  return res.status(200).json({ processed: notifs.length, pushed, skipped, failed });
+  return res.status(200).json({
+    processed: notifs.length,
+    pushed,
+    skipped,
+    failed,
+    rate_limited: stampRateLimit.length,
+  });
 }
