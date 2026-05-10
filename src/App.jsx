@@ -2907,9 +2907,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             {notifCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:"2px solid #0e0e0e",boxSizing:"content-box"}}>{notifCount>9?"9+":notifCount}</span>}
           </button>
           )}
-          <button onClick={handleShare} style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",minWidth:80,boxSizing:"border-box",color:copied?"#27AE60":"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,lineHeight:1.2,cursor:"pointer",textAlign:"center"}}>
-            {copied?"✓ Copié !":"🔗 Inviter"}
-          </button>
         </div>
       </div>
       </div>
