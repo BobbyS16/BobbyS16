@@ -1948,6 +1948,7 @@ const NOTIF_ICON = {
   friend_overtake:     "🚀",
   friend_official_race:"🏁",
   friend_pr:           "🏆",
+  friend_upcoming_race:"📅",
   league_overtake:     "📉",
   level_up_imminent:   "⭐",
 };
@@ -1956,7 +1957,7 @@ const NOTIF_ICON = {
 const NOTIF_HAS_ACTOR = {
   friend_added: true, like_result: true, like_training: true,
   comment_result: true, comment_training: true, friend_overtake: true,
-  friend_official_race: true, friend_pr: true,
+  friend_official_race: true, friend_pr: true, friend_upcoming_race: true,
   league_overtake: false, level_up_imminent: false,
 };
 function renderNotifLabel(n) {
@@ -1966,6 +1967,11 @@ function renderNotifLabel(n) {
     switch (n.type) {
       case "friend_pr":            return `a battu son record en ${p.discipline || "course"}`;
       case "friend_official_race": return "a participé à une course";
+      case "friend_upcoming_race": {
+        const days = p.days_until ? Number(p.days_until) : null;
+        const when = days === 1 ? "demain" : (days > 1 ? `dans ${days} jours` : "bientôt");
+        return `court ${p.race_name || "une course"} ${when}`;
+      }
       case "friend_overtake":      return "t'a dépassé au classement saison";
       case "league_overtake": {
         const drop = (p.new_rank||0) - (p.old_rank||0);

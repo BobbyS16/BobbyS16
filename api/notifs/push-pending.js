@@ -29,6 +29,11 @@ function buildPushContent(notif) {
     case "friend_overtake":      return { title: "🚀 Dépassé",          body: `${fromName} t'a dépassé au classement saison` };
     case "friend_official_race": return { title: "🏁 Course officielle", body: `${fromName} a participé à ${p.race_name || "une course"}` };
     case "friend_pr":            return { title: "🏆 Record battu",     body: `${fromName} a battu son record en ${p.discipline || "course"}` };
+    case "friend_upcoming_race": {
+      const days = p.days_until ? Number(p.days_until) : null;
+      const when = days === 1 ? "Demain" : (days > 1 ? `Dans ${days} jours` : "Bientôt");
+      return { title: `📅 ${fromName} court ${p.race_name || "une course"}`, body: `${when} — fais ton prono !` };
+    }
     case "league_overtake": {
       const drop = (p.new_rank || 0) - (p.old_rank || 0);
       const lg = p.league_name ? ` (${p.league_name})` : "";
