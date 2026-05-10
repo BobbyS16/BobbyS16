@@ -2629,7 +2629,7 @@ function JoinGroupModal({userId, prefilledCode = "", onJoined, onClose}) {
         <button onClick={joinByCode} disabled={!code.trim()||loading} style={{flexShrink:0,padding:"0 16px",borderRadius:12,background:code.trim()?"#E63946":"rgba(255,255,255,0.06)",color:code.trim()?"#fff":"rgba(240,237,232,0.4)",border:"none",cursor:code.trim()?"pointer":"default",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>Rejoindre</button>
       </div>
       <div style={{height:1,background:"rgba(255,255,255,0.06)",marginBottom:14}}/>
-      <Lbl c="Crews publics"/>
+      <Lbl c="Crew publics"/>
       <Inp value={search} onChange={setSearch} placeholder="Recherche (nom, ville, discipline)…"/>
       <div style={{maxHeight:240,overflowY:"auto",marginTop:4}}>
         {matches.length===0 && <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",padding:"14px 0",textAlign:"center"}}>Aucun crew public trouvé</div>}
@@ -3010,7 +3010,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
 
       {/* Rank toggle (4 pilules: Amis · Groupes · Général · Ligue) */}
       <div style={{display:"flex",gap:6,marginBottom:12}}>
-        {[["amis","👥 Amis"],["groupes","🏠 Crews"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
+        {[["amis","👥 Amis"],["groupes","🏠 Crew"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
           <button key={k} onClick={()=>setRankFilter(k)} style={{flex:1,padding:"9px 0",borderRadius:12,border:"none",cursor:"pointer",background:rankFilter===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:rankFilter===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
         ))}
       </div>
