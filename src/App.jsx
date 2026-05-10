@@ -3107,7 +3107,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
   const myBadges=computeBadges({results,profile});
   const myLv=getSeasonLevel(totalPts);
-  const DISC_TABS=[{k:"All",l:"All"},{k:"running",l:"🏃 Run"},{k:"triathlon",l:"🏊 Tri"},{k:"trail",l:"⛰️ Trail"},{k:"hyrox",l:"🔥 Hyrox"}];
+  const DISC_TABS=[{k:"hyrox",l:"🔥 Hyrox"},{k:"trail",l:"⛰️ Trail"},{k:"triathlon",l:"🏊 Tri"},{k:"running",l:"🏃 Run"},{k:"All",l:"All"}];
 
   const [copied,setCopied]=useState(false);
   const handleShare=()=>{
