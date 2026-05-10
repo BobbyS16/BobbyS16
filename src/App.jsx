@@ -3273,7 +3273,7 @@ function TrainingTab({userId, onActivityChange}){
       <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:10}}>Sessions récentes</div>
       {filtered.slice(0,15).map((t,i)=>(
         <SwipeRow key={t.id||i} onDelete={()=>deleteTraining(t.id)} mb={0}>
-          <ActivityCard myId={userId} activityType="training" activityId={t.id}>
+          <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px 14px",marginBottom:8,border:"1px solid rgba(255,255,255,0.05)"}}>
             <div onClick={()=>setEditTraining(t)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",gap:10}}>
               <div style={{minWidth:0,flex:1}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -3284,7 +3284,7 @@ function TrainingTab({userId, onActivityChange}){
               </div>
               <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{effectiveTrainingPts(t)}pts</div>
             </div>
-          </ActivityCard>
+          </div>
         </SwipeRow>
       ))}
       {filtered.length===0&&<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif"}}>Aucune session !</div>}
