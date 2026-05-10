@@ -38,6 +38,10 @@ create unique index if not exists point_bonuses_signup_unique
   on public.point_bonuses(user_id) where bonus_type = 'signup';
 create unique index if not exists point_bonuses_photo_unique
   on public.point_bonuses(user_id) where bonus_type = 'profile_photo';
+-- Idempotence parrainage : un seul bonus invitation par paire (parrain, filleul)
+create unique index if not exists point_bonuses_invitation_unique
+  on public.point_bonuses (user_id, (metadata->>'invited_user_id'))
+  where bonus_type = 'invitation';
 
 alter table public.point_bonuses enable row level security;
 
@@ -63,19 +67,30 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_referral_count int;
 begin
   insert into public.point_bonuses(user_id, bonus_type, points)
   values (NEW.id, 'signup', 5)
   on conflict do nothing;
 
-  if NEW.referrer_id is not null then
-    insert into public.point_bonuses(user_id, bonus_type, points, metadata)
-    values (
-      NEW.referrer_id,
-      'invitation',
-      5,
-      jsonb_build_object('invited_user_id', NEW.id)
-    );
+  -- Parrainage : ignore le self-referral et plafonne à 5 bonus par parrain
+  if NEW.referrer_id is not null and NEW.referrer_id <> NEW.id then
+    select count(*) into v_referral_count
+    from public.point_bonuses
+    where user_id = NEW.referrer_id
+      and bonus_type = 'invitation';
+
+    if v_referral_count < 5 then
+      insert into public.point_bonuses(user_id, bonus_type, points, metadata)
+      values (
+        NEW.referrer_id,
+        'invitation',
+        5,
+        jsonb_build_object('invited_user_id', NEW.id)
+      )
+      on conflict do nothing;
+    end if;
   end if;
 
   return NEW;
