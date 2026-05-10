@@ -4835,7 +4835,7 @@ function UpcomingRaceCard({ race, onTap }) {
   const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
   const targetStr = intervalToHHMMSS(race.target_time);
   return (
-    <button onClick={onTap} style={{display:"block",width:"100%",textAlign:"left",cursor:"pointer",background:"#0E0E0E",border:"1px solid #232323",borderRadius:20,marginBottom:10,padding:0,overflow:"hidden",font:"inherit",color:"inherit"}}>
+    <button onClick={onTap} style={{display:"block",width:"100%",textAlign:"left",cursor:"pointer",background:`linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`,border:`1px solid ${badgeColor}55`,borderRadius:20,marginBottom:10,padding:0,overflow:"hidden",font:"inherit",color:"inherit"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",position:"relative"}}>
         <div style={{width:46,height:46,borderRadius:14,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{disc?.icon || "🏁"}</div>
         <div style={{flex:1,minWidth:0,paddingRight:64}}>
@@ -4846,7 +4846,7 @@ function UpcomingRaceCard({ race, onTap }) {
         </div>
         <div style={{position:"absolute",top:14,right:14,padding:"4px 10px",borderRadius:99,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}66`,color:badgeColor,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase"}}>{disc?.label || race.discipline}</div>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderTop:"1px solid #232323"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderTop:`1px solid ${badgeColor}30`}}>
         <Avatar profile={race.user} size={26}/>
         <div style={{flex:1,minWidth:0,fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(race.user?.name)} y participe</div>
         <div style={{color:"rgba(240,237,232,0.35)",fontSize:14,flexShrink:0}}>›</div>
