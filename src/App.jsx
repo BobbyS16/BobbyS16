@@ -838,7 +838,7 @@ const BADGES = [
   {id:"five_friends",      cat:"Social",     emoji:"👥", label:"5 amis",             color:"#FF6B35", check:({friendCount})=>friendCount>=5},
   {id:"twenty_friends",    cat:"Social",     emoji:"👨‍👩‍👧", label:"20 amis",         color:"#FFD700", check:({friendCount})=>friendCount>=20},
   {id:"fifty_friends",     cat:"Social",     emoji:"🎉", label:"50 amis",            color:"#FFD700", check:({friendCount})=>friendCount>=50},
-  {id:"group_creator",     cat:"Social",     emoji:"🏠", label:"Créateur de groupe", color:"#3498DB", check:({groupsCreated})=>groupsCreated>=1},
+  {id:"group_creator",     cat:"Social",     emoji:"🏠", label:"Créateur de crew", color:"#3498DB", check:({groupsCreated})=>groupsCreated>=1},
   {id:"profile_photo",     cat:"Social",     emoji:"📸", label:"Profil complet",     color:"#27AE60", check:({profile})=>!!profile?.avatar},
 
   // Fun
@@ -2549,7 +2549,7 @@ function CreateGroupModal({userId, onCreated, onClose}) {
 
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:18}}>Créer un groupe</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:18}}>Créer un crew</div>
       {!created ? (<>
         <Lbl c="Nom *"/><Inp value={name} onChange={setName} placeholder="Ex: Club tri Paris"/>
         <Lbl c="Description"/><Inp value={description} onChange={setDescription} placeholder="Optionnel"/>
@@ -2570,7 +2570,7 @@ function CreateGroupModal({userId, onCreated, onClose}) {
         <Btn onClick={create} mb={0}>{loading?"Création…":"Créer"}</Btn>
       </>) : (<>
         <div style={{padding:"14px",background:"rgba(74,222,128,0.08)",border:"1px solid rgba(74,222,128,0.3)",borderRadius:12,marginBottom:14}}>
-          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#4ADE80",fontWeight:700,marginBottom:6}}>✅ Groupe créé</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#4ADE80",fontWeight:700,marginBottom:6}}>✅ Crew créé</div>
           <div style={{fontSize:13,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif"}}>{created.name}</div>
         </div>
         {created.join_code && (<>
@@ -2622,17 +2622,17 @@ function JoinGroupModal({userId, prefilledCode = "", onJoined, onClose}) {
 
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:18}}>Rejoindre un groupe</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:18}}>Rejoindre un crew</div>
       <Lbl c="Code d'invitation (privé)"/>
       <div style={{display:"flex",gap:8,marginBottom:18}}>
         <Inp value={code} onChange={v=>setCode(v.toUpperCase())} placeholder="Ex: ABC123" mb={0}/>
         <button onClick={joinByCode} disabled={!code.trim()||loading} style={{flexShrink:0,padding:"0 16px",borderRadius:12,background:code.trim()?"#E63946":"rgba(255,255,255,0.06)",color:code.trim()?"#fff":"rgba(240,237,232,0.4)",border:"none",cursor:code.trim()?"pointer":"default",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>Rejoindre</button>
       </div>
       <div style={{height:1,background:"rgba(255,255,255,0.06)",marginBottom:14}}/>
-      <Lbl c="Groupes publics"/>
+      <Lbl c="Crews publics"/>
       <Inp value={search} onChange={setSearch} placeholder="Recherche (nom, ville, discipline)…"/>
       <div style={{maxHeight:240,overflowY:"auto",marginTop:4}}>
-        {matches.length===0 && <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",padding:"14px 0",textAlign:"center"}}>Aucun groupe public trouvé</div>}
+        {matches.length===0 && <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",padding:"14px 0",textAlign:"center"}}>Aucun crew public trouvé</div>}
         {matches.map(g => (
           <div key={g.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",borderRadius:12,marginBottom:6,border:"1px solid rgba(255,255,255,0.05)"}}>
             <div style={{flex:1,minWidth:0}}>
@@ -3000,7 +3000,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
 
       {/* Rank toggle (4 pilules: Amis · Groupes · Général · Ligue) */}
       <div style={{display:"flex",gap:6,marginBottom:12}}>
-        {[["amis","👥 Amis"],["groupes","🏠 Groupes"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
+        {[["amis","👥 Amis"],["groupes","🏠 Crews"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
           <button key={k} onClick={()=>setRankFilter(k)} style={{flex:1,padding:"9px 0",borderRadius:12,border:"none",cursor:"pointer",background:rankFilter===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:rankFilter===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
         ))}
       </div>
@@ -3009,10 +3009,10 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       {rankFilter==="groupes" && (
         myGroups.length===0
           ? <div style={{padding:"24px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,marginBottom:12,textAlign:"center",border:"1px solid rgba(255,255,255,0.05)"}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:6}}>AUCUN GROUPE</div>
-              <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginBottom:14,lineHeight:1.45}}>Crée un groupe ou rejoins-en un pour suivre le classement de tes pairs.</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:6}}>AUCUN CREW</div>
+              <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginBottom:14,lineHeight:1.45}}>Crée un crew ou rejoins-en un pour suivre le classement de tes pairs.</div>
               <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-                <button onClick={()=>setShowCreateGroup(true)} style={{padding:"10px 18px",borderRadius:12,background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>+ Créer un groupe</button>
+                <button onClick={()=>setShowCreateGroup(true)} style={{padding:"10px 18px",borderRadius:12,background:"#E63946",color:"#fff",border:"none",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>+ Créer un crew</button>
                 <button onClick={()=>setShowJoinGroup(true)} style={{padding:"10px 18px",borderRadius:12,background:"rgba(255,255,255,0.06)",color:"rgba(240,237,232,0.7)",border:"1px solid rgba(255,255,255,0.1)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>Rejoindre</button>
               </div>
             </div>
