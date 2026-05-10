@@ -4528,7 +4528,7 @@ function StatCell({ label, value, valueColor }) {
 // Ref visuelle : pacerank-activites-recentes.html.
 // (Le nom ActivityCard est déjà pris ailleurs dans App.jsx pour un autre
 // composant interactif lié au profil — d'où le suffix Card.)
-function FeedCard({ entry, firstComment }) {
+function FeedCard({ entry, firstComment, likeCount = 0, likedByMe = false, commentCount = 0, onToggleLike, onOpenComments }) {
   const e = entry.data;
   const fam = activityFamily(entry);
   const badgeColor = ACTIVITY_BADGE_COLORS[fam.family] || ACTIVITY_BADGE_COLORS.run;
@@ -4568,6 +4568,24 @@ function FeedCard({ entry, firstComment }) {
         <StatCell label="Durée"           value={stats.duration}/>
         <StatCell label={stats.thirdLabel} value={stats.thirdValue}/>
         <StatCell label="Pts"             value={stats.points} valueColor="#ED2A37"/>
+      </div>
+
+      {/* Actions : like + commentaire */}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",borderTop:innerSeparator}}>
+        <button
+          onClick={(e2)=>{e2.stopPropagation();onToggleLike?.();}}
+          style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:10,background:likedByMe?"rgba(237,42,55,0.15)":"transparent",border:`1px solid ${likedByMe?"rgba(237,42,55,0.4)":"rgba(255,255,255,0.08)"}`,color:likedByMe?"#ED2A37":"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
+        >
+          <span style={{fontSize:14,lineHeight:1}}>{likedByMe?"❤️":"🤍"}</span>
+          <span>{likeCount}</span>
+        </button>
+        <button
+          onClick={(e2)=>{e2.stopPropagation();onOpenComments?.();}}
+          style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:10,background:"transparent",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
+        >
+          <span style={{fontSize:14,lineHeight:1}}>💬</span>
+          <span>{commentCount}</span>
+        </button>
       </div>
 
       {/* 1er commentaire inline */}
@@ -4824,6 +4842,102 @@ function PronosTab({ myProfile }) {
   );
 }
 
+// CommentsModal — affiche tous les commentaires d'une activité + permet
+// d'en écrire un nouveau. activityType ∈ {training, result}.
+function CommentsModal({ myProfile, activityType, activityId, headerUser, headerTitle, onClose, onChanged }) {
+  const [items, setItems] = useState([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("activity_comments")
+      .select("id,user_id,content,created_at")
+      .eq("activity_type", activityType).eq("activity_id", activityId)
+      .order("created_at", { ascending: true });
+    const userIds = [...new Set((data || []).map(c => c.user_id))];
+    let userMap = {};
+    if (userIds.length > 0) {
+      const { data: users } = await supabase.from("profiles")
+        .select("id,name,avatar").in("id", userIds);
+      userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
+    }
+    setItems((data || []).map(c => ({ ...c, author: userMap[c.user_id] })));
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [activityType, activityId]);
+
+  const submit = async () => {
+    const content = text.trim();
+    if (!content || !myProfile?.id) return;
+    setSubmitting(true);
+    const { data, error } = await supabase.from("activity_comments")
+      .insert({ user_id: myProfile.id, activity_type: activityType, activity_id: activityId, content })
+      .select().single();
+    setSubmitting(false);
+    if (error) return;
+    setItems(prev => [...prev, { ...data, author: { id: myProfile.id, name: myProfile.name, avatar: myProfile.avatar } }]);
+    setText("");
+    onChanged?.();
+  };
+
+  const remove = async (id) => {
+    await supabase.from("activity_comments").delete().eq("id", id);
+    setItems(prev => prev.filter(c => c.id !== id));
+    onChanged?.();
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <div style={{padding:"4px 0 12px",borderBottom:"1px solid #232323",marginBottom:12}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",lineHeight:1.1}}>Commentaires</div>
+        {headerTitle && <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.5)",marginTop:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{headerUser ? `${shortName(headerUser?.name)} · ` : ""}{headerTitle}</div>}
+      </div>
+
+      {loading ? (
+        <div style={{padding:"24px 0",textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
+      ) : items.length === 0 ? (
+        <div style={{padding:"22px 14px",textAlign:"center",background:"rgba(255,255,255,0.03)",borderRadius:14,border:"1px solid rgba(255,255,255,0.05)",marginBottom:14}}>
+          <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif"}}>Aucun commentaire pour l'instant.</div>
+        </div>
+      ) : (
+        <div style={{marginBottom:14,maxHeight:340,overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
+          {items.map(c => (
+            <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+              <Avatar profile={c.author} size={32}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8"}}>{shortName(c.author?.name)}</div>
+                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.85)",marginTop:2,lineHeight:1.4,wordBreak:"break-word"}}>{c.content}</div>
+              </div>
+              {c.user_id === myProfile?.id && (
+                <button onClick={()=>remove(c.id)} aria-label="Supprimer" style={{padding:"3px 7px",borderRadius:8,background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",cursor:"pointer",fontSize:13,flexShrink:0}}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Input nouveau commentaire */}
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <input
+          value={text}
+          onChange={e=>setText(e.target.value)}
+          placeholder="Écris un commentaire…"
+          onKeyDown={e=>{ if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+          style={{flex:1,minWidth:0,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box"}}
+        />
+        <button onClick={submit} disabled={!text.trim() || submitting} style={{flexShrink:0,padding:"0 16px",borderRadius:12,background:text.trim()?"#ED2A37":"rgba(255,255,255,0.06)",color:text.trim()?"#fff":"rgba(240,237,232,0.4)",border:"none",cursor:text.trim()?"pointer":"default",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>
+          {submitting ? "…" : "Envoyer"}
+        </button>
+      </div>
+
+      <Btn onClick={onClose} variant="secondary" mb={0}>Fermer</Btn>
+      <div style={{height:"calc(20px + env(safe-area-inset-bottom))"}}/>
+    </Modal>
+  );
+}
+
 // UpcomingRaceCard — ligne de course à venir dans la section dédiée du fil.
 // Discipline UPCOMING_DISCIPLINES (run/trail/tri/hyrox) → couleur de badge
 // via ACTIVITY_BADGE_COLORS. Tap → modal détail (qui montrera les pronos
@@ -4971,10 +5085,47 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
 
 function FilPanel({ myProfile }) {
   const [feed, setFeed] = useState([]);
-  const [commentsByActivity, setCommentsByActivity] = useState({});
+  const [commentsByActivity, setCommentsByActivity] = useState({}); // 1er comment par activity (rendu inline)
+  const [commentCountByActivity, setCommentCountByActivity] = useState({}); // total count par activity
+  const [likesByActivity, setLikesByActivity] = useState({}); // { key: { count, likedByMe } }
   const [upcomingRaces, setUpcomingRaces] = useState([]);
   const [selectedUpcoming, setSelectedUpcoming] = useState(null);
+  const [openComments, setOpenComments] = useState(null); // { kind, activityId, user, title }
   const [loading, setLoading] = useState(true);
+
+  // Toggle like : insert si pas liké, delete si liké. Update optimistic
+  // côté client pour feedback instantané.
+  const toggleLike = async (akind, activityId, currentlyLiked) => {
+    if (!myProfile?.id) return;
+    const key = `${akind}:${activityId}`;
+    setLikesByActivity(prev => {
+      const existing = prev[key] || { count: 0, likedByMe: false };
+      const next = currentlyLiked
+        ? { count: Math.max(0, existing.count - 1), likedByMe: false }
+        : { count: existing.count + 1, likedByMe: true };
+      return { ...prev, [key]: next };
+    });
+    try {
+      if (currentlyLiked) {
+        await supabase.from("activity_likes").delete()
+          .eq("user_id", myProfile.id).eq("activity_type", akind).eq("activity_id", activityId);
+      } else {
+        await supabase.from("activity_likes").insert({
+          user_id: myProfile.id, activity_type: akind, activity_id: activityId,
+        });
+      }
+    } catch (e) {
+      // Rollback en cas d'erreur
+      console.warn("[like] failed", e);
+      setLikesByActivity(prev => {
+        const existing = prev[key] || { count: 0, likedByMe: false };
+        const reverted = currentlyLiked
+          ? { count: existing.count + 1, likedByMe: true }
+          : { count: Math.max(0, existing.count - 1), likedByMe: false };
+        return { ...prev, [key]: reverted };
+      });
+    }
+  };
 
   useEffect(() => {
     let cancel = false;
@@ -5026,8 +5177,9 @@ function FilPanel({ myProfile }) {
         .sort((a, b) => b.sortKey - a.sortKey)
         .slice(0, 25);
 
-      // Pull tous les commentaires des activités du feed en 1 query, on
-      // récupère le 1er (oldest) par (activity_type, activity_id) côté JS.
+      // Pull commentaires + likes des activités du feed en parallèle.
+      // Côté commentaires on garde le 1er comment par activity (rendu inline)
+      // ET le total count. Côté likes on calcule {count, likedByMe} par activity.
       const trIds = merged.filter(e => e.kind === "training").map(e => e.activityId);
       const reIds = merged.filter(e => e.kind === "result").map(e => e.activityId);
       const idsByType = [];
@@ -5035,16 +5187,27 @@ function FilPanel({ myProfile }) {
       if (reIds.length) idsByType.push(["result", reIds]);
 
       const commentMap = {};
+      const commentCountMap = {};
+      const likeMap = {};
       if (idsByType.length > 0) {
-        const queries = idsByType.map(([atype, ids]) =>
-          supabase.from("activity_comments")
+        const queries = [];
+        for (const [atype, ids] of idsByType) {
+          queries.push(supabase.from("activity_comments")
             .select("id,user_id,activity_type,activity_id,content,created_at")
             .eq("activity_type", atype).in("activity_id", ids)
-            .order("created_at", { ascending: true })
-        );
+            .order("created_at", { ascending: true }));
+          queries.push(supabase.from("activity_likes")
+            .select("user_id,activity_type,activity_id")
+            .eq("activity_type", atype).in("activity_id", ids));
+        }
         const responses = await Promise.all(queries);
-        const allComments = responses.flatMap(r => r.data || []);
-        // Charger les profils des auteurs (tous d'un coup)
+        // Les responses alternent : [comments_training, likes_training, comments_result, likes_result]
+        const allComments = [];
+        const allLikes = [];
+        for (let i = 0; i < responses.length; i += 2) {
+          allComments.push(...(responses[i].data || []));
+          allLikes.push(...(responses[i + 1].data || []));
+        }
         const authorIds = [...new Set(allComments.map(c => c.user_id))];
         let authorMap = {};
         if (authorIds.length > 0) {
@@ -5054,7 +5217,14 @@ function FilPanel({ myProfile }) {
         }
         for (const c of allComments) {
           const key = `${c.activity_type}:${c.activity_id}`;
+          commentCountMap[key] = (commentCountMap[key] || 0) + 1;
           if (!commentMap[key]) commentMap[key] = { ...c, author: authorMap[c.user_id] };
+        }
+        for (const l of allLikes) {
+          const key = `${l.activity_type}:${l.activity_id}`;
+          if (!likeMap[key]) likeMap[key] = { count: 0, likedByMe: false };
+          likeMap[key].count++;
+          if (l.user_id === myProfile?.id) likeMap[key].likedByMe = true;
         }
       }
 
@@ -5063,6 +5233,8 @@ function FilPanel({ myProfile }) {
       if (!cancel) {
         setFeed(merged);
         setCommentsByActivity(commentMap);
+        setCommentCountByActivity(commentCountMap);
+        setLikesByActivity(likeMap);
         setUpcomingRaces(upcoming);
         setLoading(false);
       }
@@ -5091,6 +5263,33 @@ function FilPanel({ myProfile }) {
         <UpcomingRaceDetailModal race={selectedUpcoming} myProfile={myProfile} onClose={()=>setSelectedUpcoming(null)}/>
       )}
 
+      {openComments && (
+        <CommentsModal
+          myProfile={myProfile}
+          activityType={openComments.kind}
+          activityId={openComments.activityId}
+          headerUser={openComments.user}
+          headerTitle={openComments.title}
+          onClose={()=>setOpenComments(null)}
+          onChanged={()=>{
+            // Recompute count — on bump localement le compteur de la card.
+            const key = `${openComments.kind}:${openComments.activityId}`;
+            setCommentCountByActivity(prev => {
+              // On refetch via une lecture rapide pour rester synchro
+              // (le insert/delete vient juste de se faire).
+              supabase.from("activity_comments")
+                .select("id", { count: "exact", head: true })
+                .eq("activity_type", openComments.kind)
+                .eq("activity_id", openComments.activityId)
+                .then(({ count }) => {
+                  setCommentCountByActivity(p2 => ({ ...p2, [key]: count || 0 }));
+                });
+              return prev;
+            });
+          }}
+        />
+      )}
+
       {/* Section Activités récentes */}
       <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>⚡ Activités récentes</div>
       {loading ? (
@@ -5102,8 +5301,22 @@ function FilPanel({ myProfile }) {
       ) : (
         feed.map(e => {
           const akind = e.kind === "training" ? "training" : "result";
-          const c = commentsByActivity[`${akind}:${e.activityId}`];
-          return <FeedCard key={e.id} entry={e} firstComment={c}/>;
+          const key = `${akind}:${e.activityId}`;
+          const c = commentsByActivity[key];
+          const lk = likesByActivity[key] || { count: 0, likedByMe: false };
+          const cc = commentCountByActivity[key] || 0;
+          return (
+            <FeedCard
+              key={e.id}
+              entry={e}
+              firstComment={c}
+              likeCount={lk.count}
+              likedByMe={lk.likedByMe}
+              commentCount={cc}
+              onToggleLike={()=>toggleLike(akind, e.activityId, lk.likedByMe)}
+              onOpenComments={()=>setOpenComments({ kind: akind, activityId: e.activityId, user: e.user, title: e.kind === "training" ? (e.data.is_official_race ? (e.data.official_race_name||"Course officielle") : (e.data.title||`Sortie ${e.data.sport||""}`.trim())) : (DISCIPLINES[e.data.discipline]?.label || e.data.discipline) })}
+            />
+          );
         })
       )}
     </div>
