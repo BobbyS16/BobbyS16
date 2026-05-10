@@ -3282,7 +3282,7 @@ function TrainingTab({userId, onActivityChange}){
                 </div>
                 <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title?.trim()?`${t.sport} · ${t.distance} km · `:""}{t.date?.split("-").reverse().join("-")}{t.duration?` · ${fmtDuration(t.duration)}`:""}</div>
               </div>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946",flexShrink:0}}>+{effectiveTrainingPts(t)}pts</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#4ADE80",flexShrink:0}}>+{effectiveTrainingPts(t)}pts</div>
             </div>
           </div>
         </SwipeRow>
@@ -4552,7 +4552,7 @@ function FeedCard({ entry, firstComment, likeCount = 0, likedByMe = false, comme
         <StatCell label="Distance"        value={stats.distance}/>
         <StatCell label="Durée"           value={stats.duration}/>
         <StatCell label={stats.thirdLabel} value={stats.thirdValue}/>
-        <StatCell label="Pts"             value={stats.points} valueColor="#ED2A37"/>
+        <StatCell label="Pts"             value={stats.points} valueColor="#4ADE80"/>
       </div>
 
       {/* Actions : like + commentaire */}
