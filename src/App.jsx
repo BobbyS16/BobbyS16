@@ -6000,34 +6000,6 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
         </button>
       </div>
 
-      {/* Mes courses à venir */}
-      <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
-        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>📅 Mes courses à venir</div>
-        {upcomingRaces.length === 0 ? (
-          <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",lineHeight:1.45,padding:"6px 0 12px",textAlign:"center"}}>Aucune course déclarée pour l'instant.</div>
-        ) : (
-          upcomingRaces.map(r => {
-            const dispLabel = (UPCOMING_DISCIPLINES.find(d => d.k === r.discipline) || {label:r.discipline, icon:"🏁"});
-            const dt = new Date(r.race_date);
-            const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
-            return (
-              <div key={r.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
-                <div style={{fontSize:22,flexShrink:0}}>{dispLabel.icon}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race_name}</div>
-                  <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>
-                    {dStr} · {r.distance_km} km{r.elevation_gain_m ? ` · ⛰️ ${r.elevation_gain_m}m D+` : ""}{r.target_time ? ` · 🎯 ${intervalToHHMMSS(r.target_time)}` : ""}
-                  </div>
-                </div>
-                <button onClick={()=>setUpcomingModal(r)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)",border:"none",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>Modifier</button>
-                <button onClick={()=>handleDeleteUpcoming(r.id)} style={{padding:"5px 9px",borderRadius:10,background:"rgba(230,57,70,0.1)",color:"#E63946",border:"none",cursor:"pointer",fontSize:11,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>✕</button>
-              </div>
-            );
-          })
-        )}
-        <button onClick={()=>setUpcomingModal("new")} style={{width:"100%",marginTop:10,padding:"10px 0",borderRadius:10,background:"rgba(255,215,0,0.12)",color:"#FFD700",border:"1px solid rgba(255,215,0,0.3)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>+ Déclarer une course à venir</button>
-      </div>
-
       <div style={{marginBottom:10,padding:"12px 14px",borderRadius:14,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
         <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.5)",fontWeight:700,marginBottom:10}}>🔔 Notifications</div>
         <button
