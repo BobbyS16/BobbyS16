@@ -2934,6 +2934,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const [discFilter,setDiscFilter]=useState("All");
   const [rankData,setRankData]=useState([]);
   const [openFriend,setOpenFriend]=useState(null);
+  const [openFriendBreakdown,setOpenFriendBreakdown]=useState(null);
   const [leagueData,setLeagueData]=useState({players:[],myLeague:LEAGUES[0],mySessions:[]});
   // Groupes (refonte nav step 3)
   const [myGroups,setMyGroups]=useState([]);
@@ -3286,8 +3287,14 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
                 ?[{icon:"✕",bg:"rgba(255,255,255,0.12)",color:"rgba(240,237,232,0.75)",onClick:()=>handleCancelFriend(p.id)}]
                 :[{icon:"+",bg:"rgba(230,57,70,0.25)",color:"#E63946",onClick:()=>handleAddFriend(p.id)}];
             const isMe=p.id===profile?.id;
+            const handleRowClick = () => {
+              // Sur "Amis" → modal léger breakdown ; sur Général/Ligue →
+              // FriendProfileModal complet (comportement préexistant).
+              if (rankFilter === "amis") setOpenFriendBreakdown(p);
+              else setOpenFriend(p);
+            };
             const row=(
-              <div onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,borderRadius:14,cursor:"pointer"}}>
+              <div onClick={handleRowClick} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,borderRadius:14,cursor:"pointer"}}>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</div>
                 <Avatar profile={p} size={36}/>
                 <div style={{flex:1,minWidth:0}}>
@@ -3310,6 +3317,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       {showCreateGroup&&<CreateGroupModal userId={userId} onCreated={(g)=>{setShowCreateGroup(false); loadMyGroups(); setSelectedGroupId(g.id);}} onClose={()=>setShowCreateGroup(false)}/>}
       {showJoinGroup&&<JoinGroupModal userId={userId} prefilledCode={typeof showJoinGroup==="object"?showJoinGroup.prefilledCode:""} onJoined={(g)=>{setShowJoinGroup(false); loadMyGroups(); setSelectedGroupId(g.id); setRankFilter("groupes");}} onClose={()=>setShowJoinGroup(false)}/>}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
+      {openFriendBreakdown&&<FriendPointsBreakdownModal friend={openFriendBreakdown} myId={profile?.id} onClose={()=>setOpenFriendBreakdown(null)}/>}
       {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange} inAppEnabled={profile?.in_app_enabled !== false} onNavigateLeague={onOpenLeague} onNavigateProfile={onOpenProfile}/>}
       {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
       {classifModalOpen && pendingClassif.length>0 && (
@@ -5929,6 +5937,110 @@ function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
         ))}
       </div>
     </div>
+  );
+}
+
+// ── FRIEND POINTS BREAKDOWN MODAL ─────────────────────────────────────────────
+// Modal léger ouvert depuis le leaderboard Amis du HOME. Affiche la même
+// structure que le breakdown du profil utilisateur, mais pour un ami (ou
+// pour soi-même si on clique sur sa propre ligne dans la liste).
+// Sécurité : on vérifie au mount qu'il existe une amitié 'accepted' entre
+// l'user courant et la cible (ou que cible == self), sinon on bloque
+// l'affichage avec un message d'erreur.
+function FriendPointsBreakdownModal({ friend, myId, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [authorized, setAuthorized] = useState(null);
+  const [data, setData] = useState({ trainPts: 0, racePts: 0, bonusByType: {}, totalPts: 0 });
+
+  useEffect(() => {
+    if (!friend?.id || !myId) return;
+    let cancel = false;
+    (async () => {
+      // 1) Permission : self OU amitié accepted
+      let isAuthorized = friend.id === myId;
+      if (!isAuthorized) {
+        const { data: fs } = await supabase.from("friendships")
+          .select("id").eq("status", "accepted")
+          .or(`and(user_id.eq.${myId},friend_id.eq.${friend.id}),and(user_id.eq.${friend.id},friend_id.eq.${myId})`)
+          .limit(1);
+        isAuthorized = (fs || []).length > 0;
+      }
+      if (cancel) return;
+      setAuthorized(isAuthorized);
+      if (!isAuthorized) { setLoading(false); return; }
+
+      // 2) Données : results + trainings + point_bonuses (la lecture est
+      //    couverte par les policies existantes — results lecture publique,
+      //    point_bonuses lecture amis acceptés)
+      const [{ data: results }, { data: trainings }, { data: bonuses }] = await Promise.all([
+        supabase.from("results").select("*").eq("user_id", friend.id),
+        supabase.from("trainings").select("*").eq("user_id", friend.id),
+        supabase.from("point_bonuses").select("bonus_type,points").eq("user_id", friend.id),
+      ]);
+      if (cancel) return;
+
+      const seasonRes = (results || []).filter(r => rYear(r) === CY);
+      const seasonTrs = (trainings || []).filter(t => new Date(t.date).getFullYear() === CY);
+      const trainPts  = seasonTrs.reduce((s,t) => s + effectiveTrainingPts(t), 0) + trainingBonusPts(seasonTrs);
+      const racePts   = sumBestPts(seasonRes) + raceBonusPts(seasonRes, results || []);
+      const bonusByType = (bonuses || []).reduce((acc, b) => {
+        const k = b.bonus_type;
+        if (!acc[k]) acc[k] = { count: 0, points: 0 };
+        acc[k].count++;
+        acc[k].points += b.points || 0;
+        return acc;
+      }, {});
+      const bonusTotal = (bonuses || []).reduce((s,b) => s + (b.points || 0), 0);
+      const totalPts = trainPts + racePts + bonusTotal;
+      setData({ trainPts, racePts, bonusByType, totalPts });
+      setLoading(false);
+    })();
+    return () => { cancel = true; };
+  }, [friend?.id, myId]);
+
+  const lv = getSeasonLevel(data.totalPts);
+  const isSelf = friend?.id === myId;
+
+  return (
+    <Modal onClose={onClose}>
+      {/* Header : avatar + nom + niveau + total */}
+      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:18}}>
+        <Avatar profile={friend} size={56} highlight={authorized && !loading ? lv.color : undefined}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{friend?.name || "Athlète"}</div>
+          {authorized && !loading && (
+            <div style={{fontSize:12,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:3}}>
+              <span style={{color:lv.color,fontWeight:700}}>{lv.label}</span>
+              {isSelf && <span style={{marginLeft:6,fontSize:10,color:"rgba(240,237,232,0.45)",textTransform:"uppercase",letterSpacing:1}}>· toi</span>}
+            </div>
+          )}
+        </div>
+        {authorized && !loading && (
+          <div style={{textAlign:"right",flexShrink:0}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:30,color:lv.color,letterSpacing:1,lineHeight:1}}>{data.totalPts}</div>
+            <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison</div>
+          </div>
+        )}
+      </div>
+
+      {/* État loading / non-ami / OK */}
+      {loading ? (
+        <div style={{textAlign:"center",padding:"24px 0",color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Chargement…</div>
+      ) : !authorized ? (
+        <div style={{padding:"18px 14px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:12,textAlign:"center",fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#E63946",marginBottom:16}}>
+          Pas accessible — tu n'es pas ami avec cette personne.
+        </div>
+      ) : (
+        <PointsBreakdown
+          expanded={true}
+          trainPts={data.trainPts}
+          racePts={data.racePts}
+          bonusByType={data.bonusByType}
+        />
+      )}
+
+      <button onClick={onClose} style={{width:"100%",padding:"12px 0",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,marginTop:8}}>Fermer</button>
+    </Modal>
   );
 }
 
