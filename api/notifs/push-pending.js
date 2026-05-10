@@ -15,7 +15,6 @@ import { createClient } from "@supabase/supabase-js";
 
 const ONESIGNAL_APP_ID = "35485edf-128a-4346-b6f6-a21a84645f47";
 const ONESIGNAL_API = "https://onesignal.com/api/v1/notifications";
-const APP_URL = "https://www.pacerank.app/";
 
 function buildPushContent(notif) {
   const fromName = notif.from_user?.name || "Quelqu'un";
@@ -180,7 +179,13 @@ export default async function handler(req, res) {
     // Format aligné sur l'exemple "minimal qui marche" pour iOS Web Push :
     //   include_external_user_ids (legacy Player Model, bien supporté pour iOS)
     //   headings.en + contents.en (Apple ignore parfois les autres locales)
-    //   web_url (champ canonique Web Push, OneSignal redirige au tap)
+    //
+    // ⚠️ Pas de web_url : la PWA est installée depuis pacerank.vercel.app
+    // mais notre custom domain est www.pacerank.app. iOS Web Push drop
+    // silencieusement les pushs dont web_url ne matche pas le scope de la
+    // sub. En l'absence du champ, OneSignal utilise le Site URL configuré
+    // dans Web Configuration (= bon scope) → livraison fiable.
+    //
     // On garde data {notification_id, type} pour les deeplinks PWA.
     const oneSignalBody = {
       app_id: ONESIGNAL_APP_ID,
@@ -188,7 +193,6 @@ export default async function handler(req, res) {
       headings: { en: title },
       contents: { en: body },
       data: { notification_id: n.id, type: n.type },
-      web_url: APP_URL,
     };
     console.log("[push-pending] →OneSignal", n.id, JSON.stringify(oneSignalBody));
 
