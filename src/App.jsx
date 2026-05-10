@@ -2658,6 +2658,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const [classifModalOpen,setClassifModalOpen]=useState(false);
   const [classifToast,setClassifToast]=useState("");
   const [friendIds,setFriendIds]=useState(new Set());
+  const [myBonusPts,setMyBonusPts]=useState(0);
 
   const loadPendingClassif = useCallback(async () => {
     if (!userId) return;
@@ -2723,7 +2724,9 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     if(!userId)return;
     supabase.from("friendships").select("friend_id").eq("user_id",userId).eq("status","accepted")
       .then(({data})=>setFriendIds(new Set((data||[]).map(f=>f.friend_id))));
-  },[userId]);
+    supabase.from("point_bonuses").select("points").eq("user_id",userId)
+      .then(({data})=>setMyBonusPts((data||[]).reduce((s,b)=>s+(b.points||0),0)));
+  },[userId,refreshKey]);
 
   const loadMyGroups=useCallback(async()=>{
     if(!userId) return;
@@ -2778,10 +2781,12 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     const{data:allResultsFull}=await supabase.from("results").select("*");
     const{data:allProfilesRaw}=await supabase.from("profiles").select("*");
     const{data:allTrainings}=await supabase.from("trainings").select("user_id,sport,distance,duration,points,date");
+    const{data:allBonuses}=await supabase.from("point_bonuses").select("user_id,points");
     if(!allResultsFull||!allProfilesRaw)return;
     const allProfiles=allProfilesRaw.filter(p=>!p.ranking_hidden);
     const allResults=allResultsFull.filter(r=>rYear(r)===season);
     const seasonTrainings=(allTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
+    const bonusByUser=(allBonuses||[]).reduce((acc,b)=>{acc[b.user_id]=(acc[b.user_id]||0)+(b.points||0);return acc;},{});
 
     if(rankFilter==="ligue"){
       const now=new Date();
@@ -2866,7 +2871,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       const racePts=sumBestPts(pRes);
       const trainPts=discFilter==="All"?pSeasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0):0;
       const bonusPts=discFilter==="All"?raceBonusPts(pRes,pAllRes)+trainingBonusPts(pSeasonTrainings):0;
-      const pts=racePts+trainPts+bonusPts;
+      const tableBonus=discFilter==="All"?(bonusByUser[p.id]||0):0;
+      const pts=racePts+trainPts+bonusPts+tableBonus;
       const badges=computeBadges({results:allResultsFull.filter(r=>r.user_id===p.id),trainings:(allTrainings||[]).filter(t=>t.user_id===p.id),profile:p});
       return{...p,pts,badges,_hasDiscRes:pRes.length>0};
     }).filter(p=>discFilter==="All"||p._hasDiscRes).sort((a,b)=>b.pts-a.pts);
@@ -2876,7 +2882,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const seasonResults=results.filter(r=>rYear(r)===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
   const trainingPts=seasonTrainings.reduce((s,t)=>s+(t.points||0),0);
-  const totalPts=sumBestPts(seasonResults)+trainingPts+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
+  const totalPts=sumBestPts(seasonResults)+trainingPts+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings)+myBonusPts;
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
   const myBadges=computeBadges({results,profile});
@@ -3126,9 +3132,11 @@ function RankingTab({myProfile}){
     const profiles=(profilesRaw||[]).filter(p=>!p.ranking_hidden);
     const{data:results}=await supabase.from("results").select("*");
     const{data:trainings}=await supabase.from("trainings").select("user_id,date,points");
+    const{data:bonusesRaw}=await supabase.from("point_bonuses").select("user_id,points");
     if(!profiles||!results){setLoading(false);return;}
     const seasonResults=results.filter(r=>rYear(r)===season);
     const seasonTrainings=(trainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
+    const bonusByUser=(bonusesRaw||[]).reduce((acc,b)=>{acc[b.user_id]=(acc[b.user_id]||0)+(b.points||0);return acc;},{});
     const pool=profiles;
     let display=pool.map(p=>{
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
@@ -3141,8 +3149,9 @@ function RankingTab({myProfile}){
       }else{racePts=sumBestPts(pRes);}
       const tPts=filter==="discipline"?0:pTrainings.reduce((s,t)=>s+(t.points||0),0);
       const bonusPts=filter==="discipline"?0:raceBonusPts(pRes,pAllRes)+trainingBonusPts(pTrainings);
+      const tableBonus=filter==="discipline"?0:(bonusByUser[p.id]||0);
       const badges=computeBadges({results:pRes,trainings:pTrainings,profile:p});
-      return{...p,pts:racePts+tPts+bonusPts,bestTime,badges};
+      return{...p,pts:racePts+tPts+bonusPts+tableBonus,bestTime,badges};
     }).sort((a,b)=>b.pts-a.pts);
     const myAgeCat=getAgeCat(myProfile?.birth_year);
     if(filter==="age_cat") display=display.filter(p=>getAgeCat(p.birth_year)===myAgeCat);
@@ -5347,12 +5356,14 @@ function ActuTab({myProfile,onNotifsChange}){
     const allIds=[user.id, ...ids];
     // Charge profils + results + trainings pour calculer pts saison + rang
     // de chaque ami dans le groupe (moi + amis).
-    const [{data:profiles}, {data:res}, {data:trs}] = await Promise.all([
+    const [{data:profiles}, {data:res}, {data:trs}, {data:bonusesRaw}] = await Promise.all([
       supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids),
       supabase.from("results").select("*").in("user_id",allIds),
       supabase.from("trainings").select("*").in("user_id",allIds),
+      supabase.from("point_bonuses").select("user_id,points").in("user_id",allIds),
     ]);
     const byId=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));
+    const bonusByUser=(bonusesRaw||[]).reduce((acc,b)=>{acc[b.user_id]=(acc[b.user_id]||0)+(b.points||0);return acc;},{});
     const ptsByUser={};
     for (const uid of allIds) {
       const uRes=(res||[]).filter(r=>r.user_id===uid);
@@ -5362,7 +5373,7 @@ function ActuTab({myProfile,onNotifsChange}){
       const racePts=sumBestPts(seasonRes);
       const trainPts=seasonTrs.reduce((s,t)=>s+effectiveTrainingPts(t),0);
       const bonusPts=raceBonusPts(seasonRes,uRes)+trainingBonusPts(seasonTrs);
-      ptsByUser[uid]=racePts+trainPts+bonusPts;
+      ptsByUser[uid]=racePts+trainPts+bonusPts+(bonusByUser[uid]||0);
     }
     const sorted=[...allIds].sort((a,b)=>(ptsByUser[b]||0)-(ptsByUser[a]||0));
     const rankByUser=Object.fromEntries(sorted.map((uid,i)=>[uid,i+1]));
@@ -5646,12 +5657,67 @@ function BadgesByCategory({badges}){
   );
 }
 
+// ── POINTS BREAKDOWN ──────────────────────────────────────────────────────────
+// Détail du total de points affiché sous le compteur du profil. Replié par
+// défaut, ouvert au clic. Lignes à 0 masquées. Animation max-height/opacity
+// pour rester fluide même avec beaucoup de lignes (1 par type de bonus).
+function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
+  const BONUS_LABELS = {
+    signup:        {label:"Bonus inscription",  unit:5,  multi:false},
+    profile_photo: {label:"Bonus photo",        unit:5,  multi:false},
+    invitation:    {label:"Bonus invitations",  unit:5,  multi:true,  noun:"ami"},
+    weekly_streak: {label:"Bonus streak",       unit:5,  multi:true,  noun:"semaine"},
+    pr_beaten:     {label:"Bonus PR",           unit:20, multi:true,  noun:"PR battu"},
+  };
+  const lines = [];
+  if (trainPts > 0) lines.push({key:"train", label:"Entraînements", pts:trainPts});
+  if (racePts > 0)  lines.push({key:"race",  label:"Courses",       pts:racePts});
+  Object.entries(BONUS_LABELS).forEach(([key, conf]) => {
+    const b = bonusByType[key];
+    if (!b || !b.points) return;
+    let suffix = "";
+    if (conf.multi && b.count > 0) {
+      const noun = b.count > 1 ? `${conf.noun}s` : conf.noun;
+      suffix = ` (${b.count} ${noun} × ${conf.unit} pts)`;
+    }
+    lines.push({key, label:conf.label, pts:b.points, suffix});
+  });
+  return (
+    <div
+      aria-hidden={!expanded}
+      style={{
+        maxHeight: expanded ? `${lines.length * 40 + 32}px` : 0,
+        opacity: expanded ? 1 : 0,
+        overflow: "hidden",
+        transition: "max-height 0.3s ease, opacity 0.25s ease",
+        marginBottom: expanded ? 16 : 0,
+      }}
+    >
+      <div style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"12px 14px"}}>
+        {lines.length === 0 ? (
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",textAlign:"center",padding:"4px 0"}}>Aucun point pour l'instant</div>
+        ) : lines.map((l, i) => (
+          <div key={l.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderTop: i===0?"none":"1px solid rgba(255,255,255,0.04)",fontFamily:"'Barlow',sans-serif"}}>
+            <div style={{fontSize:13,color:"rgba(240,237,232,0.85)"}}>
+              {l.label}
+              {l.suffix && <span style={{fontSize:11,color:"rgba(240,237,232,0.45)"}}>{l.suffix}</span>}
+            </div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:0.5,color:"#F0EDE8"}}>{l.pts} pts</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── PROFILE MODAL ─────────────────────────────────────────────────────────────
 function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePush,onDisablePush}){
   const [showEdit,setShowEdit]=useState(false);
   const [showDelAcc,setDelAcc]=useState(false);
   const [friendCount,setFriendCount]=useState(0);
   const [trainings,setTrainings]=useState([]);
+  const [bonuses,setBonuses]=useState([]);
+  const [bonusExpanded,setBonusExpanded]=useState(false);
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [showPhoto,setShowPhoto]=useState(false);
   const [season,setSeason]=useState(CY);
@@ -5775,7 +5841,16 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const seasonResults=results.filter(r=>rYear(r)===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
-  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
+  const trainPtsBreakdown=seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+trainingBonusPts(seasonTrainings);
+  const racePtsBreakdown=sumBestPts(seasonResults)+raceBonusPts(seasonResults,results);
+  const bonusByType=bonuses.reduce((acc,b)=>{
+    const k=b.bonus_type;
+    if(!acc[k])acc[k]={count:0,points:0};
+    acc[k].count++;acc[k].points+=b.points||0;
+    return acc;
+  },{});
+  const bonusTotalPts=bonuses.reduce((s,b)=>s+(b.points||0),0);
+  const seasonPts=trainPtsBreakdown+racePtsBreakdown+bonusTotalPts;
   const lv=getSeasonLevel(seasonPts);
 
   useEffect(()=>{
@@ -5792,6 +5867,8 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
       .then(({data})=>setTrainings(data||[]));
     supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",profile.id)
       .then(({count})=>setGroupsCreated(count||0));
+    supabase.from("point_bonuses").select("bonus_type,points,created_at").eq("user_id",profile.id)
+      .then(({data})=>setBonuses(data||[]));
   },[profile.id]);
   useEffect(()=>{setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);},[]);
 
@@ -5825,11 +5902,20 @@ function ProfileModal({profile,results,onRefresh,onClose,pushOptedIn,onEnablePus
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[profile.city,profile.birth_year&&<CategoryTooltip key="cat" birthYear={profile.birth_year}/>,profile.gender,profile.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
-        <div style={{textAlign:"right",flexShrink:0}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
+        <div onClick={()=>setBonusExpanded(v=>!v)} role="button" aria-expanded={bonusExpanded} style={{textAlign:"right",flexShrink:0,cursor:"pointer",userSelect:"none"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:lv.color,letterSpacing:1,lineHeight:1,display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end"}}>
+            <span>{seasonPts}</span>
+            <span style={{fontSize:14,color:"rgba(240,237,232,0.5)",lineHeight:1,transform:bonusExpanded?"rotate(180deg)":"none",transition:"transform 0.25s"}}>▼</span>
+          </div>
           <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison</div>
         </div>
       </div>
+      <PointsBreakdown
+        expanded={bonusExpanded}
+        trainPts={trainPtsBreakdown}
+        racePts={racePtsBreakdown}
+        bonusByType={bonusByType}
+      />
       <div style={{display:"flex",gap:10,marginBottom:18}}>
         <div onClick={()=>setPanel("amis")} style={{flex:1,background:panel==="amis"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="amis"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="amis"?"#E63946":"#F0EDE8"}}>{friendCount}</div>
@@ -6097,6 +6183,7 @@ function ActivityCard({myId,activityType,activityId,children}){
 function FriendProfileModal({friend,myId,onClose}){
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
+  const [bonuses,setBonuses]=useState([]);
   const [fullProfile,setFullProfile]=useState(friend);
   const [friendCount,setFriendCount]=useState(0);
   const [friendsList,setFriendsList]=useState([]);
@@ -6128,14 +6215,15 @@ function FriendProfileModal({friend,myId,onClose}){
 
   const loadAll=async()=>{
     setLoading(true);
-    const[{data:r},{data:t},{data:prof},{data:fs,count:fc},{count:gc}]=await Promise.all([
+    const[{data:r},{data:t},{data:prof},{data:fs,count:fc},{count:gc},{data:bs}]=await Promise.all([
       supabase.from("results").select("*").eq("user_id",friend.id).order("year",{ascending:false}),
       supabase.from("trainings").select("*").eq("user_id",friend.id).order("date",{ascending:false}),
       supabase.from("profiles").select("*").eq("id",friend.id).single(),
       supabase.from("friendships").select("friend_id",{count:"exact"}).eq("user_id",friend.id).eq("status","accepted"),
       supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",friend.id),
+      supabase.from("point_bonuses").select("points").eq("user_id",friend.id),
     ]);
-    setResults(r||[]);setTrainings(t||[]);
+    setResults(r||[]);setTrainings(t||[]);setBonuses(bs||[]);
     if(prof)setFullProfile(prof);
     setFriendCount(fc||0);setGroupsCreated(gc||0);
     const friendIds=(fs||[]).map(f=>f.friend_id);
@@ -6148,7 +6236,8 @@ function FriendProfileModal({friend,myId,onClose}){
 
   const seasonResults=results.filter(r=>r.year===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
-  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings);
+  const friendBonusPts=(bonuses||[]).reduce((s,b)=>s+(b.points||0),0);
+  const seasonPts=sumBestPts(seasonResults)+seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings)+friendBonusPts;
   const lv=getSeasonLevel(seasonPts);
   const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
 
