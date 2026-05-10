@@ -5494,7 +5494,7 @@ function ActuTab({myProfile,onNotifsChange}){
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{flexShrink:0,padding:"0 16px"}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Actu</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Club</div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
@@ -6330,7 +6330,7 @@ function FriendProfileModal({friend,myId,onClose}){
 function NavBar({tab,onChange,notifCount=0}){
   const items=[
     {k:"home",    icon:"🏠",label:"Home"},
-    {k:"actu",    icon:"📰",label:"Actu"},
+    {k:"actu",    icon:"📰",label:"Club"},
     {k:"ranking", icon:"🏆",label:"Rank"},
     {k:"training",icon:"🏋️",label:"Training"},
     {k:"perf",    icon:"📈",label:"Stats"},
