@@ -4948,7 +4948,7 @@ function UpcomingRaceCard({ race, onTap }) {
   const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
   const targetStr = intervalToHHMMSS(race.target_time);
   return (
-    <button onClick={onTap} style={{display:"block",width:"100%",textAlign:"left",cursor:"pointer",background:`linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`,border:`1px solid ${badgeColor}55`,borderRadius:20,marginBottom:10,padding:0,overflow:"hidden",font:"inherit",color:"inherit"}}>
+    <button onClick={onTap} style={{display:"block",flexShrink:0,width:280,textAlign:"left",cursor:"pointer",background:`linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`,border:`1px solid ${badgeColor}55`,borderRadius:20,padding:0,overflow:"hidden",font:"inherit",color:"inherit"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",position:"relative"}}>
         <div style={{width:46,height:46,borderRadius:14,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{disc?.icon || "🏁"}</div>
         <div style={{flex:1,minWidth:0,paddingRight:64}}>
@@ -5252,7 +5252,7 @@ function FilPanel({ myProfile }) {
           <div style={{fontSize:11,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginTop:6,lineHeight:1.45}}>Tap "+" sur le Home → "Course à venir" pour en déclarer une.</div>
         </div>
       ) : (
-        <div style={{marginBottom:18}}>
+        <div style={{display:"flex",gap:10,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginBottom:18,paddingBottom:4}}>
           {upcomingRaces.map(r => (
             <UpcomingRaceCard key={r.id} race={r} onTap={()=>setSelectedUpcoming(r)}/>
           ))}
