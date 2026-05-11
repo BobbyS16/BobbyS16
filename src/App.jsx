@@ -341,12 +341,16 @@ async function getActiveFriendIds(userId) {
 
 async function computeSeasonPtsMap(userIds, season) {
   if (userIds.length === 0) return {};
-  const [resR, trR] = await Promise.all([
+  const [resR, trR, bR] = await Promise.all([
     supabase.from("results").select("*").in("user_id", userIds),
     supabase.from("trainings").select("*").in("user_id", userIds),
+    supabase.from("point_bonuses").select("user_id,points,bonus_type,metadata,created_at").in("user_id", userIds),
   ]);
   const allRes = resR.data || [];
   const allTr = trR.data || [];
+  const allBonuses = bR.data || [];
+  const resultsById = Object.fromEntries(allRes.map(r => [r.id, r]));
+  const dbBonusByUser = bonusPtsByUserForSeason(allBonuses, season, resultsById);
   const map = {};
   for (const uid of userIds) {
     const userAllRes = allRes.filter(r => r.user_id === uid);
@@ -356,7 +360,7 @@ async function computeSeasonPtsMap(userIds, season) {
     const racePts = sumBestPts(seasonRes);
     const trainPts = seasonTr.reduce((s,t) => s + effectiveTrainingPts(t), 0);
     const bonusPts = raceBonusPts(seasonRes, userAllRes) + trainingBonusPts(seasonTr);
-    map[uid] = racePts + trainPts + bonusPts;
+    map[uid] = racePts + trainPts + bonusPts + (dbBonusByUser[uid] || 0);
   }
   return map;
 }
@@ -1375,9 +1379,10 @@ async function runScoreNotifsDetection({ userId, beforeTotal, afterTotal }) {
         supabase.from("profiles").select("id,name").in("id", friendIds),
         supabase.from("results").select("*").in("user_id", friendIds),
         supabase.from("trainings").select("user_id,date,sport,distance,duration,points").in("user_id", friendIds),
-        supabase.from("point_bonuses").select("user_id,points").in("user_id", friendIds),
+        supabase.from("point_bonuses").select("user_id,points,bonus_type,metadata,created_at").in("user_id", friendIds),
       ]);
-      const fBonusByUser = (fBonuses || []).reduce((acc, b) => { acc[b.user_id] = (acc[b.user_id]||0) + (b.points||0); return acc; }, {});
+      const fResultsById = Object.fromEntries((fResults || []).map(r => [r.id, r]));
+      const fBonusByUser = bonusPtsByUserForSeason(fBonuses, CY, fResultsById);
       const friendsWithPts = (fProfiles || []).map(p => {
         const fAllRes = (fResults || []).filter(r => r.user_id === p.id);
         const fSeasonRes = fAllRes.filter(r => rYear(r) === CY);
@@ -1423,9 +1428,10 @@ async function runScoreNotifsDetection({ userId, beforeTotal, afterTotal }) {
             supabase.from("profiles").select("id,name").in("id", memberIds),
             supabase.from("results").select("*").in("user_id", memberIds),
             supabase.from("trainings").select("user_id,date,sport,distance,duration,points").in("user_id", memberIds),
-            supabase.from("point_bonuses").select("user_id,points").in("user_id", memberIds),
+            supabase.from("point_bonuses").select("user_id,points,bonus_type,metadata,created_at").in("user_id", memberIds),
           ]);
-          const lBonusByUser = (lBonuses || []).reduce((acc, b) => { acc[b.user_id] = (acc[b.user_id]||0) + (b.points||0); return acc; }, {});
+          const lResultsById = Object.fromEntries((lResults || []).map(r => [r.id, r]));
+          const lBonusByUser = bonusPtsByUserForSeason(lBonuses, CY, lResultsById);
           const others = (lProfiles || []).map(p => {
             const allRes = (lResults || []).filter(r => r.user_id === p.id);
             const seasonRes = allRes.filter(r => rYear(r) === CY);
@@ -1563,12 +1569,13 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
     const [{ data: r }, { data: t }, { data: b }] = await Promise.all([
       supabase.from("results").select("*").eq("user_id", userId),
       supabase.from("trainings").select("*").eq("user_id", userId),
-      supabase.from("point_bonuses").select("points").eq("user_id", userId),
+      supabase.from("point_bonuses").select("points,bonus_type,metadata,created_at").eq("user_id", userId),
     ]);
     const allRes = r || [], allTrs = t || [];
     const seasonRes = allRes.filter(x => rYear(x) === CY);
     const seasonTrs = allTrs.filter(x => new Date(x.date).getFullYear() === CY);
-    const bonusPts = (b || []).reduce((s, row) => s + (row.points || 0), 0);
+    const resultsById = Object.fromEntries(allRes.map(x => [x.id, x]));
+    const bonusPts = sumBonusForSeason(b, CY, resultsById);
     return sumBestPts(seasonRes)
          + seasonTrs.reduce((s, x) => s + effectiveTrainingPts(x), 0)
          + raceBonusPts(seasonRes, allRes)
@@ -2129,6 +2136,45 @@ function HowItWorksModal({onClose}){
 
 // ── HOME TAB ──────────────────────────────────────────────────────────────────
 const rYear=r=>r.race_date?parseInt(r.race_date.slice(0,4)):(r.year||CY);
+
+// Année logique d'un bonus DB (point_bonuses) :
+// - pr_beaten : année de la course liée (race_date via metadata.result_id)
+// - weekly_streak : année de metadata.week_start
+// - signup / invitation / autres : année de created_at
+// resultsById : { [result.id]: result } pour résoudre pr_beaten.
+function bonusSeason(bonus, resultsById){
+  const md = bonus.metadata || {};
+  if (bonus.bonus_type === "pr_beaten" && resultsById && md.result_id){
+    const r = resultsById[md.result_id];
+    if (r){
+      if (r.race_date) return parseInt(r.race_date.slice(0,4));
+      if (r.year) return r.year;
+    }
+  }
+  if (bonus.bonus_type === "weekly_streak" && md.week_start){
+    const y = parseInt(String(md.week_start).slice(0,4));
+    if (!isNaN(y)) return y;
+  }
+  if (bonus.created_at){
+    const y = new Date(bonus.created_at).getFullYear();
+    if (!isNaN(y)) return y;
+  }
+  return CY;
+}
+function sumBonusForSeason(bonuses, season, resultsById){
+  return (bonuses||[])
+    .filter(b => bonusSeason(b, resultsById) === season)
+    .reduce((s,b) => s + (b.points||0), 0);
+}
+function bonusPtsByUserForSeason(bonuses, season, resultsById){
+  const acc = {};
+  (bonuses||[]).forEach(b => {
+    if (bonusSeason(b, resultsById) === season){
+      acc[b.user_id] = (acc[b.user_id]||0) + (b.points||0);
+    }
+  });
+  return acc;
+}
 
 // ── NOTIFS — registre de types ────────────────────────────────────────────────
 // Libellés legacy : utilisés en fallback quand `payload IS NULL` (notifs créées
@@ -2898,7 +2944,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const [classifModalOpen,setClassifModalOpen]=useState(false);
   const [classifToast,setClassifToast]=useState("");
   const [friendIds,setFriendIds]=useState(new Set());
-  const [myBonusPts,setMyBonusPts]=useState(0);
+  const [myBonuses,setMyBonuses]=useState([]);
 
   const loadPendingClassif = useCallback(async () => {
     if (!userId) return;
@@ -2964,8 +3010,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     if(!userId)return;
     supabase.from("friendships").select("friend_id").eq("user_id",userId).eq("status","accepted")
       .then(({data})=>setFriendIds(new Set((data||[]).map(f=>f.friend_id))));
-    supabase.from("point_bonuses").select("points").eq("user_id",userId)
-      .then(({data})=>setMyBonusPts((data||[]).reduce((s,b)=>s+(b.points||0),0)));
+    supabase.from("point_bonuses").select("points,bonus_type,metadata,created_at").eq("user_id",userId)
+      .then(({data})=>setMyBonuses(data||[]));
   },[userId,refreshKey]);
 
   const loadMyGroups=useCallback(async()=>{
@@ -3021,12 +3067,13 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     const{data:allResultsFull}=await supabase.from("results").select("*");
     const{data:allProfilesRaw}=await supabase.from("profiles").select("*");
     const{data:allTrainings}=await supabase.from("trainings").select("user_id,sport,distance,duration,points,date");
-    const{data:allBonuses}=await supabase.from("point_bonuses").select("user_id,points");
+    const{data:allBonuses}=await supabase.from("point_bonuses").select("user_id,points,bonus_type,metadata,created_at");
     if(!allResultsFull||!allProfilesRaw)return;
     const allProfiles=allProfilesRaw.filter(p=>!p.ranking_hidden);
     const allResults=allResultsFull.filter(r=>rYear(r)===season);
     const seasonTrainings=(allTrainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
-    const bonusByUser=(allBonuses||[]).reduce((acc,b)=>{acc[b.user_id]=(acc[b.user_id]||0)+(b.points||0);return acc;},{});
+    const resultsById=Object.fromEntries((allResultsFull||[]).map(r=>[r.id,r]));
+    const bonusByUser=bonusPtsByUserForSeason(allBonuses,season,resultsById);
 
     if(rankFilter==="ligue"){
       const now=new Date();
@@ -3122,6 +3169,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const seasonResults=results.filter(r=>rYear(r)===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
   const trainingPts=seasonTrainings.reduce((s,t)=>s+(t.points||0),0);
+  const myResultsById=useMemo(()=>Object.fromEntries((results||[]).map(r=>[r.id,r])),[results]);
+  const myBonusPts=useMemo(()=>sumBonusForSeason(myBonuses,season,myResultsById),[myBonuses,season,myResultsById]);
   const totalPts=sumBestPts(seasonResults)+trainingPts+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings)+myBonusPts;
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
@@ -3370,11 +3419,12 @@ function RankingTab({myProfile}){
     const profiles=(profilesRaw||[]).filter(p=>!p.ranking_hidden);
     const{data:results}=await supabase.from("results").select("*");
     const{data:trainings}=await supabase.from("trainings").select("user_id,date,points");
-    const{data:bonusesRaw}=await supabase.from("point_bonuses").select("user_id,points");
+    const{data:bonusesRaw}=await supabase.from("point_bonuses").select("user_id,points,bonus_type,metadata,created_at");
     if(!profiles||!results){setLoading(false);return;}
     const seasonResults=results.filter(r=>rYear(r)===season);
     const seasonTrainings=(trainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
-    const bonusByUser=(bonusesRaw||[]).reduce((acc,b)=>{acc[b.user_id]=(acc[b.user_id]||0)+(b.points||0);return acc;},{});
+    const resultsById=Object.fromEntries((results||[]).map(r=>[r.id,r]));
+    const bonusByUser=bonusPtsByUserForSeason(bonusesRaw,season,resultsById);
     const pool=profiles;
     let display=pool.map(p=>{
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
@@ -5649,10 +5699,11 @@ function ActuTab({myProfile,onNotifsChange}){
       supabase.from("profiles").select("id,name,avatar,city,birth_year").in("id",ids),
       supabase.from("results").select("*").in("user_id",allIds),
       supabase.from("trainings").select("*").in("user_id",allIds),
-      supabase.from("point_bonuses").select("user_id,points").in("user_id",allIds),
+      supabase.from("point_bonuses").select("user_id,points,bonus_type,metadata,created_at").in("user_id",allIds),
     ]);
     const byId=Object.fromEntries((profiles||[]).map(p=>[p.id,p]));
-    const bonusByUser=(bonusesRaw||[]).reduce((acc,b)=>{acc[b.user_id]=(acc[b.user_id]||0)+(b.points||0);return acc;},{});
+    const resultsById=Object.fromEntries((res||[]).map(r=>[r.id,r]));
+    const bonusByUser=bonusPtsByUserForSeason(bonusesRaw,CY,resultsById);
     const ptsByUser={};
     for (const uid of allIds) {
       const uRes=(res||[]).filter(r=>r.user_id===uid);
