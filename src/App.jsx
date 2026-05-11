@@ -6288,16 +6288,42 @@ function ProfileModal({profile,results,onRefresh,onClose}){
 }
 
 // ── FRIEND PROFILE MODAL ──────────────────────────────────────────────────────
-// Libellés des bonus rattachés à une course précise (via metadata.result_id).
-// Pour l'instant seul pr_beaten existe ; le mapping reste extensible.
+// Libellés des bonus stockés en DB et rattachés à une course (metadata.result_id).
 const RACE_BONUS_LABELS = {
   pr_beaten: "🏆 PR battu",
 };
 
-// Ligne d'une course d'ami : info + total pts. Si des bonus sont attachés à
-// cette course (pr_beaten via metadata.result_id), affiche un ▼ cliquable qui
-// déplie un encart vert avec le détail des bonus — même esprit que le
-// PointsBreakdown global.
+// Bonus calculés côté client pour une course donnée — alignés sur raceBonusPts
+// (qui les agrège pour le total saison). Une course peut cumuler :
+//   - +100 pts si c'est un record personnel sur la discipline (aucune course
+//     antérieure de la même discipline n'a fait mieux). Empty earlier ⇒ true.
+//   - +30 pts si c'est la 1ʳᵉ course de l'année (la plus ancienne par date).
+function clientBonusesForRace(race, allUserResults) {
+  const list = [];
+  const rd = resultDate(race);
+  const earlier = (allUserResults || []).filter(x => {
+    if (x.id === race.id || x.discipline !== race.discipline) return false;
+    const xd = resultDate(x);
+    return xd && rd && xd < rd;
+  });
+  if (earlier.every(p => p.time > race.time)) {
+    list.push({key:"pr_client", label:"🏆 Record personnel battu", points:100});
+  }
+  const ry = rYear(race);
+  const sameSeason = (allUserResults || []).filter(x => rYear(x) === ry && resultDate(x));
+  if (sameSeason.length > 0) {
+    const earliest = [...sameSeason].sort((a,b) => resultDate(a).localeCompare(resultDate(b)))[0];
+    if (earliest && earliest.id === race.id) {
+      list.push({key:"first_season", label:"🚀 1ʳᵉ course de la saison", points:30});
+    }
+  }
+  return list;
+}
+
+// Ligne d'une course d'ami : info + total pts. Si des bonus s'appliquent à
+// cette course (PR / 1ʳᵉ course saison côté client + pr_beaten DB), affiche
+// un ▼ cliquable qui déplie un encart vert listant chaque bonus — même esprit
+// que le PointsBreakdown global.
 function FriendRaceRow({race, bonuses}) {
   const [expanded, setExpanded] = useState(false);
   const pts = calcPoints(race.discipline, race.time, race.elevation);
@@ -6336,15 +6362,12 @@ function FriendRaceRow({race, bonuses}) {
           }}
         >
           <div style={{background:"rgba(74,222,128,0.08)",border:"1px solid rgba(74,222,128,0.25)",borderRadius:10,padding:"6px 12px"}}>
-            {bonuses.map((b, i) => {
-              const label = RACE_BONUS_LABELS[b.bonus_type] || b.bonus_type;
-              return (
-                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontFamily:"'Barlow',sans-serif",borderTop: i===0?"none":"1px solid rgba(255,255,255,0.04)"}}>
-                  <div style={{fontSize:12,color:"rgba(240,237,232,0.85)"}}>{label}</div>
-                  <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:"#4ADE80",letterSpacing:0.5}}>+{b.points} pts</div>
-                </div>
-              );
-            })}
+            {bonuses.map((b, i) => (
+              <div key={b.key || i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontFamily:"'Barlow',sans-serif",borderTop: i===0?"none":"1px solid rgba(255,255,255,0.04)"}}>
+                <div style={{fontSize:12,color:"rgba(240,237,232,0.85)"}}>{b.label}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:"#4ADE80",letterSpacing:0.5}}>+{b.points} pts</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -6490,11 +6513,22 @@ function FriendProfileModal({friend,myId,onClose}){
     acc[k].count++;acc[k].points+=b.points||0;
     return acc;
   },{});
-  const bonusesByResultId=(bonuses||[]).reduce((acc,b)=>{
+  // Bonus rattachables à une course donnée : client-side (PR / 1ʳᵉ saison)
+  // + DB (pr_beaten via metadata.result_id). Affichés dans FriendRaceRow.
+  const bonusesByResultId={};
+  results.forEach(r=>{
+    const cl=clientBonusesForRace(r,results);
+    if(cl.length>0) bonusesByResultId[r.id]=cl.slice();
+  });
+  (bonuses||[]).forEach(b=>{
     const rid=b.metadata?.result_id;
-    if(rid){(acc[rid]=acc[rid]||[]).push(b);}
-    return acc;
-  },{});
+    if(!rid) return;
+    (bonusesByResultId[rid]=bonusesByResultId[rid]||[]).push({
+      key:b.bonus_type,
+      label:RACE_BONUS_LABELS[b.bonus_type]||b.bonus_type,
+      points:b.points,
+    });
+  });
   const seasonPts=trainPtsBreakdown+racePtsBreakdown+friendBonusPts;
   const lv=getSeasonLevel(seasonPts);
   const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
