@@ -5844,7 +5844,6 @@ function BadgesByCategory({badges}){
 function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
   const BONUS_LABELS = {
     signup:        {label:"Bonus inscription",  unit:5,  multi:false},
-    profile_photo: {label:"Bonus photo",        unit:5,  multi:false},
     invitation:    {label:"Bonus invitations",  unit:5,  multi:true,  noun:"ami"},
     weekly_streak: {label:"Bonus streak",       unit:5,  multi:true,  noun:"semaine"},
     pr_beaten:     {label:"Bonus PR",           unit:20, multi:true,  noun:"PR battu"},
