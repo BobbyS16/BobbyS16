@@ -2077,8 +2077,8 @@ function HowItWorksModal({onClose}){
       </Section>
 
       <Section title="6 · Le Streak">
-        <P>Le streak compte le nombre de <span style={{color:"#F0EDE8",fontWeight:700}}>semaines consécutives</span> avec au moins une activité enregistrée (course ou entraînement).</P>
-        <P>Tant que tu fais bouger la machine au moins une fois par semaine, ton streak grimpe. Si tu rates une semaine entière, il repart à zéro.</P>
+        <P>Le streak compte le nombre de <span style={{color:"#F0EDE8",fontWeight:700}}>semaines consécutives</span> avec au moins <span style={{color:"#F0EDE8",fontWeight:700}}>3 entraînements</span> enregistrés.</P>
+        <P>Tu touches <span style={{color:"#E63946",fontWeight:700}}>+5 pts</span> chaque lundi pour la semaine qui vient de se terminer si tu as fait ≥3 entraînements, et que la semaine d'avant en avait aussi ≥3. Si tu descends sous la barre, le streak repart à zéro.</P>
       </Section>
 
       <Section title="7 · Les Ligues">
