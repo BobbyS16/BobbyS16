@@ -4815,7 +4815,51 @@ function StatCell({ label, value, valueColor }) {
 // Ref visuelle : pacerank-activites-recentes.html.
 // (Le nom ActivityCard est déjà pris ailleurs dans App.jsx pour un autre
 // composant interactif lié au profil — d'où le suffix Card.)
-function FeedCard({ entry, firstComment, likeCount = 0, likedByMe = false, commentCount = 0, onToggleLike, onOpenComments }) {
+// Construit le texte "Toi + X autres" / "Hugo, Marc" à droite de la barre engagement.
+function buildPyroPreview(pyroters, myId) {
+  if (!pyroters || pyroters.length === 0) return "";
+  const me = pyroters.find(p => p.id === myId);
+  const others = pyroters.filter(p => p.id !== myId);
+  if (me) {
+    const n = others.length;
+    if (n === 0) return "Toi";
+    return `Toi + ${n} autre${n > 1 ? "s" : ""}`;
+  }
+  const firstNames = others.map(p => (p.name || "").trim().split(/\s+/)[0] || "?");
+  if (firstNames.length <= 2) return firstNames.join(", ");
+  return `${firstNames[0]}, ${firstNames[1]} +${firstNames.length - 2}`;
+}
+
+// Bouton flamme animé. Optimistic toggle géré par le parent.
+function PyroButton({ count, active, onToggle }) {
+  const flameRef = useRef(null);
+  const handle = (ev) => {
+    ev.stopPropagation();
+    if (flameRef.current?.animate) {
+      flameRef.current.animate(
+        [
+          { transform: "scale(1) rotate(0deg)" },
+          { transform: "scale(1.4) rotate(-8deg)", offset: 0.5 },
+          { transform: "scale(1.15) rotate(0deg)" },
+        ],
+        { duration: 600, easing: "cubic-bezier(0.34, 1.56, 0.64, 1)" }
+      );
+    }
+    try { navigator.vibrate?.(10); } catch {}
+    onToggle?.();
+  };
+  return (
+    <button
+      onClick={handle}
+      style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:10,background:active?"rgba(237,42,55,0.15)":"transparent",border:`1px solid ${active?"rgba(237,42,55,0.4)":"rgba(255,255,255,0.08)"}`,color:active?"#ED2A37":"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
+    >
+      <span ref={flameRef} style={{fontSize:14,lineHeight:1,display:"inline-block",filter:active?"none":"grayscale(1) brightness(0.6)",transition:"filter 0.2s"}}>🔥</span>
+      <span>{count}</span>
+    </button>
+  );
+}
+
+function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyroters = [], myId, commentCount = 0, onTogglePyro, onOpenSheet }) {
   const e = entry.data;
   const fam = activityFamily(entry);
   const badgeColor = ACTIVITY_BADGE_COLORS[fam.family] || ACTIVITY_BADGE_COLORS.run;
@@ -4825,10 +4869,15 @@ function FeedCard({ entry, firstComment, likeCount = 0, likedByMe = false, comme
     : (DISCIPLINES[e.discipline]?.label || e.discipline) + (e.race ? ` · ${e.race}` : "");
 
   // La couleur de la card matche celle du sport (bordure + léger fond teinté)
-  // pour une lecture rapide du type d'activité dans le fil.
+  // pour une lecture rapide du type d'activité dans le fil. Si l'activité a
+  // au moins un pyro, on superpose une légère teinte rouge sur la bordure
+  // pour la rendre plus visible dans le fil.
   const cardBg = `linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`;
-  const cardBorder = `1px solid ${badgeColor}55`;
+  const cardBorder = pyroCount >= 1
+    ? `1px solid rgba(237, 42, 55, 0.35)`
+    : `1px solid ${badgeColor}55`;
   const innerSeparator = `1px solid ${badgeColor}30`;
+  const preview = buildPyroPreview(pyroters, myId);
   return (
     <div style={{background:cardBg,border:cardBorder,borderRadius:20,marginBottom:12,overflow:"hidden"}}>
       {/* Header */}
@@ -4857,22 +4906,24 @@ function FeedCard({ entry, firstComment, likeCount = 0, likedByMe = false, comme
         <StatCell label="Pts"             value={stats.points} valueColor="#4ADE80"/>
       </div>
 
-      {/* Actions : like + commentaire */}
+      {/* Barre engagement : pyro + commentaires + preview "Toi + X autres" */}
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",borderTop:innerSeparator}}>
+        <PyroButton count={pyroCount} active={pyrotedByMe} onToggle={onTogglePyro}/>
         <button
-          onClick={(e2)=>{e2.stopPropagation();onToggleLike?.();}}
-          style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:10,background:likedByMe?"rgba(237,42,55,0.15)":"transparent",border:`1px solid ${likedByMe?"rgba(237,42,55,0.4)":"rgba(255,255,255,0.08)"}`,color:likedByMe?"#ED2A37":"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
-        >
-          <span style={{fontSize:14,lineHeight:1}}>{likedByMe?"❤️":"🤍"}</span>
-          <span>{likeCount}</span>
-        </button>
-        <button
-          onClick={(e2)=>{e2.stopPropagation();onOpenComments?.();}}
+          onClick={(e2)=>{e2.stopPropagation();onOpenSheet?.();}}
           style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:10,background:"transparent",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
         >
           <span style={{fontSize:14,lineHeight:1}}>💬</span>
           <span>{commentCount}</span>
         </button>
+        {preview && (
+          <button
+            onClick={(e2)=>{e2.stopPropagation();onOpenSheet?.();}}
+            style={{marginLeft:"auto",fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.45)",background:"transparent",border:"none",cursor:"pointer",padding:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:140}}
+          >
+            {preview}
+          </button>
+        )}
       </div>
 
       {/* 1er commentaire inline */}
@@ -5129,95 +5180,138 @@ function PronosTab({ myProfile }) {
   );
 }
 
-// CommentsModal — affiche tous les commentaires d'une activité + permet
-// d'en écrire un nouveau. activityType ∈ {training, result}.
-function CommentsModal({ myProfile, activityType, activityId, headerUser, headerTitle, onClose, onChanged }) {
-  const [items, setItems] = useState([]);
+// EngagementSheet — modale détail pyros + commentaires pour une activité.
+// Charge en parallèle la liste des pyroteurs (avec leurs profils) et la liste
+// des commentaires. Titre : "🔥 N PYROS · 💬 N MESSAGES".
+function EngagementSheet({ myProfile, activityType, activityId, headerUser, headerTitle, onClose, onChanged }) {
+  const [pyros, setPyros] = useState([]);
+  const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("activity_comments")
-      .select("id,user_id,content,created_at")
-      .eq("activity_type", activityType).eq("activity_id", activityId)
-      .order("created_at", { ascending: true });
-    const userIds = [...new Set((data || []).map(c => c.user_id))];
+    const [pyR, coR] = await Promise.all([
+      supabase.from("pyros")
+        .select("user_id,created_at")
+        .eq("activity_type", activityType).eq("activity_id", activityId)
+        .order("created_at", { ascending: false }),
+      supabase.from("comments")
+        .select("id,user_id,content,created_at")
+        .eq("activity_type", activityType).eq("activity_id", activityId)
+        .order("created_at", { ascending: true }),
+    ]);
+    const userIds = [...new Set([
+      ...((pyR.data || []).map(p => p.user_id)),
+      ...((coR.data || []).map(c => c.user_id)),
+    ])];
     let userMap = {};
     if (userIds.length > 0) {
       const { data: users } = await supabase.from("profiles")
         .select("id,name,avatar").in("id", userIds);
       userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
     }
-    setItems((data || []).map(c => ({ ...c, author: userMap[c.user_id] })));
+    setPyros((pyR.data || []).map(p => ({ ...p, author: userMap[p.user_id] })));
+    setComments((coR.data || []).map(c => ({ ...c, author: userMap[c.user_id] })));
     setLoading(false);
   };
   useEffect(() => { load(); }, [activityType, activityId]);
 
   const submit = async () => {
     const content = text.trim();
-    if (!content || !myProfile?.id) return;
+    if (!content || !myProfile?.id || content.length > 500) return;
     setSubmitting(true);
-    const { data, error } = await supabase.from("activity_comments")
+    const { data, error } = await supabase.from("comments")
       .insert({ user_id: myProfile.id, activity_type: activityType, activity_id: activityId, content })
       .select().single();
     setSubmitting(false);
     if (error) return;
-    setItems(prev => [...prev, { ...data, author: { id: myProfile.id, name: myProfile.name, avatar: myProfile.avatar } }]);
+    setComments(prev => [...prev, { ...data, author: { id: myProfile.id, name: myProfile.name, avatar: myProfile.avatar } }]);
     setText("");
     onChanged?.();
   };
 
-  const remove = async (id) => {
-    await supabase.from("activity_comments").delete().eq("id", id);
-    setItems(prev => prev.filter(c => c.id !== id));
+  const removeComment = async (id) => {
+    await supabase.from("comments").delete().eq("id", id);
+    setComments(prev => prev.filter(c => c.id !== id));
     onChanged?.();
   };
+
+  const overLimit = text.length > 500;
+  const showCounter = text.length > 400;
 
   return (
     <Modal onClose={onClose}>
       <div style={{padding:"4px 0 12px",borderBottom:"1px solid #232323",marginBottom:12}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",lineHeight:1.1}}>Commentaires</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",lineHeight:1.1}}>
+          🔥 {pyros.length} PYRO{pyros.length>1?"S":""} · 💬 {comments.length} MESSAGE{comments.length>1?"S":""}
+        </div>
         {headerTitle && <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.5)",marginTop:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{headerUser ? `${shortName(headerUser?.name)} · ` : ""}{headerTitle}</div>}
       </div>
 
       {loading ? (
         <div style={{padding:"24px 0",textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
-      ) : items.length === 0 ? (
-        <div style={{padding:"22px 14px",textAlign:"center",background:"rgba(255,255,255,0.03)",borderRadius:14,border:"1px solid rgba(255,255,255,0.05)",marginBottom:14}}>
-          <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif"}}>Aucun commentaire pour l'instant.</div>
-        </div>
       ) : (
-        <div style={{marginBottom:14,maxHeight:340,overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
-          {items.map(c => (
-            <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-              <Avatar profile={c.author} size={32}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8"}}>{shortName(c.author?.name)}</div>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.85)",marginTop:2,lineHeight:1.4,wordBreak:"break-word"}}>{c.content}</div>
+        <div style={{maxHeight:"58vh",overflowY:"auto",WebkitOverflowScrolling:"touch",marginBottom:14}}>
+          {/* Section Pyros */}
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:12,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:8,textTransform:"uppercase"}}>Pyros</div>
+          {pyros.length === 0 ? (
+            <div style={{padding:"12px 0",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Personne n'a encore pyroté cette activité.</div>
+          ) : (
+            pyros.map(p => {
+              const isMe = p.user_id === myProfile?.id;
+              return (
+                <div key={p.user_id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                  <Avatar profile={p.author} size={32}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8"}}>{isMe?"Toi":shortName(p.author?.name)}</div>
+                    <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.45)",marginTop:1}}>{fmtRelativeDate(p.created_at)}</div>
+                  </div>
+                  <span style={{fontSize:18,flexShrink:0}}>🔥</span>
+                </div>
+              );
+            })
+          )}
+
+          {/* Section Commentaires */}
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:12,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginTop:18,marginBottom:8,textTransform:"uppercase"}}>Commentaires</div>
+          {comments.length === 0 ? (
+            <div style={{padding:"12px 0",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Aucun commentaire pour l'instant.</div>
+          ) : (
+            comments.map(c => (
+              <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+                <Avatar profile={c.author} size={32}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8"}}>{shortName(c.author?.name)} <span style={{fontWeight:400,fontSize:11,color:"rgba(240,237,232,0.45)",marginLeft:6}}>{fmtRelativeDate(c.created_at)}</span></div>
+                  <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.85)",marginTop:2,lineHeight:1.4,wordBreak:"break-word"}}>{c.content}</div>
+                </div>
+                {c.user_id === myProfile?.id && (
+                  <button onClick={()=>removeComment(c.id)} aria-label="Supprimer" style={{padding:"3px 7px",borderRadius:8,background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",cursor:"pointer",fontSize:13,flexShrink:0}}>✕</button>
+                )}
               </div>
-              {c.user_id === myProfile?.id && (
-                <button onClick={()=>remove(c.id)} aria-label="Supprimer" style={{padding:"3px 7px",borderRadius:8,background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",cursor:"pointer",fontSize:13,flexShrink:0}}>✕</button>
-              )}
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {/* Input nouveau commentaire */}
-      <div style={{display:"flex",gap:8,marginBottom:8}}>
-        <input
+      <div style={{display:"flex",gap:8,marginBottom:6,alignItems:"flex-start"}}>
+        <textarea
           value={text}
           onChange={e=>setText(e.target.value)}
-          placeholder="Écris un commentaire…"
+          placeholder="Ajouter un message…"
+          rows={1}
           onKeyDown={e=>{ if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-          style={{flex:1,minWidth:0,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box"}}
+          style={{flex:1,minWidth:0,background:"rgba(255,255,255,0.05)",border:`1px solid ${overLimit?"rgba(237,42,55,0.6)":"rgba(255,255,255,0.1)"}`,borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",resize:"none"}}
         />
-        <button onClick={submit} disabled={!text.trim() || submitting} style={{flexShrink:0,padding:"0 16px",borderRadius:12,background:text.trim()?"#ED2A37":"rgba(255,255,255,0.06)",color:text.trim()?"#fff":"rgba(240,237,232,0.4)",border:"none",cursor:text.trim()?"pointer":"default",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13}}>
-          {submitting ? "…" : "Envoyer"}
+        <button onClick={submit} disabled={!text.trim() || submitting || overLimit} aria-label="Envoyer" style={{flexShrink:0,width:42,height:42,borderRadius:12,background:text.trim()&&!overLimit?"#ED2A37":"rgba(255,255,255,0.06)",color:text.trim()&&!overLimit?"#fff":"rgba(240,237,232,0.4)",border:"none",cursor:text.trim()&&!overLimit?"pointer":"default",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {submitting ? "…" : "↑"}
         </button>
       </div>
+      {showCounter && (
+        <div style={{textAlign:"right",fontSize:11,color:overLimit?"#ED2A37":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginBottom:6}}>{text.length} / 500</div>
+      )}
 
       <Btn onClick={onClose} variant="secondary" mb={0}>Fermer</Btn>
       <div style={{height:"calc(20px + env(safe-area-inset-bottom))"}}/>
@@ -5425,41 +5519,42 @@ function FilPanel({ myProfile }) {
   const [feed, setFeed] = useState([]);
   const [commentsByActivity, setCommentsByActivity] = useState({}); // 1er comment par activity (rendu inline)
   const [commentCountByActivity, setCommentCountByActivity] = useState({}); // total count par activity
-  const [likesByActivity, setLikesByActivity] = useState({}); // { key: { count, likedByMe } }
+  // Map clé "kind:id" → { count, pyrotedByMe, pyroters: [{id,name}, ...] (DESC) }
+  const [pyrosByActivity, setPyrosByActivity] = useState({});
   const [upcomingRaces, setUpcomingRaces] = useState([]);
   const [selectedUpcoming, setSelectedUpcoming] = useState(null);
-  const [openComments, setOpenComments] = useState(null); // { kind, activityId, user, title }
+  const [openSheet, setOpenSheet] = useState(null); // { kind, activityId, user, title }
   const [loading, setLoading] = useState(true);
 
-  // Toggle like : insert si pas liké, delete si liké. Update optimistic
-  // côté client pour feedback instantané.
-  const toggleLike = async (akind, activityId, currentlyLiked) => {
+  // Toggle pyro : insert/delete sur public.pyros. Optimistic update côté
+  // client (compteur + pyroters), rollback si erreur.
+  const togglePyro = async (akind, activityId, currentlyPyroted) => {
     if (!myProfile?.id) return;
     const key = `${akind}:${activityId}`;
-    setLikesByActivity(prev => {
-      const existing = prev[key] || { count: 0, likedByMe: false };
-      const next = currentlyLiked
-        ? { count: Math.max(0, existing.count - 1), likedByMe: false }
-        : { count: existing.count + 1, likedByMe: true };
+    const meEntry = { id: myProfile.id, name: myProfile.name };
+    setPyrosByActivity(prev => {
+      const cur = prev[key] || { count: 0, pyrotedByMe: false, pyroters: [] };
+      const next = currentlyPyroted
+        ? { count: Math.max(0, cur.count - 1), pyrotedByMe: false, pyroters: cur.pyroters.filter(p => p.id !== myProfile.id) }
+        : { count: cur.count + 1, pyrotedByMe: true, pyroters: [meEntry, ...cur.pyroters.filter(p => p.id !== myProfile.id)] };
       return { ...prev, [key]: next };
     });
     try {
-      if (currentlyLiked) {
-        await supabase.from("activity_likes").delete()
+      if (currentlyPyroted) {
+        await supabase.from("pyros").delete()
           .eq("user_id", myProfile.id).eq("activity_type", akind).eq("activity_id", activityId);
       } else {
-        await supabase.from("activity_likes").insert({
+        await supabase.from("pyros").insert({
           user_id: myProfile.id, activity_type: akind, activity_id: activityId,
         });
       }
-    } catch (e) {
-      // Rollback en cas d'erreur
-      console.warn("[like] failed", e);
-      setLikesByActivity(prev => {
-        const existing = prev[key] || { count: 0, likedByMe: false };
-        const reverted = currentlyLiked
-          ? { count: existing.count + 1, likedByMe: true }
-          : { count: Math.max(0, existing.count - 1), likedByMe: false };
+    } catch (err) {
+      console.warn("[pyro] failed", err);
+      setPyrosByActivity(prev => {
+        const cur = prev[key] || { count: 0, pyrotedByMe: false, pyroters: [] };
+        const reverted = currentlyPyroted
+          ? { count: cur.count + 1, pyrotedByMe: true, pyroters: [meEntry, ...cur.pyroters.filter(p => p.id !== myProfile.id)] }
+          : { count: Math.max(0, cur.count - 1), pyrotedByMe: false, pyroters: cur.pyroters.filter(p => p.id !== myProfile.id) };
         return { ...prev, [key]: reverted };
       });
     }
@@ -5515,9 +5610,11 @@ function FilPanel({ myProfile }) {
         .sort((a, b) => b.sortKey - a.sortKey)
         .slice(0, 25);
 
-      // Pull commentaires + likes des activités du feed en parallèle.
+      // Pull commentaires + pyros des activités du feed en parallèle.
       // Côté commentaires on garde le 1er comment par activity (rendu inline)
-      // ET le total count. Côté likes on calcule {count, likedByMe} par activity.
+      // ET le total count. Côté pyros on calcule {count, pyrotedByMe, pyroters}
+      // par activity. Les pyroters sont les profils {id,name} pour le texte
+      // "Toi + X autres" / "Hugo, Marc" dans la barre engagement.
       const trIds = merged.filter(e => e.kind === "training").map(e => e.activityId);
       const reIds = merged.filter(e => e.kind === "result").map(e => e.activityId);
       const idsByType = [];
@@ -5526,27 +5623,31 @@ function FilPanel({ myProfile }) {
 
       const commentMap = {};
       const commentCountMap = {};
-      const likeMap = {};
+      const pyroMap = {};
       if (idsByType.length > 0) {
         const queries = [];
         for (const [atype, ids] of idsByType) {
-          queries.push(supabase.from("activity_comments")
+          queries.push(supabase.from("comments")
             .select("id,user_id,activity_type,activity_id,content,created_at")
             .eq("activity_type", atype).in("activity_id", ids)
             .order("created_at", { ascending: true }));
-          queries.push(supabase.from("activity_likes")
-            .select("user_id,activity_type,activity_id")
-            .eq("activity_type", atype).in("activity_id", ids));
+          queries.push(supabase.from("pyros")
+            .select("user_id,activity_type,activity_id,created_at")
+            .eq("activity_type", atype).in("activity_id", ids)
+            .order("created_at", { ascending: false }));
         }
         const responses = await Promise.all(queries);
-        // Les responses alternent : [comments_training, likes_training, comments_result, likes_result]
+        // Responses alternent : [comments_t, pyros_t, comments_r, pyros_r]
         const allComments = [];
-        const allLikes = [];
+        const allPyros = [];
         for (let i = 0; i < responses.length; i += 2) {
           allComments.push(...(responses[i].data || []));
-          allLikes.push(...(responses[i + 1].data || []));
+          allPyros.push(...(responses[i + 1].data || []));
         }
-        const authorIds = [...new Set(allComments.map(c => c.user_id))];
+        const authorIds = [...new Set([
+          ...allComments.map(c => c.user_id),
+          ...allPyros.map(p => p.user_id),
+        ])];
         let authorMap = {};
         if (authorIds.length > 0) {
           const { data: authors } = await supabase.from("profiles")
@@ -5558,11 +5659,13 @@ function FilPanel({ myProfile }) {
           commentCountMap[key] = (commentCountMap[key] || 0) + 1;
           if (!commentMap[key]) commentMap[key] = { ...c, author: authorMap[c.user_id] };
         }
-        for (const l of allLikes) {
-          const key = `${l.activity_type}:${l.activity_id}`;
-          if (!likeMap[key]) likeMap[key] = { count: 0, likedByMe: false };
-          likeMap[key].count++;
-          if (l.user_id === myProfile?.id) likeMap[key].likedByMe = true;
+        for (const p of allPyros) {
+          const key = `${p.activity_type}:${p.activity_id}`;
+          if (!pyroMap[key]) pyroMap[key] = { count: 0, pyrotedByMe: false, pyroters: [] };
+          pyroMap[key].count++;
+          if (p.user_id === myProfile?.id) pyroMap[key].pyrotedByMe = true;
+          const prof = authorMap[p.user_id];
+          if (prof) pyroMap[key].pyroters.push({ id: prof.id, name: prof.name });
         }
       }
 
@@ -5572,7 +5675,7 @@ function FilPanel({ myProfile }) {
         setFeed(merged);
         setCommentsByActivity(commentMap);
         setCommentCountByActivity(commentCountMap);
-        setLikesByActivity(likeMap);
+        setPyrosByActivity(pyroMap);
         setUpcomingRaces(upcoming);
         setLoading(false);
       }
@@ -5601,29 +5704,45 @@ function FilPanel({ myProfile }) {
         <UpcomingRaceDetailModal race={selectedUpcoming} myProfile={myProfile} onClose={()=>setSelectedUpcoming(null)}/>
       )}
 
-      {openComments && (
-        <CommentsModal
+      {openSheet && (
+        <EngagementSheet
           myProfile={myProfile}
-          activityType={openComments.kind}
-          activityId={openComments.activityId}
-          headerUser={openComments.user}
-          headerTitle={openComments.title}
-          onClose={()=>setOpenComments(null)}
+          activityType={openSheet.kind}
+          activityId={openSheet.activityId}
+          headerUser={openSheet.user}
+          headerTitle={openSheet.title}
+          onClose={()=>setOpenSheet(null)}
           onChanged={()=>{
-            // Recompute count — on bump localement le compteur de la card.
-            const key = `${openComments.kind}:${openComments.activityId}`;
-            setCommentCountByActivity(prev => {
-              // On refetch via une lecture rapide pour rester synchro
-              // (le insert/delete vient juste de se faire).
-              supabase.from("activity_comments")
-                .select("id", { count: "exact", head: true })
-                .eq("activity_type", openComments.kind)
-                .eq("activity_id", openComments.activityId)
-                .then(({ count }) => {
-                  setCommentCountByActivity(p2 => ({ ...p2, [key]: count || 0 }));
-                });
-              return prev;
-            });
+            // Resync compteurs (pyros + commentaires) après insert/delete.
+            const akind = openSheet.kind;
+            const aid = openSheet.activityId;
+            const key = `${akind}:${aid}`;
+            supabase.from("comments")
+              .select("id", { count: "exact", head: true })
+              .eq("activity_type", akind).eq("activity_id", aid)
+              .then(({ count }) => {
+                setCommentCountByActivity(p => ({ ...p, [key]: count || 0 }));
+              });
+            supabase.from("pyros")
+              .select("user_id,activity_type,activity_id,created_at")
+              .eq("activity_type", akind).eq("activity_id", aid)
+              .order("created_at", { ascending: false })
+              .then(async ({ data }) => {
+                const rows = data || [];
+                const userIds = [...new Set(rows.map(p => p.user_id))];
+                let userMap = {};
+                if (userIds.length > 0) {
+                  const { data: profs } = await supabase.from("profiles")
+                    .select("id,name").in("id", userIds);
+                  userMap = Object.fromEntries((profs || []).map(p => [p.id, p]));
+                }
+                const next = {
+                  count: rows.length,
+                  pyrotedByMe: rows.some(r => r.user_id === myProfile?.id),
+                  pyroters: rows.map(r => ({ id: r.user_id, name: userMap[r.user_id]?.name })).filter(p => p.name),
+                };
+                setPyrosByActivity(p => ({ ...p, [key]: next }));
+              });
           }}
         />
       )}
@@ -5641,18 +5760,20 @@ function FilPanel({ myProfile }) {
           const akind = e.kind === "training" ? "training" : "result";
           const key = `${akind}:${e.activityId}`;
           const c = commentsByActivity[key];
-          const lk = likesByActivity[key] || { count: 0, likedByMe: false };
+          const py = pyrosByActivity[key] || { count: 0, pyrotedByMe: false, pyroters: [] };
           const cc = commentCountByActivity[key] || 0;
           return (
             <FeedCard
               key={e.id}
               entry={e}
               firstComment={c}
-              likeCount={lk.count}
-              likedByMe={lk.likedByMe}
+              pyroCount={py.count}
+              pyrotedByMe={py.pyrotedByMe}
+              pyroters={py.pyroters}
+              myId={myProfile?.id}
               commentCount={cc}
-              onToggleLike={()=>toggleLike(akind, e.activityId, lk.likedByMe)}
-              onOpenComments={()=>setOpenComments({ kind: akind, activityId: e.activityId, user: e.user, title: e.kind === "training" ? (e.data.is_official_race ? (e.data.official_race_name||"Course officielle") : (e.data.title||`Sortie ${e.data.sport||""}`.trim())) : (DISCIPLINES[e.data.discipline]?.label || e.data.discipline) })}
+              onTogglePyro={()=>togglePyro(akind, e.activityId, py.pyrotedByMe)}
+              onOpenSheet={()=>setOpenSheet({ kind: akind, activityId: e.activityId, user: e.user, title: e.kind === "training" ? (e.data.is_official_race ? (e.data.official_race_name||"Course officielle") : (e.data.title||`Sortie ${e.data.sport||""}`.trim())) : (DISCIPLINES[e.data.discipline]?.label || e.data.discipline) })}
             />
           );
         })
@@ -6508,53 +6629,52 @@ function FriendRaceRow({race, bonuses}) {
 }
 
 function ActivityCard({myId,activityType,activityId,children}){
-  const [likes,setLikes]=useState([]);
+  const [pyros,setPyros]=useState([]);
   const [comments,setComments]=useState([]);
   const [showComments,setShowComments]=useState(false);
   const [text,setText]=useState("");
   const [sending,setSending]=useState(false);
-  const liked=likes.some(l=>l.user_id===myId);
+  const pyrotedByMe=pyros.some(p=>p.user_id===myId);
 
-  useEffect(()=>{loadLikes();loadComments();},[activityId]);
+  useEffect(()=>{loadPyros();loadComments();},[activityId]);
 
-  const loadLikes=async()=>{
-    const{data}=await supabase.from("activity_likes").select("user_id").eq("activity_type",activityType).eq("activity_id",activityId);
-    setLikes(data||[]);
+  const loadPyros=async()=>{
+    const{data}=await supabase.from("pyros").select("user_id").eq("activity_type",activityType).eq("activity_id",activityId);
+    setPyros(data||[]);
   };
   const loadComments=async()=>{
-    const{data}=await supabase.from("activity_comments").select("*, user:profiles(id,name,avatar)").eq("activity_type",activityType).eq("activity_id",activityId).order("created_at",{ascending:true});
+    const{data}=await supabase.from("comments").select("*, user:profiles(id,name,avatar)").eq("activity_type",activityType).eq("activity_id",activityId).order("created_at",{ascending:true});
     setComments(data||[]);
   };
-  const toggleLike=async()=>{
-    if(liked){
-      await supabase.from("activity_likes").delete().eq("user_id",myId).eq("activity_type",activityType).eq("activity_id",activityId);
-      setLikes(l=>l.filter(x=>x.user_id!==myId));
+  const togglePyro=async()=>{
+    if(pyrotedByMe){
+      setPyros(l=>l.filter(x=>x.user_id!==myId));
+      await supabase.from("pyros").delete().eq("user_id",myId).eq("activity_type",activityType).eq("activity_id",activityId);
     }else{
-      await supabase.from("activity_likes").insert({user_id:myId,activity_type:activityType,activity_id:activityId});
-      setLikes(l=>[...l,{user_id:myId}]);
+      setPyros(l=>[...l,{user_id:myId}]);
+      await supabase.from("pyros").insert({user_id:myId,activity_type:activityType,activity_id:activityId});
     }
   };
   const sendComment=async()=>{
-    if(!text.trim()||sending)return;
+    const content=text.trim();
+    if(!content||sending||content.length>500)return;
     setSending(true);
-    const{data}=await supabase.from("activity_comments").insert({user_id:myId,activity_type:activityType,activity_id:activityId,content:text.trim()}).select("*, user:profiles(id,name,avatar)").single();
+    const{data}=await supabase.from("comments").insert({user_id:myId,activity_type:activityType,activity_id:activityId,content}).select("*, user:profiles(id,name,avatar)").single();
     if(data)setComments(c=>[...c,data]);
     setText("");setSending(false);
   };
   const deleteComment=async id=>{
-    await supabase.from("activity_comments").delete().eq("id",id);
+    await supabase.from("comments").delete().eq("id",id);
     setComments(c=>c.filter(x=>x.id!==id));
   };
 
   return (
-    <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px 14px",marginBottom:8,border:"1px solid rgba(255,255,255,0.05)"}}>
+    <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"12px 14px",marginBottom:8,border:`1px solid ${pyros.length>=1?"rgba(237,42,55,0.2)":"rgba(255,255,255,0.05)"}`}}>
       {children}
-      <div style={{display:"flex",gap:14,alignItems:"center",marginTop:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
-        <button onClick={toggleLike} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:5,padding:0,color:liked?"#E63946":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:600}}>
-          <span style={{fontSize:15}}>{liked?"❤️":"🤍"}</span>{likes.length>0&&likes.length}
-        </button>
-        <button onClick={()=>setShowComments(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:5,padding:0,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:600}}>
-          <span style={{fontSize:14}}>💬</span>{comments.length>0&&comments.length}
+      <div style={{display:"flex",gap:10,alignItems:"center",marginTop:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+        <PyroButton count={pyros.length} active={pyrotedByMe} onToggle={togglePyro}/>
+        <button onClick={()=>setShowComments(s=>!s)} style={{background:"none",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",gap:6,padding:"6px 10px",color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:700}}>
+          <span style={{fontSize:14,lineHeight:1}}>💬</span><span>{comments.length}</span>
         </button>
       </div>
       {showComments&&(
@@ -6570,7 +6690,7 @@ function ActivityCard({myId,activityType,activityId,children}){
             </div>
           ))}
           <div style={{display:"flex",gap:6,marginTop:6}}>
-            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendComment();}} placeholder="Commenter…" style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"8px 12px",color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",outline:"none"}}/>
+            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendComment();}} placeholder="Commenter…" maxLength={500} style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"8px 12px",color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",outline:"none"}}/>
             <button onClick={sendComment} disabled={!text.trim()||sending} style={{background:"#E63946",border:"none",borderRadius:10,padding:"0 14px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",opacity:!text.trim()||sending?0.4:1}}>OK</button>
           </div>
         </div>
