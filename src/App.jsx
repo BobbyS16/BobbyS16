@@ -1335,7 +1335,7 @@ function avatarColors(name){
   let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;
   return AVATAR_PALETTE[Math.abs(h)%AVATAR_PALETTE.length];
 }
-function Avatar({profile,size=48,highlight=false}){
+function Avatar({profile,size=48,highlight=false,onFire=false}){
   const [imgError,setImgError]=useState(false);
   useEffect(()=>{setImgError(false);},[profile?.avatar]);
   const initials=(profile?.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
@@ -1347,9 +1347,15 @@ function Avatar({profile,size=48,highlight=false}){
     :(highlight
       ?{backgroundColor:hc}
       :{backgroundColor:c1,backgroundImage:`linear-gradient(135deg, ${c1}, ${c2})`});
+  const badgeSize=Math.max(14, Math.round(size*0.36));
   return (
-    <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,...bgStyle,border:highlight?`3px solid ${hc}`:"2px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:size*0.42,color:"#fff",letterSpacing:1,textShadow:showImg?"none":"0 1px 2px rgba(0,0,0,0.25)"}}>
-      {showImg?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setImgError(true)}/>:initials}
+    <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
+      <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",...bgStyle,border:highlight?`3px solid ${hc}`:"2px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:size*0.42,color:"#fff",letterSpacing:1,textShadow:showImg?"none":"0 1px 2px rgba(0,0,0,0.25)"}}>
+        {showImg?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setImgError(true)}/>:initials}
+      </div>
+      {onFire && (
+        <div title="EN FEU" style={{position:"absolute",bottom:-2,right:-2,width:badgeSize,height:badgeSize,borderRadius:"50%",background:"#0E0E0E",border:"1.5px solid rgba(237,42,55,0.6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:badgeSize*0.7,lineHeight:1,boxShadow:"0 0 8px rgba(237,42,55,0.5)"}}>🔥</div>
+      )}
     </div>
   );
 }
@@ -4876,7 +4882,7 @@ function PyroButton({ count, active, onToggle }) {
   );
 }
 
-function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyroters = [], myId, commentCount = 0, onTogglePyro, onOpenSheet }) {
+function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyroters = [], myId, commentCount = 0, ownerOnFire = false, onTogglePyro, onOpenSheet }) {
   const e = entry.data;
   const fam = activityFamily(entry);
   const badgeColor = ACTIVITY_BADGE_COLORS[fam.family] || ACTIVITY_BADGE_COLORS.run;
@@ -4899,7 +4905,7 @@ function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyr
     <div style={{background:cardBg,border:cardBorder,borderRadius:20,marginBottom:12,overflow:"hidden"}}>
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 10px",position:"relative"}}>
-        <Avatar profile={entry.user} size={38}/>
+        <Avatar profile={entry.user} size={38} onFire={ownerOnFire}/>
         <div style={{flex:1,minWidth:0,paddingRight:64}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(entry.user?.name)}</div>
           <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.45)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{title} · {fmtRelativeDate(entry.date)}</div>
@@ -5538,6 +5544,8 @@ function FilPanel({ myProfile }) {
   const [commentCountByActivity, setCommentCountByActivity] = useState({}); // total count par activity
   // Map clé "kind:id" → { count, pyrotedByMe, pyroters: [{id,name}, ...] (DESC) }
   const [pyrosByActivity, setPyrosByActivity] = useState({});
+  // Set des user_id qui sont "EN FEU" (>=15 pyros / 24h) — préchargé en batch.
+  const [onFireUserIds, setOnFireUserIds] = useState(new Set());
   const [upcomingRaces, setUpcomingRaces] = useState([]);
   const [selectedUpcoming, setSelectedUpcoming] = useState(null);
   const [openSheet, setOpenSheet] = useState(null); // { kind, activityId, user, title }
@@ -5688,11 +5696,24 @@ function FilPanel({ myProfile }) {
 
       const upcoming = (upR.data || []).map(r => ({ ...r, user: byId[r.user_id] }));
 
+      // Précharge le statut EN FEU des users visibles dans le feed (owners
+      // d'activités + amis dans les courses à venir). RPC batch users_on_fire.
+      const visibleUserIds = [...new Set([
+        ...merged.map(e => e.user?.id).filter(Boolean),
+        ...(upR.data || []).map(r => r.user_id).filter(Boolean),
+      ])];
+      let onFireSet = new Set();
+      if (visibleUserIds.length > 0) {
+        const { data: hot } = await supabase.rpc("users_on_fire", { p_user_ids: visibleUserIds });
+        onFireSet = new Set((hot || []).map(r => r.user_id));
+      }
+
       if (!cancel) {
         setFeed(merged);
         setCommentsByActivity(commentMap);
         setCommentCountByActivity(commentCountMap);
         setPyrosByActivity(pyroMap);
+        setOnFireUserIds(onFireSet);
         setUpcomingRaces(upcoming);
         setLoading(false);
       }
@@ -5789,6 +5810,7 @@ function FilPanel({ myProfile }) {
               pyroters={py.pyroters}
               myId={myProfile?.id}
               commentCount={cc}
+              ownerOnFire={onFireUserIds.has(e.user?.id)}
               onTogglePyro={()=>togglePyro(akind, e.activityId, py.pyrotedByMe)}
               onOpenSheet={()=>setOpenSheet({ kind: akind, activityId: e.activityId, user: e.user, title: e.kind === "training" ? (e.data.is_official_race ? (e.data.official_race_name||"Course officielle") : (e.data.title||`Sortie ${e.data.sport||""}`.trim())) : (DISCIPLINES[e.data.discipline]?.label || e.data.discipline) })}
             />
@@ -6200,11 +6222,17 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [showDisconnectConfirm,setShowDisconnectConfirm]=useState(false);
   const [disconnecting,setDisconnecting]=useState(false);
   const [profileToast,setProfileToast]=useState("");
+  const [onFire,setOnFire]=useState(false);
   useEffect(()=>{
     if(!profileToast)return;
     const t=setTimeout(()=>setProfileToast(""),3500);
     return()=>clearTimeout(t);
   },[profileToast]);
+  useEffect(()=>{
+    if(!profile?.id)return;
+    supabase.rpc("is_user_on_fire",{p_user_id:profile.id})
+      .then(({data})=>setOnFire(!!data));
+  },[profile?.id]);
   useEffect(()=>{
     try{const raw=localStorage.getItem(`strava_${profile.id}`);if(raw)setStravaTokens(JSON.parse(raw));}catch{}
   },[profile.id]);
@@ -6339,8 +6367,11 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         </div>
       </div>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
-        <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color}/></div>
+        <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color} onFire={onFire}/></div>
         <div style={{flex:1,minWidth:0}}>
+          {onFire && (
+            <div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:99,background:"rgba(237,42,55,0.18)",border:"1px solid rgba(237,42,55,0.5)",color:"#FF4D5C",fontFamily:"'Bebas Neue'",fontSize:11,letterSpacing:1.2,marginBottom:4,boxShadow:"0 0 10px rgba(237,42,55,0.35)"}}>🔥 EN FEU</div>
+          )}
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.name||"Athlète"}</div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[profile.city,profile.birth_year&&<CategoryTooltip key="cat" birthYear={profile.birth_year}/>,profile.gender,profile.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
@@ -6732,9 +6763,15 @@ function FriendProfileModal({friend,myId,onClose}){
   const [showPhoto,setShowPhoto]=useState(false);
   const [nestedFriend,setNestedFriend]=useState(null);
   const [bonusExpanded,setBonusExpanded]=useState(false);
+  const [onFire,setOnFire]=useState(false);
   const seasonsRef=useRef(null);
 
   useEffect(()=>{loadAll();},[friend.id]);
+  useEffect(()=>{
+    if(!friend?.id)return;
+    supabase.rpc("is_user_on_fire",{p_user_id:friend.id})
+      .then(({data})=>setOnFire(!!data));
+  },[friend?.id]);
   useEffect(()=>{
     if(!myId)return;
     supabase.from("friendships").select("friend_id").eq("user_id",myId).eq("status","accepted")
@@ -6805,8 +6842,11 @@ function FriendProfileModal({friend,myId,onClose}){
   return (
     <Modal onClose={onClose} fullScreen>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14}}>
-        <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color}/></div>
+        <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color} onFire={onFire}/></div>
         <div style={{flex:1,minWidth:0}}>
+          {onFire && (
+            <div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:99,background:"rgba(237,42,55,0.18)",border:"1px solid rgba(237,42,55,0.5)",color:"#FF4D5C",fontFamily:"'Bebas Neue'",fontSize:11,letterSpacing:1.2,marginBottom:4,boxShadow:"0 0 10px rgba(237,42,55,0.35)"}}>🔥 EN FEU</div>
+          )}
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fullProfile?.name||friend.name||"Athlète"}</div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,fullProfile?.birth_year&&<CategoryTooltip key="cat" birthYear={fullProfile.birth_year}/>,fullProfile?.gender,fullProfile?.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
