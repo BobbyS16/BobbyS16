@@ -5158,14 +5158,21 @@ function CommentsModal({ myProfile, activityType, activityId, headerUser, header
 
 // UpcomingRaceCard — ligne de course à venir dans la section dédiée du fil.
 // Discipline UPCOMING_DISCIPLINES (run/trail/tri/hyrox) → couleur de badge
-// via ACTIVITY_BADGE_COLORS. Tap → modal détail (qui montrera les pronos
-// quand la feature sera dispo).
+// via ACTIVITY_BADGE_COLORS. Tap → modal détail. Affiche aussi le compteur
+// public "👥 X pronos" (via RPC get_race_prono_count) sans exposer le contenu.
 function UpcomingRaceCard({ race, onTap }) {
   const disc = UPCOMING_DISCIPLINES.find(d => d.k === race.discipline);
   const badgeColor = ACTIVITY_BADGE_COLORS[race.discipline] || ACTIVITY_BADGE_COLORS.run;
   const dt = new Date(race.race_date);
   const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
   const targetStr = intervalToHHMMSS(race.target_time);
+  const [pronoCount, setPronoCount] = useState(null);
+  useEffect(() => {
+    let cancel = false;
+    supabase.rpc("get_race_prono_count", { p_race_id: race.id })
+      .then(({ data }) => { if (!cancel) setPronoCount(data ?? 0); });
+    return () => { cancel = true; };
+  }, [race.id]);
   return (
     <button onClick={onTap} style={{display:"block",flexShrink:0,width:280,textAlign:"left",cursor:"pointer",background:`linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`,border:`1px solid ${badgeColor}55`,borderRadius:20,padding:0,overflow:"hidden",font:"inherit",color:"inherit"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",position:"relative"}}>
@@ -5181,6 +5188,9 @@ function UpcomingRaceCard({ race, onTap }) {
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderTop:`1px solid ${badgeColor}30`}}>
         <Avatar profile={race.user} size={26}/>
         <div style={{flex:1,minWidth:0,fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(race.user?.name)} y participe</div>
+        {pronoCount !== null && pronoCount > 0 && (
+          <div style={{padding:"3px 8px",borderRadius:99,background:"rgba(255,215,0,0.12)",border:"1px solid rgba(255,215,0,0.35)",color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.3,flexShrink:0}}>👥 {pronoCount}</div>
+        )}
         <div style={{color:"rgba(240,237,232,0.35)",fontSize:14,flexShrink:0}}>›</div>
       </div>
     </button>
@@ -5188,9 +5198,12 @@ function UpcomingRaceCard({ race, onTap }) {
 }
 
 // UpcomingRaceDetailModal — détail au tap d'une UpcomingRaceCard.
-// Affiche : course + participant (avec target_time) + liste des pronos
-// déposés par les amis (via race_pronostics) + bouton de saisie/édition
-// si l'user courant peut pronostiquer (= n'est pas le coureur).
+// Visibilité (cf. RLS race_pronostics + RPC get_race_prono_count) :
+//   - Coureur : voit tous les pronos de sa course
+//   - Predictor avant course : voit seulement son propre prono
+//   - Tous les amis après course (race_date < today) : voient tous les pronos
+//     (mode 'révélation') + classement par predicted_time
+// Compteur public "👥 X amis ont pronostiqué" toujours visible (RPC séparée).
 function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
   const disc = UPCOMING_DISCIPLINES.find(d => d.k === race.discipline);
   const badgeColor = ACTIVITY_BADGE_COLORS[race.discipline] || ACTIVITY_BADGE_COLORS.run;
@@ -5199,15 +5212,19 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
   const targetStr = intervalToHHMMSS(race.target_time);
 
   const [pronos, setPronos] = useState([]);
+  const [pronoCount, setPronoCount] = useState(0);
   const [loadingPronos, setLoadingPronos] = useState(true);
   const [showSubmit, setShowSubmit] = useState(false);
 
   const load = async () => {
     setLoadingPronos(true);
-    const { data } = await supabase.from("race_pronostics")
-      .select("id,upcoming_race_id,predictor_id,predicted_time,comment,created_at")
-      .eq("upcoming_race_id", race.id)
-      .order("created_at", { ascending: true });
+    const [{ data }, { data: cnt }] = await Promise.all([
+      supabase.from("race_pronostics")
+        .select("id,upcoming_race_id,predictor_id,predicted_time,comment,created_at")
+        .eq("upcoming_race_id", race.id)
+        .order("created_at", { ascending: true }),
+      supabase.rpc("get_race_prono_count", { p_race_id: race.id }),
+    ]);
     const predictorIds = [...new Set((data || []).map(p => p.predictor_id))];
     let predictorMap = {};
     if (predictorIds.length > 0) {
@@ -5216,12 +5233,28 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
       predictorMap = Object.fromEntries((profs || []).map(p => [p.id, p]));
     }
     setPronos((data || []).map(p => ({ ...p, predictor: predictorMap[p.predictor_id] })));
+    setPronoCount(cnt ?? 0);
     setLoadingPronos(false);
   };
   useEffect(() => { load(); }, [race.id]);
 
   const isOwner = race.user_id === myProfile?.id;
   const myProno = pronos.find(p => p.predictor_id === myProfile?.id);
+  // 'Course terminée' = même règle que la RLS : race_date < current_date côté
+  // serveur ; ici on compare en local date pour aligner l'UI.
+  const today = new Date(); today.setHours(0,0,0,0);
+  const raceDateOnly = new Date(race.race_date); raceDateOnly.setHours(0,0,0,0);
+  const raceIsPast = raceDateOnly < today;
+  const revealAll = isOwner || raceIsPast;
+  // Pronos affichés : owner + post-course → tous (tri par predicted_time pour
+  // l'effet leaderboard quand révélé). Sinon → uniquement mon prono s'il existe.
+  const displayedPronos = revealAll
+    ? [...pronos].sort((a,b) => {
+        const ta = a.predicted_time ? a.predicted_time : "";
+        const tb = b.predicted_time ? b.predicted_time : "";
+        return ta.localeCompare(tb);
+      })
+    : (myProno ? [myProno] : []);
 
   return (
     <Modal onClose={onClose}>
@@ -5246,10 +5279,21 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
         </div>
       </div>
 
-      {/* Pronostics — vraie liste */}
+      {/* Compteur public : visible par tous les amis du coureur, indépendant
+          du contenu des pronos (RPC séparée). */}
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"rgba(255,215,0,0.06)",border:"1px solid rgba(255,215,0,0.25)",borderRadius:12,marginBottom:14}}>
+        <div style={{fontSize:18}}>👥</div>
+        <div style={{flex:1,minWidth:0,fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.85)",lineHeight:1.35}}>
+          {pronoCount === 0 ? "Aucun pronostic pour l'instant" : <><span style={{fontFamily:"'Bebas Neue'",fontSize:16,color:"#FFD700",letterSpacing:0.3,marginRight:4}}>{pronoCount}</span>ami{pronoCount>1?"s ont":" a"} déjà pronostiqué</>}
+        </div>
+      </div>
+
+      {/* Section pronos — visibilité selon RLS (predictor / owner / révélé) */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.2,textTransform:"uppercase",color:"rgba(240,237,232,0.4)",fontWeight:700}}>Pronostics{pronos.length>0 ? ` (${pronos.length})` : ""}</div>
-        {!isOwner && myProfile?.id && (
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1.2,textTransform:"uppercase",color:"rgba(240,237,232,0.4)",fontWeight:700}}>
+          {revealAll ? (raceIsPast ? `🏁 Classement (${displayedPronos.length})` : `Pronostics reçus (${displayedPronos.length})`) : (myProno ? "Ton pronostic" : "Pronostics")}
+        </div>
+        {!isOwner && !raceIsPast && myProfile?.id && (
           <button onClick={()=>setShowSubmit(true)} style={{padding:"5px 11px",borderRadius:10,background:"rgba(255,215,0,0.15)",color:"#FFD700",border:"1px solid rgba(255,215,0,0.4)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>
             {myProno ? "✏️ Modifier mon prono" : "🎯 Pronostiquer"}
           </button>
@@ -5257,17 +5301,24 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
       </div>
       {loadingPronos ? (
         <div style={{padding:"24px 0",textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
-      ) : pronos.length === 0 ? (
+      ) : displayedPronos.length === 0 ? (
         <div style={{padding:"22px 14px",background:"rgba(255,215,0,0.04)",border:"1px dashed rgba(255,215,0,0.3)",borderRadius:14,textAlign:"center",marginBottom:14}}>
-          <div style={{fontSize:13,color:"#FFD700",fontFamily:"'Bebas Neue'",letterSpacing:1.2,marginBottom:4}}>AUCUN PRONO</div>
+          <div style={{fontSize:13,color:"#FFD700",fontFamily:"'Bebas Neue'",letterSpacing:1.2,marginBottom:4}}>
+            {revealAll ? "AUCUN PRONO" : (isOwner ? "AUCUN PRONO" : "PRONOS CACHÉS")}
+          </div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
-            {isOwner ? "Pas encore de pronostic de tes amis." : "Sois le premier à pronostiquer !"}
+            {isOwner ? "Pas encore de pronostic de tes amis."
+              : raceIsPast ? "Aucun ami n'a pronostiqué cette course."
+              : "Les pronos des autres seront révélés après la course. Dépose le tien !"}
           </div>
         </div>
       ) : (
         <div style={{marginBottom:14}}>
-          {pronos.map(p => (
+          {displayedPronos.map((p, i) => (
             <div key={p.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid #232323",borderRadius:14,marginBottom:8}}>
+              {raceIsPast && (
+                <div style={{width:24,flexShrink:0,fontFamily:"'Bebas Neue'",fontSize:18,color:i===0?"#FFD700":i===1?"#C0C0C0":i===2?"#CD7F32":"rgba(240,237,232,0.4)",letterSpacing:0.5,textAlign:"center",lineHeight:1.1}}>{i+1}</div>
+              )}
               <Avatar profile={p.predictor} size={32}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
