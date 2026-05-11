@@ -134,7 +134,8 @@ function raceBonusPts(seasonResults, allUserResults) {
   seasonResults.forEach(r=>{
     const rd=resultDate(r);
     const earlier=(allUserResults||[]).filter(x=>x.id!==r.id&&x.discipline===r.discipline&&resultDate(x)&&rd&&resultDate(x)<rd);
-    if(earlier.every(p=>p.time>r.time)) bonus+=100;
+    // PR : ≥2 courses antérieures sur la même discipline ET strictement plus rapide
+    if(earlier.length>=2&&earlier.every(p=>p.time>r.time)) bonus+=100;
   });
   const dated=seasonResults.filter(r=>resultDate(r));
   if(dated.length>0){
@@ -6295,8 +6296,8 @@ const RACE_BONUS_LABELS = {
 
 // Bonus calculés côté client pour une course donnée — alignés sur raceBonusPts
 // (qui les agrège pour le total saison). Une course peut cumuler :
-//   - +100 pts si c'est un record personnel sur la discipline (aucune course
-//     antérieure de la même discipline n'a fait mieux). Empty earlier ⇒ true.
+//   - +100 pts PR : ≥2 courses antérieures sur la même discipline ET
+//     strictement plus rapide que toutes (même règle que le trigger DB pr_beaten).
 //   - +30 pts si c'est la 1ʳᵉ course de l'année (la plus ancienne par date).
 function clientBonusesForRace(race, allUserResults) {
   const list = [];
@@ -6306,7 +6307,7 @@ function clientBonusesForRace(race, allUserResults) {
     const xd = resultDate(x);
     return xd && rd && xd < rd;
   });
-  if (earlier.every(p => p.time > race.time)) {
+  if (earlier.length >= 2 && earlier.every(p => p.time > race.time)) {
     list.push({key:"pr_client", label:"🏆 Record personnel battu", points:100});
   }
   const ry = rYear(race);
