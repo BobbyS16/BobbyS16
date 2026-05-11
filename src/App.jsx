@@ -2155,6 +2155,9 @@ const NOTIF_ICON = {
   league_overtake:     "🏆",
   lost_podium:         "🥉",
   level_up_imminent:   "⭐",
+  prono_exact:         "🎯",
+  prono_closest:       "🏆",
+  prono_participation: "🎲",
 };
 // Types qui ont un acteur (from_user_id) et donc affichent "<nom> <verbe>".
 // Les autres ont un libellé impersonnel.
@@ -2163,6 +2166,7 @@ const NOTIF_HAS_ACTOR = {
   comment_result: true, comment_training: true, friend_overtake: true,
   friend_official_race: true, friend_pr: true, friend_upcoming_race: true,
   league_overtake: true, lost_podium: false, level_up_imminent: false,
+  prono_exact: false, prono_closest: false, prono_participation: false,
 };
 function renderNotifLabel(n) {
   // Si payload existe → format v1 (variables dynamiques)
@@ -2201,6 +2205,21 @@ function renderNotifLabel(n) {
         return target
           ? `Plus que ${remaining} pts avant le cap des ${target} pts`
           : `Plus que ${remaining} pts avant le niveau supérieur`;
+      }
+      case "prono_exact": {
+        const runner = p.runner_name || "ton ami";
+        const race = p.race_name || "une course";
+        return `🎯 Tu as pronostiqué exact sur ${race} (${runner}) ! +${p.points || 200} pts`;
+      }
+      case "prono_closest": {
+        const runner = p.runner_name || "ton ami";
+        const race = p.race_name || "une course";
+        return `🏆 Tu étais le plus proche sur ${race} (${runner}) ! +${p.points || 100} pts`;
+      }
+      case "prono_participation": {
+        const runner = p.runner_name || "ton ami";
+        const race = p.race_name || "une course";
+        return `+${p.points || 5} pts pour ta participation sur ${race} (${runner})`;
       }
       // legacy types : si jamais un payload est fourni, on retombe sur libellé legacy
       default: return NOTIF_LEGACY_LABEL[n.type] || "";
@@ -5895,10 +5914,13 @@ function BadgesByCategory({badges}){
 // pour rester fluide même avec beaucoup de lignes (1 par type de bonus).
 function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
   const BONUS_LABELS = {
-    signup:        {label:"Bonus inscription",  unit:5,  multi:false},
-    invitation:    {label:"Bonus invitations",  unit:5,  multi:true,  noun:"ami"},
-    weekly_streak: {label:"Bonus streak",       unit:5,  multi:true,  noun:"semaine"},
-    pr_beaten:     {label:"Bonus PR",           unit:20, multi:true,  noun:"PR battu"},
+    signup:              {label:"Bonus inscription",  unit:5,   multi:false},
+    invitation:          {label:"Bonus invitations",  unit:5,   multi:true,  noun:"ami"},
+    weekly_streak:       {label:"Bonus streak",       unit:5,   multi:true,  noun:"semaine"},
+    pr_beaten:           {label:"Bonus PR",           unit:20,  multi:true,  noun:"PR battu"},
+    prono_exact:         {label:"Pronos exacts",            unit:200, multi:true, noun:"prono"},
+    prono_closest:       {label:"Pronos les plus proches",  unit:100, multi:true, noun:"prono"},
+    prono_participation: {label:"Pronos (participation)",   unit:5,   multi:true, noun:"prono"},
   };
   const lines = [];
   if (trainPts > 0) lines.push({key:"train", label:"Entraînements", pts:trainPts});
