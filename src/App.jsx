@@ -1335,7 +1335,7 @@ function avatarColors(name){
   let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;
   return AVATAR_PALETTE[Math.abs(h)%AVATAR_PALETTE.length];
 }
-// onFire : false | "feed" (halo statique discret) | "profile" (halo pulsé + particules de flammes)
+// onFire : false | "feed" (halo pulsé seul) | "profile" (halo pulsé + particules de flammes)
 function Avatar({profile,size=48,highlight=false,onFire=false}){
   const [imgError,setImgError]=useState(false);
   useEffect(()=>{setImgError(false);},[profile?.avatar]);
@@ -1348,14 +1348,11 @@ function Avatar({profile,size=48,highlight=false,onFire=false}){
     :(highlight
       ?{backgroundColor:hc}
       :{backgroundColor:c1,backgroundImage:`linear-gradient(135deg, ${c1}, ${c2})`});
-  // Bordure : si onFire="feed" on remplace par le halo rouge sans bordure additionnelle
-  // (le box-shadow suffit). Si onFire="profile", on garde aussi le halo via animation CSS.
-  const isFireFeed = onFire === "feed" || onFire === true;
+  const isFire = onFire === "feed" || onFire === "profile" || onFire === true;
   const isFireProfile = onFire === "profile";
   const baseBorder = highlight
     ? `3px solid ${hc}`
     : "2px solid rgba(255,255,255,0.1)";
-  const feedShadow = "0 0 0 2px #ED2A37, 0 0 14px 2px rgba(237, 42, 55, 0.4)";
   return (
     <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
       <div
@@ -1365,9 +1362,8 @@ function Avatar({profile,size=48,highlight=false,onFire=false}){
           borderRadius:"50%",
           overflow:"hidden",
           ...bgStyle,
-          border: isFireFeed ? "none" : baseBorder,
-          boxShadow: isFireFeed ? feedShadow : undefined,
-          animation: isFireProfile ? "pulse-halo 2s ease-in-out infinite" : undefined,
+          border: isFire ? "none" : baseBorder,
+          animation: isFire ? "pulse-halo 2s ease-in-out infinite" : undefined,
           display:"flex",
           alignItems:"center",
           justifyContent:"center",
@@ -3052,6 +3048,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const [discFilter,setDiscFilter]=useState("All");
   const [rankData,setRankData]=useState([]);
   const [rankOnFireSet,setRankOnFireSet]=useState(new Set());
+  const [myOnFire,setMyOnFire]=useState(false);
   const [openFriend,setOpenFriend]=useState(null);
   const [leagueData,setLeagueData]=useState({players:[],myLeague:LEAGUES[0],mySessions:[]});
   // Groupes (refonte nav step 3)
@@ -3067,6 +3064,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       .then(({data})=>setFriendIds(new Set((data||[]).map(f=>f.friend_id))));
     supabase.from("point_bonuses").select("points,bonus_type,metadata,created_at").eq("user_id",userId)
       .then(({data})=>setMyBonuses(data||[]));
+    supabase.rpc("is_user_on_fire",{p_user_id:userId})
+      .then(({data})=>setMyOnFire(!!data));
   },[userId,refreshKey]);
 
   const loadMyGroups=useCallback(async()=>{
@@ -3319,7 +3318,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       <div onClick={onOpenProfile} style={{background:`${myLv.color}12`,border:`1px solid ${myLv.color}44`,borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer"}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0}}>
           <div style={{position:"relative"}}>
-            <Avatar profile={profile} size={52} highlight={myLv.color}/>
+            <Avatar profile={profile} size={52} highlight={myLv.color} onFire={myOnFire?"profile":false}/>
             {myBadges.length>0&&<div style={{position:"absolute",bottom:-2,right:-2,background:myLv.color,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'"}}>{myBadges.length}</div>}
           </div>
           <div style={{flex:1,minWidth:0}}>
