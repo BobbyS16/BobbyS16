@@ -1383,11 +1383,12 @@ function Avatar({profile,size=48,highlight=false,onFire=false}){
       )}
       {showParticles5 && (
         <>
-          <span className="flame-particle" style={{animation:"flame-rise 1.6s ease-out infinite",animationDelay:"0s",   left:"50%"}}/>
-          <span className="flame-particle" style={{animation:"flame-rise 1.8s ease-out infinite",animationDelay:"0.3s", left:"25%"}}/>
-          <span className="flame-particle" style={{animation:"flame-rise 1.5s ease-out infinite",animationDelay:"0.6s", left:"75%"}}/>
-          <span className="flame-particle" style={{animation:"flame-rise 1.7s ease-out infinite",animationDelay:"0.9s", left:"40%"}}/>
-          <span className="flame-particle" style={{animation:"flame-rise 1.6s ease-out infinite",animationDelay:"1.2s", left:"60%"}}/>
+          {/* 5 particules réparties sur l'arc supérieur du cercle (angles 30,60,90,120,150°) */}
+          <span className="flame-particle" style={{animation:"flame-rise 1.6s ease-out infinite",animationDelay:"0s",   left:"50%",  bottom:"auto", top:"-10%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.8s ease-out infinite",animationDelay:"0.3s", left:"25%",  bottom:"auto", top:"0%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.5s ease-out infinite",animationDelay:"0.6s", left:"75%",  bottom:"auto", top:"0%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.7s ease-out infinite",animationDelay:"0.9s", left:"7%",   bottom:"auto", top:"20%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.6s ease-out infinite",animationDelay:"1.2s", left:"93%",  bottom:"auto", top:"20%"}}/>
         </>
       )}
     </div>
