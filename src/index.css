@@ -170,3 +170,23 @@ code {
   bottom: 100%;
   transform: translate(-50%, 0);
 }
+
+/* Particules sur toute la hauteur d'une card (HOME MON PROFIL).
+   Monte depuis le bas de la card vers le haut. */
+@keyframes flame-rise-card {
+  0%   { opacity: 0; transform: translate(-50%, 0) scale(0.7); }
+  10%  { opacity: 1; }
+  85%  { opacity: 0.4; }
+  100% { opacity: 0; transform: translate(-50%, -100px) scale(0.4); }
+}
+.flame-particle-card {
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 12px;
+  background: radial-gradient(ellipse at bottom,
+    #FFD23F 0%, #FF7A1A 40%, #ED2A37 80%, transparent 100%);
+  border-radius: 50% 50% 30% 30%;
+  pointer-events: none;
+  transform: translate(-50%, 0);
+}

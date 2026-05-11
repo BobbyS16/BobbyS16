@@ -3322,10 +3322,20 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
         </div>
       )}
       {/* My card */}
-      <div onClick={onOpenProfile} style={{background:`${myLv.color}12`,border:`1px solid ${myLv.color}44`,borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer"}}>
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0}}>
+      <div onClick={onOpenProfile} style={{background:`${myLv.color}12`,border:`1px solid ${myLv.color}44`,borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer",position:"relative",overflow:"hidden"}}>
+        {myOnFire && (
+          <>
+            <span className="flame-particle-card" style={{left:"10%",animation:"flame-rise-card 2.4s ease-out infinite",animationDelay:"0s"}}/>
+            <span className="flame-particle-card" style={{left:"25%",animation:"flame-rise-card 2.6s ease-out infinite",animationDelay:"0.5s"}}/>
+            <span className="flame-particle-card" style={{left:"42%",animation:"flame-rise-card 2.2s ease-out infinite",animationDelay:"1.0s"}}/>
+            <span className="flame-particle-card" style={{left:"58%",animation:"flame-rise-card 2.5s ease-out infinite",animationDelay:"1.4s"}}/>
+            <span className="flame-particle-card" style={{left:"75%",animation:"flame-rise-card 2.8s ease-out infinite",animationDelay:"0.3s"}}/>
+            <span className="flame-particle-card" style={{left:"90%",animation:"flame-rise-card 2.3s ease-out infinite",animationDelay:"0.8s"}}/>
+          </>
+        )}
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0,position:"relative"}}>
           <div style={{position:"relative"}}>
-            <Avatar profile={profile} size={52} highlight={myLv.color} onFire={myOnFire?"profile":false}/>
+            <Avatar profile={profile} size={52} highlight={myLv.color} onFire={myOnFire?"feed":false}/>
             {myBadges.length>0&&<div style={{position:"absolute",bottom:-2,right:-2,background:myLv.color,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'"}}>{myBadges.length}</div>}
           </div>
           <div style={{flex:1,minWidth:0}}>
