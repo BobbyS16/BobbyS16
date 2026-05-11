@@ -134,8 +134,8 @@ function raceBonusPts(seasonResults, allUserResults) {
   seasonResults.forEach(r=>{
     const rd=resultDate(r);
     const earlier=(allUserResults||[]).filter(x=>x.id!==r.id&&x.discipline===r.discipline&&resultDate(x)&&rd&&resultDate(x)<rd);
-    // PR : ≥2 courses antérieures sur la même discipline ET strictement plus rapide
-    if(earlier.length>=2&&earlier.every(p=>p.time>r.time)) bonus+=100;
+    // PR : ≥1 course antérieure sur la même discipline ET strictement plus rapide
+    if(earlier.length>=1&&earlier.every(p=>p.time>r.time)) bonus+=100;
   });
   const dated=seasonResults.filter(r=>resultDate(r));
   if(dated.length>0){
@@ -6655,7 +6655,7 @@ function clientBonusesForRace(race, allUserResults) {
     const xd = resultDate(x);
     return xd && rd && xd < rd;
   });
-  if (earlier.length >= 2 && earlier.every(p => p.time > race.time)) {
+  if (earlier.length >= 1 && earlier.every(p => p.time > race.time)) {
     list.push({key:"pr_client", label:"🏆 Record personnel battu", points:100});
   }
   const ry = rYear(race);

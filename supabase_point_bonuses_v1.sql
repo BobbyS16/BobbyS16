@@ -8,7 +8,7 @@
 --
 -- Idempotence :
 --   - signup / profile_photo : index partiels uniques + ON CONFLICT DO NOTHING
---   - pr_beaten : exige ≥2 résultats antérieurs sur la même discipline ET
+--   - pr_beaten : exige ≥1 résultat antérieur sur la même discipline ET
 --                 NEW.time < min(time) des précédents
 --
 -- RLS : SELECT autorisé à soi + amis. INSERT non autorisé via le client.
@@ -148,7 +148,7 @@ begin
     and id <> NEW.id
     and time is not null;
 
-  if v_count >= 2 and NEW.time < v_prev_best then
+  if v_count >= 1 and NEW.time < v_prev_best then
     insert into public.point_bonuses(user_id, bonus_type, points, metadata)
     values (
       NEW.user_id,
