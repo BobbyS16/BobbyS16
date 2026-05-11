@@ -2187,6 +2187,8 @@ const NOTIF_LEGACY_LABEL = {
   comment_result:   "a commenté ta course",
   comment_training: "a commenté ton entraînement",
   friend_overtake:  "🚀 t'a dépassé au classement saison",
+  pyro_received:    "🔥 t'a pyroté",
+  comment_received: "💬 a réagi sur ton activité",
 };
 const NOTIF_ICON = {
   friend_added:        "👋",
@@ -2194,6 +2196,8 @@ const NOTIF_ICON = {
   like_training:       "❤️",
   comment_result:      "💬",
   comment_training:    "💬",
+  pyro_received:       "🔥",
+  comment_received:    "💬",
   friend_overtake:     "🚀",
   friend_official_race:"🏁",
   friend_pr:           "🏆",
@@ -2213,6 +2217,7 @@ const NOTIF_HAS_ACTOR = {
   friend_official_race: true, friend_pr: true, friend_upcoming_race: true,
   league_overtake: true, lost_podium: false, level_up_imminent: false,
   prono_exact: false, prono_closest: false, prono_participation: false,
+  pyro_received: true, comment_received: true,
 };
 function renderNotifLabel(n) {
   // Si payload existe → format v1 (variables dynamiques)
@@ -2266,6 +2271,18 @@ function renderNotifLabel(n) {
         const runner = p.runner_name || "ton ami";
         const race = p.race_name || "une course";
         return `+${p.points || 5} pts pour ta participation sur ${race} (${runner})`;
+      }
+      case "pyro_received": {
+        const count = Number(p.count) || 1;
+        const aType = p.activity_type === "training" ? "ton entraînement" : "ta course";
+        if (count > 1) return `🔥 ${count} amis t'ont pyroté sur ${aType}`;
+        return `🔥 t'a pyroté sur ${aType}`;
+      }
+      case "comment_received": {
+        const aType = p.activity_type === "training" ? "ton entraînement" : "ta course";
+        const isOwner = !!p.is_owner;
+        const intro = isOwner ? `a commenté ${aType}` : "a aussi commenté";
+        return p.preview ? `${intro} : « ${p.preview} »` : intro;
       }
       // legacy types : si jamais un payload est fourni, on retombe sur libellé legacy
       default: return NOTIF_LEGACY_LABEL[n.type] || "";

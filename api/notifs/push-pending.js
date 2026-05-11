@@ -26,6 +26,19 @@ function buildPushContent(notif) {
     case "like_training":        return { title: "❤️ Like",             body: `${fromName} a aimé ton entraînement` };
     case "comment_result":       return { title: "💬 Commentaire",      body: `${fromName} a commenté ta course` };
     case "comment_training":     return { title: "💬 Commentaire",      body: `${fromName} a commenté ton entraînement` };
+    case "pyro_received": {
+      const count = Number(p.count) || 1;
+      const aLabel = p.activity_type === "training" ? "ton entraînement" : "ta course";
+      if (count > 1) {
+        return { title: `🔥 ${count} amis t'ont pyroté !`, body: `Sur ${aLabel}` };
+      }
+      return { title: `🔥 ${fromName} t'a pyroté !`, body: `Sur ${aLabel}` };
+    }
+    case "comment_received": {
+      const aLabel = p.activity_type === "training" ? "ton entraînement" : "ta course";
+      const intro = p.is_owner ? `${fromName} a commenté ${aLabel}` : `${fromName} a aussi commenté ${aLabel}`;
+      return { title: "💬 Nouveau commentaire", body: p.preview ? `${intro} : « ${p.preview} »` : intro };
+    }
     case "friend_overtake": {
       const after = p.actor_score ?? null;
       const mine  = p.friend_score ?? null;
