@@ -6327,9 +6327,12 @@ function clientBonusesForRace(race, allUserResults) {
 // que le PointsBreakdown global.
 function FriendRaceRow({race, bonuses}) {
   const [expanded, setExpanded] = useState(false);
-  const pts = calcPoints(race.discipline, race.time, race.elevation);
+  const basePts = calcPoints(race.discipline, race.time, race.elevation);
+  const bonusTotal = bonuses.reduce((s,b)=>s+(b.points||0), 0);
+  const pts = basePts + bonusTotal;
   const ptsLv = getLevel(pts);
   const hasBonus = bonuses.length > 0;
+  const breakdownLines = hasBonus ? bonuses.length + 1 : 0; // +1 pour la ligne "Course"
   return (
     <>
       <div
@@ -6355,7 +6358,7 @@ function FriendRaceRow({race, bonuses}) {
         <div
           aria-hidden={!expanded}
           style={{
-            maxHeight: expanded ? `${bonuses.length*36 + 24}px` : 0,
+            maxHeight: expanded ? `${breakdownLines*36 + 24}px` : 0,
             opacity: expanded ? 1 : 0,
             overflow:"hidden",
             transition:"max-height 0.3s ease, opacity 0.25s ease",
@@ -6363,8 +6366,12 @@ function FriendRaceRow({race, bonuses}) {
           }}
         >
           <div style={{background:"rgba(74,222,128,0.08)",border:"1px solid rgba(74,222,128,0.25)",borderRadius:10,padding:"6px 12px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontFamily:"'Barlow',sans-serif"}}>
+              <div style={{fontSize:12,color:"rgba(240,237,232,0.85)"}}>Course</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:"#F0EDE8",letterSpacing:0.5}}>{basePts} pts</div>
+            </div>
             {bonuses.map((b, i) => (
-              <div key={b.key || i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontFamily:"'Barlow',sans-serif",borderTop: i===0?"none":"1px solid rgba(255,255,255,0.04)"}}>
+              <div key={b.key || i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontFamily:"'Barlow',sans-serif",borderTop:"1px solid rgba(255,255,255,0.04)"}}>
                 <div style={{fontSize:12,color:"rgba(240,237,232,0.85)"}}>{b.label}</div>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:"#4ADE80",letterSpacing:0.5}}>+{b.points} pts</div>
               </div>
