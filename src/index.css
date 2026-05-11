@@ -134,3 +134,39 @@ code {
   60%  { transform: scale(1.2); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* Avatar EN FEU — variante profil (pulse halo + particules) */
+@keyframes pulse-halo {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px #ED2A37,
+      0 0 14px 2px rgba(237, 42, 55, 0.5),
+      0 0 26px 4px rgba(255, 122, 26, 0.25);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px #ED2A37,
+      0 0 28px 5px rgba(237, 42, 55, 0.65),
+      0 0 45px 10px rgba(255, 122, 26, 0.3);
+    transform: scale(1.03);
+  }
+}
+@keyframes flame-rise {
+  0%   { opacity: 0; transform: translate(-50%, 0) scale(0.8); }
+  20%  { opacity: 1; }
+  50%  { opacity: 0.9; transform: translate(-50%, -8px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -18px) scale(0.6); }
+}
+.flame-particle {
+  position: absolute;
+  width: 8px;
+  height: 12px;
+  background: radial-gradient(ellipse at bottom,
+    #FFD23F 0%, #FF7A1A 40%, #ED2A37 80%, transparent 100%);
+  border-radius: 50% 50% 30% 30%;
+  pointer-events: none;
+  left: 50%;
+  bottom: 100%;
+  transform: translate(-50%, 0);
+}

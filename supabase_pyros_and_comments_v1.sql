@@ -88,7 +88,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select count(*) >= 15
+  select count(*) >= 8
   from public.pyros p
   where p.created_at >= now() - interval '24 hours'
     and (

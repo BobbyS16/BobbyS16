@@ -23,7 +23,7 @@ as $$
       and coalesce(r.user_id, tr.user_id) = any(p_user_ids)
   ) t
   group by t.user_id
-  having count(*) >= 15;
+  having count(*) >= 8;
 $$;
 
 grant execute on function public.users_on_fire(uuid[]) to authenticated;

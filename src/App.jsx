@@ -1335,6 +1335,7 @@ function avatarColors(name){
   let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;
   return AVATAR_PALETTE[Math.abs(h)%AVATAR_PALETTE.length];
 }
+// onFire : false | "feed" (halo statique discret) | "profile" (halo pulsé + particules de flammes)
 function Avatar({profile,size=48,highlight=false,onFire=false}){
   const [imgError,setImgError]=useState(false);
   useEffect(()=>{setImgError(false);},[profile?.avatar]);
@@ -1347,14 +1348,44 @@ function Avatar({profile,size=48,highlight=false,onFire=false}){
     :(highlight
       ?{backgroundColor:hc}
       :{backgroundColor:c1,backgroundImage:`linear-gradient(135deg, ${c1}, ${c2})`});
-  const badgeSize=Math.max(14, Math.round(size*0.36));
+  // Bordure : si onFire="feed" on remplace par le halo rouge sans bordure additionnelle
+  // (le box-shadow suffit). Si onFire="profile", on garde aussi le halo via animation CSS.
+  const isFireFeed = onFire === "feed" || onFire === true;
+  const isFireProfile = onFire === "profile";
+  const baseBorder = highlight
+    ? `3px solid ${hc}`
+    : "2px solid rgba(255,255,255,0.1)";
+  const feedShadow = "0 0 0 2px #ED2A37, 0 0 14px 2px rgba(237, 42, 55, 0.4)";
   return (
     <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
-      <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",...bgStyle,border:highlight?`3px solid ${hc}`:"2px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:size*0.42,color:"#fff",letterSpacing:1,textShadow:showImg?"none":"0 1px 2px rgba(0,0,0,0.25)"}}>
+      <div
+        style={{
+          width:size,
+          height:size,
+          borderRadius:"50%",
+          overflow:"hidden",
+          ...bgStyle,
+          border: isFireFeed ? "none" : baseBorder,
+          boxShadow: isFireFeed ? feedShadow : undefined,
+          animation: isFireProfile ? "pulse-halo 2s ease-in-out infinite" : undefined,
+          display:"flex",
+          alignItems:"center",
+          justifyContent:"center",
+          fontFamily:"'Bebas Neue'",
+          fontSize:size*0.42,
+          color:"#fff",
+          letterSpacing:1,
+          textShadow:showImg?"none":"0 1px 2px rgba(0,0,0,0.25)",
+        }}
+      >
         {showImg?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setImgError(true)}/>:initials}
       </div>
-      {onFire && (
-        <div title="EN FEU" style={{position:"absolute",bottom:-2,right:-2,width:badgeSize,height:badgeSize,borderRadius:"50%",background:"#0E0E0E",border:"1.5px solid rgba(237,42,55,0.6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:badgeSize*0.7,lineHeight:1,boxShadow:"0 0 8px rgba(237,42,55,0.5)"}}>🔥</div>
+      {isFireProfile && (
+        <>
+          <span className="flame-particle" style={{animation:"flame-rise 1.6s ease-out infinite",animationDelay:"0s"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.8s ease-out infinite",animationDelay:"0.4s",left:"35%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.5s ease-out infinite",animationDelay:"0.8s",left:"65%"}}/>
+        </>
       )}
     </div>
   );
@@ -3020,6 +3051,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const [rankFilter,setRankFilter]=useState("amis");
   const [discFilter,setDiscFilter]=useState("All");
   const [rankData,setRankData]=useState([]);
+  const [rankOnFireSet,setRankOnFireSet]=useState(new Set());
   const [openFriend,setOpenFriend]=useState(null);
   const [leagueData,setLeagueData]=useState({players:[],myLeague:LEAGUES[0],mySessions:[]});
   // Groupes (refonte nav step 3)
@@ -3187,6 +3219,14 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       return{...p,pts,badges,_hasDiscRes:pRes.length>0};
     }).filter(p=>discFilter==="All"||p._hasDiscRes).sort((a,b)=>b.pts-a.pts);
     setRankData(ranked);
+    // Précharge le statut EN FEU en batch pour les users affichés
+    const rankIds = ranked.map(p=>p.id);
+    if (rankIds.length>0) {
+      const { data: hot } = await supabase.rpc("users_on_fire", { p_user_ids: rankIds });
+      setRankOnFireSet(new Set((hot||[]).map(r=>r.user_id)));
+    } else {
+      setRankOnFireSet(new Set());
+    }
   };
 
   const seasonResults=results.filter(r=>rYear(r)===season);
@@ -3377,7 +3417,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             const row=(
               <div onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,borderRadius:14,cursor:"pointer"}}>
                 <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</div>
-                <Avatar profile={p} size={36}/>
+                <Avatar profile={p} size={36} onFire={rankOnFireSet.has(p.id)?"feed":false}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:2,alignItems:"center"}}>{p.badges.slice(0,6).map(b=><span key={b.id} style={{fontSize:11}}>{b.emoji}</span>)}{p.badges.length>6&&<span style={{fontSize:9,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginLeft:1}}>+{p.badges.length-6}</span>}</div>
@@ -3426,6 +3466,7 @@ function RankingTab({myProfile}){
   const seasonsRef=useRef(null);
   const [discFilter,setDisc]=useState("marathon");
   const [players,setPlayers]=useState([]);
+  const [playersOnFireSet,setPlayersOnFireSet]=useState(new Set());
   const [loading,setLoading]=useState(true);
   const [openFriend,setOpenFriend]=useState(null);
   const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
@@ -3469,6 +3510,13 @@ function RankingTab({myProfile}){
     if(filter==="gender")  display=display.filter(p=>p.gender===myProfile?.gender);
     if(filter==="city")    display=display.filter(p=>p.city&&myProfile?.city&&p.city.trim().toLowerCase()===myProfile.city.trim().toLowerCase());
     setPlayers(display);setLoading(false);
+    const pIds = display.map(p=>p.id);
+    if (pIds.length>0) {
+      const { data: hot } = await supabase.rpc("users_on_fire", { p_user_ids: pIds });
+      setPlayersOnFireSet(new Set((hot||[]).map(r=>r.user_id)));
+    } else {
+      setPlayersOnFireSet(new Set());
+    }
   };
 
   const FILTERS=[{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
@@ -3499,7 +3547,7 @@ function RankingTab({myProfile}){
       :players.map((p,i)=>{const lv=getSeasonLevel(p.pts);const isMe=p.id===myProfile?.id;return(
         <div key={p.id} onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,cursor:"pointer"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</div>
-          <Avatar profile={p} size={36}/>
+          <Avatar profile={p} size={36} onFire={playersOnFireSet.has(p.id)?"feed":false}/>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(p.name)}</div>
             {filter==="discipline"&&p.bestTime
@@ -4905,7 +4953,7 @@ function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyr
     <div style={{background:cardBg,border:cardBorder,borderRadius:20,marginBottom:12,overflow:"hidden"}}>
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 10px",position:"relative"}}>
-        <Avatar profile={entry.user} size={38} onFire={ownerOnFire}/>
+        <Avatar profile={entry.user} size={38} onFire={ownerOnFire?"feed":false}/>
         <div style={{flex:1,minWidth:0,paddingRight:64}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(entry.user?.name)}</div>
           <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.45)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{title} · {fmtRelativeDate(entry.date)}</div>
@@ -5209,6 +5257,7 @@ function PronosTab({ myProfile }) {
 function EngagementSheet({ myProfile, activityType, activityId, headerUser, headerTitle, onClose, onChanged }) {
   const [pyros, setPyros] = useState([]);
   const [comments, setComments] = useState([]);
+  const [onFireSet, setOnFireSet] = useState(new Set());
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -5230,13 +5279,18 @@ function EngagementSheet({ myProfile, activityType, activityId, headerUser, head
       ...((coR.data || []).map(c => c.user_id)),
     ])];
     let userMap = {};
+    let fireSet = new Set();
     if (userIds.length > 0) {
-      const { data: users } = await supabase.from("profiles")
-        .select("id,name,avatar").in("id", userIds);
+      const [{ data: users }, { data: hot }] = await Promise.all([
+        supabase.from("profiles").select("id,name,avatar").in("id", userIds),
+        supabase.rpc("users_on_fire", { p_user_ids: userIds }),
+      ]);
       userMap = Object.fromEntries((users || []).map(u => [u.id, u]));
+      fireSet = new Set((hot || []).map(r => r.user_id));
     }
     setPyros((pyR.data || []).map(p => ({ ...p, author: userMap[p.user_id] })));
     setComments((coR.data || []).map(c => ({ ...c, author: userMap[c.user_id] })));
+    setOnFireSet(fireSet);
     setLoading(false);
   };
   useEffect(() => { load(); }, [activityType, activityId]);
@@ -5286,7 +5340,7 @@ function EngagementSheet({ myProfile, activityType, activityId, headerUser, head
               const isMe = p.user_id === myProfile?.id;
               return (
                 <div key={p.user_id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-                  <Avatar profile={p.author} size={32}/>
+                  <Avatar profile={p.author} size={32} onFire={onFireSet.has(p.user_id)?"feed":false}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8"}}>{isMe?"Toi":shortName(p.author?.name)}</div>
                     <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.45)",marginTop:1}}>{fmtRelativeDate(p.created_at)}</div>
@@ -5304,7 +5358,7 @@ function EngagementSheet({ myProfile, activityType, activityId, headerUser, head
           ) : (
             comments.map(c => (
               <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-                <Avatar profile={c.author} size={32}/>
+                <Avatar profile={c.author} size={32} onFire={onFireSet.has(c.user_id)?"feed":false}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,fontWeight:700,color:"#F0EDE8"}}>{shortName(c.author?.name)} <span style={{fontWeight:400,fontSize:11,color:"rgba(240,237,232,0.45)",marginLeft:6}}>{fmtRelativeDate(c.created_at)}</span></div>
                   <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.85)",marginTop:2,lineHeight:1.4,wordBreak:"break-word"}}>{c.content}</div>
@@ -6367,12 +6421,12 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         </div>
       </div>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
-        <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color} onFire={onFire}/></div>
+        <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color} onFire={onFire?"profile":false}/></div>
         <div style={{flex:1,minWidth:0}}>
-          {onFire && (
-            <div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:99,background:"rgba(237,42,55,0.18)",border:"1px solid rgba(237,42,55,0.5)",color:"#FF4D5C",fontFamily:"'Bebas Neue'",fontSize:11,letterSpacing:1.2,marginBottom:4,boxShadow:"0 0 10px rgba(237,42,55,0.35)"}}>🔥 EN FEU</div>
-          )}
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.name||"Athlète"}</div>
+          {onFire && (
+            <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"#FF7A1A",marginTop:2,fontWeight:600,letterSpacing:0.2}}>Tu es en feu 🔥</div>
+          )}
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[profile.city,profile.birth_year&&<CategoryTooltip key="cat" birthYear={profile.birth_year}/>,profile.gender,profile.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
@@ -6842,11 +6896,8 @@ function FriendProfileModal({friend,myId,onClose}){
   return (
     <Modal onClose={onClose} fullScreen>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14}}>
-        <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color} onFire={onFire}/></div>
+        <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color} onFire={onFire?"profile":false}/></div>
         <div style={{flex:1,minWidth:0}}>
-          {onFire && (
-            <div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:99,background:"rgba(237,42,55,0.18)",border:"1px solid rgba(237,42,55,0.5)",color:"#FF4D5C",fontFamily:"'Bebas Neue'",fontSize:11,letterSpacing:1.2,marginBottom:4,boxShadow:"0 0 10px rgba(237,42,55,0.35)"}}>🔥 EN FEU</div>
-          )}
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fullProfile?.name||friend.name||"Athlète"}</div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,fullProfile?.birth_year&&<CategoryTooltip key="cat" birthYear={fullProfile.birth_year}/>,fullProfile?.gender,fullProfile?.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
