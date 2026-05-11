@@ -6419,7 +6419,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           }} title={hidden?"Caché : me ré-afficher dans les classements":"Visible : me retirer des classements"} style={{padding:"7px 12px",borderRadius:10,background:hidden?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:hidden?"1px solid rgba(230,57,70,0.4)":"none",color:hidden?"#E63946":"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>{hidden?"🙈 Caché":"👁️ Visible"}</button>
         </div>
       </div>
-      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}>
+      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16,marginTop:onFire?18:0}}>
         <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color} onFire={onFire?"profile":false}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.name||"Athlète"}</div>
@@ -6894,7 +6894,7 @@ function FriendProfileModal({friend,myId,onClose}){
 
   return (
     <Modal onClose={onClose} fullScreen>
-      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14}}>
+      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14,marginTop:onFire?18:0}}>
         <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color} onFire={onFire?"profile":false}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fullProfile?.name||friend.name||"Athlète"}</div>
