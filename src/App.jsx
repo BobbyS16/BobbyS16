@@ -1331,7 +1331,8 @@ function avatarColors(name){
   let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;
   return AVATAR_PALETTE[Math.abs(h)%AVATAR_PALETTE.length];
 }
-// onFire : false | "feed" (halo pulsé seul) | "profile" (halo pulsé + particules de flammes)
+// onFire : false | "feed" (halo pulsé seul) | "profile" (halo + 3 particules)
+//        | "profile-strong" (halo + 5 particules — page profil ouverte)
 function Avatar({profile,size=48,highlight=false,onFire=false}){
   const [imgError,setImgError]=useState(false);
   useEffect(()=>{setImgError(false);},[profile?.avatar]);
@@ -1344,8 +1345,9 @@ function Avatar({profile,size=48,highlight=false,onFire=false}){
     :(highlight
       ?{backgroundColor:hc}
       :{backgroundColor:c1,backgroundImage:`linear-gradient(135deg, ${c1}, ${c2})`});
-  const isFire = onFire === "feed" || onFire === "profile" || onFire === true;
-  const isFireProfile = onFire === "profile";
+  const isFire = onFire === "feed" || onFire === "profile" || onFire === "profile-strong" || onFire === true;
+  const showParticles3 = onFire === "profile";
+  const showParticles5 = onFire === "profile-strong";
   const baseBorder = highlight
     ? `3px solid ${hc}`
     : "2px solid rgba(255,255,255,0.1)";
@@ -1372,11 +1374,20 @@ function Avatar({profile,size=48,highlight=false,onFire=false}){
       >
         {showImg?<img key={profile.avatar} src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={()=>setImgError(true)}/>:initials}
       </div>
-      {isFireProfile && (
+      {showParticles3 && (
         <>
           <span className="flame-particle" style={{animation:"flame-rise 1.6s ease-out infinite",animationDelay:"0s"}}/>
           <span className="flame-particle" style={{animation:"flame-rise 1.8s ease-out infinite",animationDelay:"0.4s",left:"35%"}}/>
           <span className="flame-particle" style={{animation:"flame-rise 1.5s ease-out infinite",animationDelay:"0.8s",left:"65%"}}/>
+        </>
+      )}
+      {showParticles5 && (
+        <>
+          <span className="flame-particle" style={{animation:"flame-rise 1.6s ease-out infinite",animationDelay:"0s",   left:"50%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.8s ease-out infinite",animationDelay:"0.3s", left:"25%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.5s ease-out infinite",animationDelay:"0.6s", left:"75%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.7s ease-out infinite",animationDelay:"0.9s", left:"40%"}}/>
+          <span className="flame-particle" style={{animation:"flame-rise 1.6s ease-out infinite",animationDelay:"1.2s", left:"60%"}}/>
         </>
       )}
     </div>
@@ -3314,7 +3325,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       <div onClick={onOpenProfile} style={{background:`${myLv.color}12`,border:`1px solid ${myLv.color}44`,borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer"}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0}}>
           <div style={{position:"relative"}}>
-            <Avatar profile={profile} size={52} highlight={myLv.color} onFire={myOnFire?"feed":false}/>
+            <Avatar profile={profile} size={52} highlight={myLv.color} onFire={myOnFire?"profile":false}/>
             {myBadges.length>0&&<div style={{position:"absolute",bottom:-2,right:-2,background:myLv.color,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'"}}>{myBadges.length}</div>}
           </div>
           <div style={{flex:1,minWidth:0}}>
@@ -6418,7 +6429,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         </div>
       </div>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16,marginTop:onFire?18:0}}>
-        <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color} onFire={onFire?"profile":false}/></div>
+        <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color} onFire={onFire?"profile-strong":false}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.name||"Athlète"}</div>
           {onFire && (
@@ -6889,7 +6900,7 @@ function FriendProfileModal({friend,myId,onClose}){
   return (
     <Modal onClose={onClose} fullScreen>
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14,marginTop:onFire?18:0}}>
-        <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color} onFire={onFire?"profile":false}/></div>
+        <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color} onFire={onFire?"profile-strong":false}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fullProfile?.name||friend.name||"Athlète"}</div>
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,fullProfile?.birth_year&&<CategoryTooltip key="cat" birthYear={fullProfile.birth_year}/>,fullProfile?.gender,fullProfile?.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
