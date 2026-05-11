@@ -4919,7 +4919,7 @@ function buildPyroPreview(pyroters, myId) {
 }
 
 // Bouton flamme animé. Optimistic toggle géré par le parent.
-function PyroButton({ count, active, onToggle }) {
+function PyroButton({ count, active, onToggle, bare=false }) {
   const flameRef = useRef(null);
   const handle = (ev) => {
     ev.stopPropagation();
@@ -4936,11 +4936,11 @@ function PyroButton({ count, active, onToggle }) {
     try { navigator.vibrate?.(10); } catch {}
     onToggle?.();
   };
+  const baseStyle = bare
+    ? {display:"flex",alignItems:"center",gap:6,padding:"6px 4px",borderRadius:0,background:"transparent",border:"none",color:active?"#ED2A37":"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}
+    : {display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:10,background:active?"rgba(237,42,55,0.15)":"transparent",border:`1px solid ${active?"rgba(237,42,55,0.4)":"rgba(255,255,255,0.08)"}`,color:active?"#ED2A37":"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12};
   return (
-    <button
-      onClick={handle}
-      style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:10,background:active?"rgba(237,42,55,0.15)":"transparent",border:`1px solid ${active?"rgba(237,42,55,0.4)":"rgba(255,255,255,0.08)"}`,color:active?"#ED2A37":"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
-    >
+    <button onClick={handle} style={baseStyle}>
       <span ref={flameRef} style={{fontSize:14,lineHeight:1,display:"inline-block",filter:active?"none":"grayscale(1) brightness(0.6)",transition:"filter 0.2s"}}>🔥</span>
       <span>{count}</span>
     </button>
@@ -4996,10 +4996,10 @@ function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyr
 
       {/* Barre engagement : pyro + commentaires + preview "Toi + X autres" */}
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",borderTop:innerSeparator}}>
-        <PyroButton count={pyroCount} active={pyrotedByMe} onToggle={onTogglePyro}/>
+        <PyroButton count={pyroCount} active={pyrotedByMe} onToggle={onTogglePyro} bare/>
         <button
           onClick={(e2)=>{e2.stopPropagation();onOpenSheet?.();}}
-          style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",borderRadius:10,background:"transparent",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
+          style={{display:"flex",alignItems:"center",gap:6,padding:"6px 4px",background:"transparent",border:"none",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
         >
           <span style={{fontSize:14,lineHeight:1}}>💬</span>
           <span>{commentCount}</span>
