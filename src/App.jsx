@@ -129,14 +129,10 @@ function sumBestPts(results) {
 }
 const resultDate=r=>r.race_date||(r.year?`${r.year}-12-31`:null);
 function raceBonusPts(seasonResults, allUserResults) {
+  // Le bonus PR est désormais uniquement géré côté DB (point_bonuses.pr_beaten,
+  // 50 pts). Cette fonction ne calcule plus que le bonus "1ʳᵉ course de la saison".
   if(!seasonResults||seasonResults.length===0) return 0;
   let bonus=0;
-  seasonResults.forEach(r=>{
-    const rd=resultDate(r);
-    const earlier=(allUserResults||[]).filter(x=>x.id!==r.id&&x.discipline===r.discipline&&resultDate(x)&&rd&&resultDate(x)<rd);
-    // PR : ≥1 course antérieure sur la même discipline ET strictement plus rapide
-    if(earlier.length>=1&&earlier.every(p=>p.time>r.time)) bonus+=100;
-  });
   const dated=seasonResults.filter(r=>resultDate(r));
   if(dated.length>0){
     const earliest=[...dated].sort((a,b)=>resultDate(a).localeCompare(resultDate(b)))[0];
@@ -2107,7 +2103,7 @@ function HowItWorksModal({onClose}){
 
       <Section title="5 · Points bonus">
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:8}}>Courses</div>
-        <Bullet emoji="🏆" bold="Record personnel battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
+        <Bullet emoji="🏆" bold="PR battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+50 pts</span></Bullet>
         <Bullet emoji="🥇" bold="Top 3 de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+300 pts</span></Bullet>
         <Bullet emoji="🎖️" bold="Top 10% de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+150 pts</span></Bullet>
         <Bullet emoji="🚀" bold="Première course de la saison ">→ <span style={{color:"#E63946",fontWeight:700}}>+30 pts</span></Bullet>
@@ -6181,7 +6177,7 @@ function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
     signup:              {label:"Bonus inscription",  unit:5,   multi:false},
     invitation:          {label:"Bonus invitations",  unit:5,   multi:true,  noun:"ami"},
     weekly_streak:       {label:"Bonus streak",       unit:5,   multi:true,  noun:"semaine"},
-    pr_beaten:           {label:"Bonus PR",           unit:20,  multi:true,  noun:"PR battu"},
+    pr_beaten:           {label:"Bonus PR",           unit:50,  multi:true,  noun:"PR battu"},
     prono_exact:         {label:"Pronos exacts",            unit:200, multi:true, noun:"prono"},
     prono_closest:       {label:"Pronos les plus proches",  unit:100, multi:true, noun:"prono"},
     prono_participation: {label:"Pronos (participation)",   unit:5,   multi:true, noun:"prono"},
@@ -6648,16 +6644,10 @@ const RACE_BONUS_LABELS = {
 //     strictement plus rapide que toutes (même règle que le trigger DB pr_beaten).
 //   - +30 pts si c'est la 1ʳᵉ course de l'année (la plus ancienne par date).
 function clientBonusesForRace(race, allUserResults) {
+  // Le PR n'est plus calculé côté client : géré par le bonus DB pr_beaten
+  // (50 pts) qui est rattaché à la course via metadata.result_id et affiché
+  // dans le FriendRaceRow via bonusesByResultId.
   const list = [];
-  const rd = resultDate(race);
-  const earlier = (allUserResults || []).filter(x => {
-    if (x.id === race.id || x.discipline !== race.discipline) return false;
-    const xd = resultDate(x);
-    return xd && rd && xd < rd;
-  });
-  if (earlier.length >= 1 && earlier.every(p => p.time > race.time)) {
-    list.push({key:"pr_client", label:"🏆 Record personnel battu", points:100});
-  }
   const ry = rYear(race);
   const sameSeason = (allUserResults || []).filter(x => rYear(x) === ry && resultDate(x));
   if (sameSeason.length > 0) {

@@ -4,7 +4,7 @@
 --   profile_photo +5 pts (1×/user)        — quand profile.avatar passe NULL → set
 --   invitation    +5 pts par filleul       — au signup d'un user avec referrer_id
 --   weekly_streak +5 pts par semaine       — cron lundi 00:05 UTC, ≥2 sem. actives
---   pr_beaten     +20 pts par PR battu    — trigger AFTER INSERT sur results
+--   pr_beaten     +50 pts par PR battu    — trigger AFTER INSERT sur results
 --
 -- Idempotence :
 --   - signup / profile_photo : index partiels uniques + ON CONFLICT DO NOTHING
@@ -153,7 +153,7 @@ begin
     values (
       NEW.user_id,
       'pr_beaten',
-      20,
+      50,
       jsonb_build_object(
         'result_id', NEW.id,
         'discipline', NEW.discipline,
@@ -279,7 +279,7 @@ insert into public.point_bonuses(user_id, bonus_type, points, metadata, created_
 select
   user_id,
   'pr_beaten',
-  20,
+  50,
   jsonb_build_object(
     'result_id', id,
     'discipline', discipline,
