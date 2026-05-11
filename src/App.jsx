@@ -6288,6 +6288,70 @@ function ProfileModal({profile,results,onRefresh,onClose}){
 }
 
 // ── FRIEND PROFILE MODAL ──────────────────────────────────────────────────────
+// Libellés des bonus rattachés à une course précise (via metadata.result_id).
+// Pour l'instant seul pr_beaten existe ; le mapping reste extensible.
+const RACE_BONUS_LABELS = {
+  pr_beaten: "🏆 PR battu",
+};
+
+// Ligne d'une course d'ami : info + total pts. Si des bonus sont attachés à
+// cette course (pr_beaten via metadata.result_id), affiche un ▼ cliquable qui
+// déplie un encart vert avec le détail des bonus — même esprit que le
+// PointsBreakdown global.
+function FriendRaceRow({race, bonuses}) {
+  const [expanded, setExpanded] = useState(false);
+  const pts = calcPoints(race.discipline, race.time, race.elevation);
+  const ptsLv = getLevel(pts);
+  const hasBonus = bonuses.length > 0;
+  return (
+    <>
+      <div
+        onClick={hasBonus ? (e)=>{e.stopPropagation();setExpanded(v=>!v);} : undefined}
+        style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,cursor:hasBonus?"pointer":"default",userSelect:"none"}}
+      >
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:3}}>{DISCIPLINES[race.discipline]?.icon} {DISCIPLINES[race.discipline]?.label}</div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(race.time)}</div>
+          {race.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{race.race}</div>}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:ptsLv.color,letterSpacing:1}}>{pts}</div>
+            <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
+          </div>
+          {hasBonus && (
+            <span style={{fontSize:11,color:"rgba(240,237,232,0.55)",transform:expanded?"rotate(180deg)":"none",transition:"transform 0.25s"}}>▼</span>
+          )}
+        </div>
+      </div>
+      {hasBonus && (
+        <div
+          aria-hidden={!expanded}
+          style={{
+            maxHeight: expanded ? `${bonuses.length*36 + 24}px` : 0,
+            opacity: expanded ? 1 : 0,
+            overflow:"hidden",
+            transition:"max-height 0.3s ease, opacity 0.25s ease",
+            marginTop: expanded ? 10 : 0,
+          }}
+        >
+          <div style={{background:"rgba(74,222,128,0.08)",border:"1px solid rgba(74,222,128,0.25)",borderRadius:10,padding:"6px 12px"}}>
+            {bonuses.map((b, i) => {
+              const label = RACE_BONUS_LABELS[b.bonus_type] || b.bonus_type;
+              return (
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontFamily:"'Barlow',sans-serif",borderTop: i===0?"none":"1px solid rgba(255,255,255,0.04)"}}>
+                  <div style={{fontSize:12,color:"rgba(240,237,232,0.85)"}}>{label}</div>
+                  <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:"#4ADE80",letterSpacing:0.5}}>+{b.points} pts</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function ActivityCard({myId,activityType,activityId,children}){
   const [likes,setLikes]=useState([]);
   const [comments,setComments]=useState([]);
@@ -6402,7 +6466,7 @@ function FriendProfileModal({friend,myId,onClose}){
       supabase.from("profiles").select("*").eq("id",friend.id).single(),
       supabase.from("friendships").select("friend_id",{count:"exact"}).eq("user_id",friend.id).eq("status","accepted"),
       supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",friend.id),
-      supabase.from("point_bonuses").select("bonus_type,points").eq("user_id",friend.id),
+      supabase.from("point_bonuses").select("bonus_type,points,metadata").eq("user_id",friend.id),
     ]);
     setResults(r||[]);setTrainings(t||[]);setBonuses(bs||[]);
     if(prof)setFullProfile(prof);
@@ -6424,6 +6488,11 @@ function FriendProfileModal({friend,myId,onClose}){
     const k=b.bonus_type;
     if(!acc[k])acc[k]={count:0,points:0};
     acc[k].count++;acc[k].points+=b.points||0;
+    return acc;
+  },{});
+  const bonusesByResultId=(bonuses||[]).reduce((acc,b)=>{
+    const rid=b.metadata?.result_id;
+    if(rid){(acc[rid]=acc[rid]||[]).push(b);}
     return acc;
   },{});
   const seasonPts=trainPtsBreakdown+racePtsBreakdown+friendBonusPts;
@@ -6487,25 +6556,11 @@ function FriendProfileModal({friend,myId,onClose}){
         ):tab==="races"?(
           seasonResults.length===0?
             <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucune course pour cette saison</div>
-          :seasonResults.map(r=>{
-            const pts=calcPoints(r.discipline,r.time,r.elevation);
-            const ptsLv=getLevel(pts);
-            return (
-              <ActivityCard key={r.id} myId={myId} activityType="result" activityId={r.id}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:3}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
-                    <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
-                    {r.race&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.race}</div>}
-                  </div>
-                  <div style={{textAlign:"right",flexShrink:0}}>
-                    <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:ptsLv.color,letterSpacing:1}}>{pts}</div>
-                    <div style={{fontSize:9,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>pts</div>
-                  </div>
-                </div>
-              </ActivityCard>
-            );
-          })
+          :seasonResults.map(r=>(
+            <ActivityCard key={r.id} myId={myId} activityType="result" activityId={r.id}>
+              <FriendRaceRow race={r} bonuses={bonusesByResultId[r.id]||[]}/>
+            </ActivityCard>
+          ))
         ):(
           seasonTrainings.length===0?
             <div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>Aucun entraînement pour cette saison</div>
