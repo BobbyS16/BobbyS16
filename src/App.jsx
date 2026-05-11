@@ -6367,13 +6367,15 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
   const trainPtsBreakdown=seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+trainingBonusPts(seasonTrainings);
   const racePtsBreakdown=sumBestPts(seasonResults)+raceBonusPts(seasonResults,results);
-  const bonusByType=bonuses.reduce((acc,b)=>{
+  const resultsByIdProfile=Object.fromEntries((results||[]).map(r=>[r.id,r]));
+  const seasonBonuses=(bonuses||[]).filter(b=>bonusSeason(b,resultsByIdProfile)===season);
+  const bonusByType=seasonBonuses.reduce((acc,b)=>{
     const k=b.bonus_type;
     if(!acc[k])acc[k]={count:0,points:0};
     acc[k].count++;acc[k].points+=b.points||0;
     return acc;
   },{});
-  const bonusTotalPts=bonuses.reduce((s,b)=>s+(b.points||0),0);
+  const bonusTotalPts=seasonBonuses.reduce((s,b)=>s+(b.points||0),0);
   const seasonPts=trainPtsBreakdown+racePtsBreakdown+bonusTotalPts;
   const lv=getSeasonLevel(seasonPts);
 
@@ -6391,7 +6393,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       .then(({data})=>setTrainings(data||[]));
     supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",profile.id)
       .then(({count})=>setGroupsCreated(count||0));
-    supabase.from("point_bonuses").select("bonus_type,points,created_at").eq("user_id",profile.id)
+    supabase.from("point_bonuses").select("bonus_type,points,metadata,created_at").eq("user_id",profile.id)
       .then(({data})=>setBonuses(data||[]));
   },[profile.id]);
   useEffect(()=>{setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);},[]);
@@ -6848,7 +6850,7 @@ function FriendProfileModal({friend,myId,onClose}){
       supabase.from("profiles").select("*").eq("id",friend.id).single(),
       supabase.from("friendships").select("friend_id",{count:"exact"}).eq("user_id",friend.id).eq("status","accepted"),
       supabase.from("groups").select("id",{count:"exact",head:true}).eq("created_by",friend.id),
-      supabase.from("point_bonuses").select("bonus_type,points,metadata").eq("user_id",friend.id),
+      supabase.from("point_bonuses").select("bonus_type,points,metadata,created_at").eq("user_id",friend.id),
     ]);
     setResults(r||[]);setTrainings(t||[]);setBonuses(bs||[]);
     if(prof)setFullProfile(prof);
@@ -6863,10 +6865,12 @@ function FriendProfileModal({friend,myId,onClose}){
 
   const seasonResults=results.filter(r=>r.year===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
-  const friendBonusPts=(bonuses||[]).reduce((s,b)=>s+(b.points||0),0);
+  const resultsByIdFriend=Object.fromEntries((results||[]).map(r=>[r.id,r]));
+  const seasonBonusesFriend=(bonuses||[]).filter(b=>bonusSeason(b,resultsByIdFriend)===season);
+  const friendBonusPts=seasonBonusesFriend.reduce((s,b)=>s+(b.points||0),0);
   const trainPtsBreakdown=seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+trainingBonusPts(seasonTrainings);
   const racePtsBreakdown=sumBestPts(seasonResults)+raceBonusPts(seasonResults,results);
-  const bonusByType=(bonuses||[]).reduce((acc,b)=>{
+  const bonusByType=seasonBonusesFriend.reduce((acc,b)=>{
     const k=b.bonus_type;
     if(!acc[k])acc[k]={count:0,points:0};
     acc[k].count++;acc[k].points+=b.points||0;
