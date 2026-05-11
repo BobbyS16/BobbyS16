@@ -3314,7 +3314,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       <div onClick={onOpenProfile} style={{background:`${myLv.color}12`,border:`1px solid ${myLv.color}44`,borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer"}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0}}>
           <div style={{position:"relative"}}>
-            <Avatar profile={profile} size={52} highlight={myLv.color} onFire={myOnFire?"profile":false}/>
+            <Avatar profile={profile} size={52} highlight={myLv.color} onFire={myOnFire?"feed":false}/>
             {myBadges.length>0&&<div style={{position:"absolute",bottom:-2,right:-2,background:myLv.color,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'"}}>{myBadges.length}</div>}
           </div>
           <div style={{flex:1,minWidth:0}}>
