@@ -2053,7 +2053,16 @@ function HowItWorksModal({onClose}){
         <P><span style={{color:"#F0EDE8",fontWeight:700,display:"block",marginTop:14,marginBottom:4}}>Pourquoi les points d'entraînement sont volontairement plus bas que les courses officielles ?</span>PaceRank valorise la compétition. Une course officielle peut rapporter <span style={{color:"#FFD700",fontWeight:700}}>5 à 10 fois plus</span> qu'un entraînement équivalent. L'entraînement régulier reste essentiel pour progresser et accumuler des points sur l'année, mais les courses restent les moments forts du classement.</P>
       </Section>
 
-      <Section title="3 · Niveaux par course">
+      <Section title="3 · Pronostics entre amis">
+        <P>Quand un ami déclare une course à venir, tu peux pronostiquer son temps. Les pronos sont <span style={{color:"#F0EDE8",fontWeight:700}}>secrets avant la course</span> : tu ne vois pas ceux des autres, juste un compteur "X amis ont pronostiqué".</P>
+        <P>Après la course, la révélation :</P>
+        <Bullet emoji="🎯" bold="Pronostic exact (à 30 secondes près) ">→ <span style={{color:"#FFD700",fontWeight:700}}>+200 pts</span></Bullet>
+        <Bullet emoji="🏆" bold="Le plus proche ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
+        <Bullet emoji="🎲" bold="Simple participation ">→ <span style={{color:"#F0EDE8",fontWeight:700}}>+5 pts</span></Bullet>
+        <P>Le coureur, lui, voit tous les pronos <span style={{color:"#F0EDE8",fontWeight:700}}>en temps réel</span> sur sa propre course.</P>
+      </Section>
+
+      <Section title="4 · Niveaux par course">
         <P>Chaque course te donne un niveau selon les points obtenus sur cette course-là. Plus tu approches du temps élite, plus le niveau monte.</P>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
           {LEVELS.map(l=>(
@@ -2065,7 +2074,7 @@ function HowItWorksModal({onClose}){
         </div>
       </Section>
 
-      <Section title="4 · Statut saison">
+      <Section title="5 · Statut saison">
         <P>Tes points de la saison (courses + entraînements + bonus) te placent sur une échelle de 9 paliers, du <span style={{color:"#27AE60",fontWeight:700}}>Débutant</span> à l'<span style={{color:"#FF1493",fontWeight:700}}>UltraStar</span>. Ton statut s'affiche à côté de tes points sur ta carte de profil.</P>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:10}}>
           {[
@@ -2087,7 +2096,7 @@ function HowItWorksModal({onClose}){
         </div>
       </Section>
 
-      <Section title="5 · Points bonus">
+      <Section title="6 · Points bonus">
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:8}}>Courses</div>
         <Bullet emoji="🏆" bold="PR battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+50 pts</span></Bullet>
         <Bullet emoji="🥇" bold="Top 3 de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+300 pts</span></Bullet>
@@ -2099,12 +2108,12 @@ function HowItWorksModal({onClose}){
         <Bullet emoji="📏" bold="100 km parcourus dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
       </Section>
 
-      <Section title="6 · Le Streak">
+      <Section title="7 · Le Streak">
         <P>Le streak compte le nombre de <span style={{color:"#F0EDE8",fontWeight:700}}>semaines consécutives</span> avec au moins <span style={{color:"#F0EDE8",fontWeight:700}}>3 entraînements</span> enregistrés.</P>
         <P>Tu touches <span style={{color:"#E63946",fontWeight:700}}>+5 pts</span> chaque lundi pour la semaine qui vient de se terminer si tu as fait ≥3 entraînements, et que la semaine d'avant en avait aussi ≥3. Si tu descends sous la barre, le streak repart à zéro.</P>
       </Section>
 
-      <Section title="7 · Les Ligues">
+      <Section title="8 · Les Ligues">
         <P>Chaque semaine, tu affrontes <span style={{color:"#F0EDE8",fontWeight:700}}>20 athlètes</span> de ton niveau dans une ligue. Le classement est basé uniquement sur tes <span style={{color:"#F0EDE8",fontWeight:700}}>points d'entraînement de la semaine</span> (les courses officielles ne comptent pas).</P>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginTop:10,marginBottom:10}}>
           {[
@@ -2127,7 +2136,7 @@ function HowItWorksModal({onClose}){
         <P>Les points <span style={{color:"#F0EDE8",fontWeight:700}}>remettent à 0 chaque lundi à 00h</span> : nouvelle semaine, nouveau classement.</P>
       </Section>
 
-      <Section title="8 · Les disciplines">
+      <Section title="9 · Les disciplines">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[
             {icon:"🏃",label:"Course à pied",color:"#4A90D9",desc:"5 km · 10 km · semi · marathon"},
