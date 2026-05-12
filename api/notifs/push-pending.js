@@ -30,9 +30,9 @@ function buildPushContent(notif) {
       const count = Number(p.count) || 1;
       const aLabel = p.activity_type === "training" ? "ton entraînement" : "ta course";
       if (count > 1) {
-        return { title: `🔥 ${count} amis t'ont pyroté !`, body: `Sur ${aLabel}` };
+        return { title: `🔥 ${count} amis t'ont envoyé un pyro`, body: `Sur ${aLabel}` };
       }
-      return { title: `🔥 ${fromName} t'a pyroté !`, body: `Sur ${aLabel}` };
+      return { title: `🔥 ${fromName} t'a envoyé un pyro`, body: `Sur ${aLabel}` };
     }
     case "comment_received": {
       const aLabel = p.activity_type === "training" ? "ton entraînement" : "ta course";

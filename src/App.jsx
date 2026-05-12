@@ -2228,7 +2228,7 @@ const NOTIF_LEGACY_LABEL = {
   comment_result:   "a commenté ta course",
   comment_training: "a commenté ton entraînement",
   friend_overtake:  "🚀 t'a dépassé au classement saison",
-  pyro_received:    "🔥 t'a pyroté",
+  pyro_received:    "🔥 t'a envoyé un pyro",
   comment_received: "💬 a réagi sur ton activité",
 };
 const NOTIF_ICON = {
@@ -2316,8 +2316,8 @@ function renderNotifLabel(n) {
       case "pyro_received": {
         const count = Number(p.count) || 1;
         const aType = p.activity_type === "training" ? "ton entraînement" : "ta course";
-        if (count > 1) return `🔥 ${count} amis t'ont pyroté sur ${aType}`;
-        return `🔥 t'a pyroté sur ${aType}`;
+        if (count > 1) return `🔥 ${count} amis t'ont envoyé un pyro sur ${aType}`;
+        return `🔥 t'a envoyé un pyro sur ${aType}`;
       }
       case "comment_received": {
         const aType = p.activity_type === "training" ? "ton entraînement" : "ta course";
@@ -5351,7 +5351,7 @@ function EngagementSheet({ myProfile, activityType, activityId, headerUser, head
           {/* Section Pyros */}
           <div style={{fontFamily:"'Bebas Neue'",fontSize:12,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:8,textTransform:"uppercase"}}>Pyros</div>
           {pyros.length === 0 ? (
-            <div style={{padding:"12px 0",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Personne n'a encore pyroté cette activité.</div>
+            <div style={{padding:"12px 0",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Personne n'a encore envoyé de pyro sur cette activité.</div>
           ) : (
             pyros.map(p => {
               const isMe = p.user_id === myProfile?.id;
