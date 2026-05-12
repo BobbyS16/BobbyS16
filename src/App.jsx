@@ -5455,6 +5455,57 @@ function UpcomingRaceCard({ race, onTap }) {
   );
 }
 
+// UpcomingFeedCard — variante de UpcomingRaceCard au format FeedCard, intégrée
+// dans le feed vertical "Activités récentes" du FIL. Layout aligné sur FeedCard
+// (couleur disciplinaire, badge top-right, stats grid 3-col, footer pronos).
+function UpcomingFeedCard({ race, onTap }) {
+  const disc = UPCOMING_DISCIPLINES.find(d => d.k === race.discipline);
+  const badgeColor = ACTIVITY_BADGE_COLORS[race.discipline] || ACTIVITY_BADGE_COLORS.run;
+  const dt = new Date(race.race_date);
+  const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
+  const targetStr = intervalToHHMMSS(race.target_time);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dOnly = new Date(race.race_date); dOnly.setHours(0,0,0,0);
+  const daysAway = Math.max(0, Math.round((dOnly - today) / 86400000));
+  const whenStr = daysAway === 0 ? "Aujourd'hui" : daysAway === 1 ? "Demain" : `Dans ${daysAway} jours`;
+  const [pronoCount, setPronoCount] = useState(null);
+  useEffect(() => {
+    let cancel = false;
+    supabase.rpc("get_race_prono_count", { p_race_id: race.id })
+      .then(({ data }) => { if (!cancel) setPronoCount(data ?? 0); });
+    return () => { cancel = true; };
+  }, [race.id]);
+  const cardBg = `linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`;
+  const cardBorder = `1px solid ${badgeColor}55`;
+  const innerSep = `1px solid ${badgeColor}30`;
+  return (
+    <button onClick={onTap} style={{display:"block",width:"100%",textAlign:"left",cursor:"pointer",background:cardBg,border:cardBorder,borderRadius:20,marginBottom:12,overflow:"hidden",font:"inherit",color:"inherit",padding:0}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 10px",position:"relative"}}>
+        <Avatar profile={race.user} size={38}/>
+        <div style={{flex:1,minWidth:0,paddingRight:64}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(race.user?.name) || "Anonyme"}</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.55)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{race.race_name} · {whenStr}</div>
+        </div>
+        <div style={{position:"absolute",top:14,right:14,padding:"4px 10px",borderRadius:99,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}66`,color:badgeColor,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase"}}>📅 {disc?.label || race.discipline}</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",borderTop:innerSep}}>
+        <StatCell label="Date"     value={dStr}/>
+        <StatCell label="Distance" value={`${race.distance_km} km`}/>
+        <StatCell label="Objectif" value={targetStr || "—"}/>
+      </div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"8px 14px",borderTop:innerSep,fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.7)"}}>
+        {pronoCount === null ? (
+          <span style={{color:"rgba(240,237,232,0.35)"}}>…</span>
+        ) : pronoCount === 0 ? (
+          <span style={{color:"rgba(240,237,232,0.45)"}}>Aucun pronostic pour l'instant</span>
+        ) : (
+          <><span style={{fontSize:13}}>👥</span> <span style={{color:"#FFD700",fontWeight:700}}>{pronoCount}</span> ami{pronoCount>1?"s ont":" a"} pronostiqué</>
+        )}
+      </div>
+    </button>
+  );
+}
+
 // UpcomingRaceDetailModal — détail au tap d'une UpcomingRaceCard.
 // Visibilité (cf. RLS race_pronostics + RPC get_race_prono_count) :
 //   - Coureur : voit tous les pronos de sa course
@@ -5894,9 +5945,12 @@ function FilPanel({ myProfile }) {
 
       {/* Section Activités récentes */}
       <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,color:"rgba(240,237,232,0.5)",marginBottom:10,textTransform:"uppercase"}}>⚡ Activités récentes</div>
+      {!loading && upcomingRaces.map(r => (
+        <UpcomingFeedCard key={`uf_${r.id}`} race={r} onTap={()=>setSelectedUpcoming(r)}/>
+      ))}
       {loading ? (
         <div style={{padding:"30px 0",textAlign:"center",fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
-      ) : feed.length === 0 ? (
+      ) : feed.length === 0 && upcomingRaces.length === 0 ? (
         <div style={{padding:"22px 14px",background:"rgba(255,255,255,0.03)",borderRadius:14,textAlign:"center",border:"1px solid rgba(255,255,255,0.05)"}}>
           <div style={{fontSize:13,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif"}}>Aucune activité de tes amis sur les 14 derniers jours.</div>
         </div>
