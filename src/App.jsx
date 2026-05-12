@@ -4930,7 +4930,7 @@ function PyroButton({ count, active, onToggle, bare=false }) {
   );
 }
 
-function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyroters = [], myId, commentCount = 0, ownerOnFire = false, onTogglePyro, onOpenSheet }) {
+function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyroters = [], myId, commentCount = 0, ownerOnFire = false, onTogglePyro, onOpenSheet, onTap }) {
   const e = entry.data;
   const fam = activityFamily(entry);
   const badgeColor = ACTIVITY_BADGE_COLORS[fam.family] || ACTIVITY_BADGE_COLORS.run;
@@ -4950,7 +4950,7 @@ function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyr
   const innerSeparator = `1px solid ${badgeColor}30`;
   const preview = buildPyroPreview(pyroters, myId);
   return (
-    <div style={{background:cardBg,border:cardBorder,borderRadius:20,marginBottom:12,overflow:"hidden"}}>
+    <div onClick={onTap} style={{background:cardBg,border:cardBorder,borderRadius:20,marginBottom:12,overflow:"hidden",cursor:onTap?"pointer":"default"}}>
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 14px 10px",position:"relative"}}>
         <Avatar profile={entry.user} size={38} onFire={ownerOnFire?"feed":false}/>
@@ -5631,6 +5631,9 @@ function FilPanel({ myProfile }) {
   const [upcomingRaces, setUpcomingRaces] = useState([]);
   const [selectedUpcoming, setSelectedUpcoming] = useState(null);
   const [openSheet, setOpenSheet] = useState(null); // { kind, activityId, user, title }
+  const [editTraining, setEditTraining] = useState(null);
+  const [editResult, setEditResult] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Toggle pyro : insert/delete sur public.pyros. Optimistic update côté
@@ -5799,7 +5802,7 @@ function FilPanel({ myProfile }) {
     };
     load();
     return () => { cancel = true; };
-  }, [myProfile?.id]);
+  }, [myProfile?.id, reloadKey]);
 
   return (
     <div>
@@ -5900,9 +5903,29 @@ function FilPanel({ myProfile }) {
               ownerOnFire={onFireUserIds.has(e.user?.id)}
               onTogglePyro={()=>togglePyro(akind, e.activityId, py.pyrotedByMe)}
               onOpenSheet={()=>setOpenSheet({ kind: akind, activityId: e.activityId, user: e.user, title: e.kind === "training" ? (e.data.is_official_race ? (e.data.official_race_name||"Course officielle") : (e.data.title||`Sortie ${e.data.sport||""}`.trim())) : (DISCIPLINES[e.data.discipline]?.label || e.data.discipline) })}
+              onTap={e.user?.id === myProfile?.id ? () => {
+                if (e.kind === "training") setEditTraining(e.data);
+                else setEditResult(e.data);
+              } : undefined}
             />
           );
         })
+      )}
+      {editTraining && (
+        <TrainingModal
+          existing={editTraining}
+          userId={myProfile?.id}
+          onSave={()=>{ setEditTraining(null); setReloadKey(k=>k+1); }}
+          onClose={()=>setEditTraining(null)}
+        />
+      )}
+      {editResult && (
+        <ResultModal
+          existing={editResult}
+          userId={myProfile?.id}
+          onSave={()=>{ setEditResult(null); setReloadKey(k=>k+1); }}
+          onClose={()=>setEditResult(null)}
+        />
       )}
     </div>
   );
