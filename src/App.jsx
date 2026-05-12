@@ -2012,15 +2012,6 @@ function HowItWorksModal({onClose}){
       <div><span style={{color:"#F0EDE8",fontWeight:700}}>{bold}</span>{children}</div>
     </div>
   );
-  const RefRow=({label,time,prestige,color})=>(
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"rgba(255,255,255,0.03)",borderRadius:10,marginBottom:5,border:"1px solid rgba(255,255,255,0.05)",borderLeft:`3px solid ${color}`}}>
-      <div style={{fontFamily:"'Barlow',sans-serif",fontSize:12,color:"#F0EDE8",fontWeight:600}}>{label}</div>
-      <div style={{display:"flex",gap:10,alignItems:"center"}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:14,color:"#F0EDE8",letterSpacing:0.5}}>{time}</div>
-        <div style={{fontSize:10,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>×{prestige}</div>
-      </div>
-    </div>
-  );
   const LEVELS=[
     {label:"Bronze", min:0,  color:"#CD7F32"},
     {label:"Argent", min:200,color:"#C0C0C0"},
@@ -2034,27 +2025,13 @@ function HowItWorksModal({onClose}){
       <div style={{fontFamily:"'Bebas Neue'",fontSize:28,color:"#F0EDE8",letterSpacing:2,marginBottom:4}}>Comment ça marche</div>
       <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:22}}>Le système PaceRank expliqué</div>
 
-      <Section title="1 · Points de course officielle">
-        <P>Ton temps est comparé au temps de référence d'un athlète <span style={{color:"#FFD700",fontWeight:700}}>élite mondial</span> sur la même distance. Plus tu t'en approches, plus tu marques de points.</P>
-        <P>Un coefficient <span style={{color:"#F0EDE8",fontWeight:700}}>prestige</span> est associé à chaque épreuve selon sa difficulté : plus la course est longue et exigeante, plus il est élevé (×1.0 sur un 10 km, jusqu'à ×1.5 sur un Ironman ou un Ultra Trail).</P>
-        <P>Pour le <span style={{color:"#27AE60",fontWeight:700}}>trail</span> et le <span style={{color:"#9B59B6",fontWeight:700}}>triathlon</span>, le <span style={{color:"#F0EDE8",fontWeight:700}}>dénivelé positif</span> est aussi pris en compte : si tu cours sur une course plus pentue que la référence, ton temps est ajusté à la baisse (bonus) — et inversement (malus) si moins de D+. Compte ≈ 6 sec par mètre d'écart avec la référence.</P>
-        <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Temps de référence élite</div>
-        <RefRow label="🏃 5 km"              time="13:00"   prestige="1.0" color="#4A90D9"/>
-        <RefRow label="🏃 10 km"             time="27:00"   prestige="1.0" color="#4A90D9"/>
-        <RefRow label="🏃 Semi-marathon"     time="58:00"   prestige="1.1" color="#4A90D9"/>
-        <RefRow label="🏃 Marathon"          time="2h02"    prestige="1.2" color="#4A90D9"/>
-        <RefRow label="⛰️ Trail Court (<30km)" time="2h30"  prestige="1.1" color="#27AE60"/>
-        <RefRow label="⛰️ Trail Moyen (30-60)" time="5h30"  prestige="1.2" color="#27AE60"/>
-        <RefRow label="⛰️ Trail Long (60-100)" time="10h00" prestige="1.3" color="#27AE60"/>
-        <RefRow label="⛰️ Ultra Trail (100+)"  time="20h00" prestige="1.5" color="#27AE60"/>
-        <RefRow label="🏊 Triathlon S"          time="55:00" prestige="1.1" color="#9B59B6"/>
-        <RefRow label="🏊 Triathlon Olympique"  time="1h50"  prestige="1.2" color="#9B59B6"/>
-        <RefRow label="🏊 Half Ironman"         time="2h56"  prestige="1.3" color="#9B59B6"/>
-        <RefRow label="🏊 Ironman"              time="5h50"  prestige="1.5" color="#9B59B6"/>
-        <RefRow label="🔥 Hyrox Open"           time="50:38" prestige="1.2" color="#E63946"/>
-        <RefRow label="🔥 Hyrox Pro"            time="51:59" prestige="1.4" color="#E63946"/>
-        <RefRow label="🔥 Hyrox Doubles"        time="47:57" prestige="1.1" color="#E63946"/>
-        <RefRow label="🔥 Hyrox Relay"          time="45:43" prestige="1.0" color="#E63946"/>
+      <Section title="1 · Calcul des points">
+        <P>Plus tu vas vite, plus tu gagnes de points.</P>
+        <P>Plus la distance est longue, plus tu gagnes de points.</P>
+        <P>Les <span style={{color:"#F0EDE8",fontWeight:700}}>courses officielles</span> rapportent davantage que les entraînements.</P>
+        <P>Le <span style={{color:"#F0EDE8",fontWeight:700}}>dénivelé</span> ajoute un bonus en trail et en vélo.</P>
+        <div style={{height:6}}/>
+        <P>Les temps de référence élite servent à mesurer ton intensité, mais tu n'as pas besoin de t'en soucier : <span style={{color:"#F0EDE8",fontWeight:700}}>on s'occupe du calcul</span>.</P>
       </Section>
 
       <Section title="2 · Calcul des points d'entraînement">
@@ -2079,7 +2056,16 @@ function HowItWorksModal({onClose}){
         <P><span style={{color:"#F0EDE8",fontWeight:700,display:"block",marginTop:14,marginBottom:4}}>Pourquoi les points d'entraînement sont volontairement plus bas que les courses officielles ?</span>PaceRank valorise la compétition. Une course officielle peut rapporter <span style={{color:"#FFD700",fontWeight:700}}>5 à 10 fois plus</span> qu'un entraînement équivalent. L'entraînement régulier reste essentiel pour progresser et accumuler des points sur l'année, mais les courses restent les moments forts du classement.</P>
       </Section>
 
-      <Section title="3 · Niveaux par course">
+      <Section title="3 · Pronostics entre amis">
+        <P>Quand un ami déclare une course à venir, tu peux pronostiquer son temps. Les pronos sont <span style={{color:"#F0EDE8",fontWeight:700}}>secrets avant la course</span> : tu ne vois pas ceux des autres, juste un compteur "X amis ont pronostiqué".</P>
+        <P>Après la course, la révélation :</P>
+        <Bullet emoji="🎯" bold="Pronostic exact (à 30 secondes près) ">→ <span style={{color:"#FFD700",fontWeight:700}}>+200 pts</span></Bullet>
+        <Bullet emoji="🏆" bold="Le plus proche ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
+        <Bullet emoji="🎲" bold="Simple participation ">→ <span style={{color:"#F0EDE8",fontWeight:700}}>+5 pts</span></Bullet>
+        <P>Le coureur, lui, voit tous les pronos <span style={{color:"#F0EDE8",fontWeight:700}}>en temps réel</span> sur sa propre course.</P>
+      </Section>
+
+      <Section title="4 · Niveaux par course">
         <P>Chaque course te donne un niveau selon les points obtenus sur cette course-là. Plus tu approches du temps élite, plus le niveau monte.</P>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:10}}>
           {LEVELS.map(l=>(
@@ -2091,7 +2077,7 @@ function HowItWorksModal({onClose}){
         </div>
       </Section>
 
-      <Section title="4 · Statut saison">
+      <Section title="5 · Statut saison">
         <P>Tes points de la saison (courses + entraînements + bonus) te placent sur une échelle de 9 paliers, du <span style={{color:"#27AE60",fontWeight:700}}>Débutant</span> à l'<span style={{color:"#FF1493",fontWeight:700}}>UltraStar</span>. Ton statut s'affiche à côté de tes points sur ta carte de profil.</P>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:10}}>
           {[
@@ -2113,7 +2099,7 @@ function HowItWorksModal({onClose}){
         </div>
       </Section>
 
-      <Section title="5 · Points bonus">
+      <Section title="6 · Points bonus">
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:8}}>Courses</div>
         <Bullet emoji="🏆" bold="PR battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+50 pts</span></Bullet>
         <Bullet emoji="🥇" bold="Top 3 de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+300 pts</span></Bullet>
@@ -2125,12 +2111,12 @@ function HowItWorksModal({onClose}){
         <Bullet emoji="📏" bold="100 km parcourus dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
       </Section>
 
-      <Section title="6 · Le Streak">
+      <Section title="7 · Le Streak">
         <P>Le streak compte le nombre de <span style={{color:"#F0EDE8",fontWeight:700}}>semaines consécutives</span> avec au moins <span style={{color:"#F0EDE8",fontWeight:700}}>3 entraînements</span> enregistrés.</P>
         <P>Tu touches <span style={{color:"#E63946",fontWeight:700}}>+5 pts</span> chaque lundi pour la semaine qui vient de se terminer si tu as fait ≥3 entraînements, et que la semaine d'avant en avait aussi ≥3. Si tu descends sous la barre, le streak repart à zéro.</P>
       </Section>
 
-      <Section title="7 · Les Ligues">
+      <Section title="8 · Les Ligues">
         <P>Chaque semaine, tu affrontes <span style={{color:"#F0EDE8",fontWeight:700}}>20 athlètes</span> de ton niveau dans une ligue. Le classement est basé uniquement sur tes <span style={{color:"#F0EDE8",fontWeight:700}}>points d'entraînement de la semaine</span> (les courses officielles ne comptent pas).</P>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginTop:10,marginBottom:10}}>
           {[
@@ -2153,7 +2139,7 @@ function HowItWorksModal({onClose}){
         <P>Les points <span style={{color:"#F0EDE8",fontWeight:700}}>remettent à 0 chaque lundi à 00h</span> : nouvelle semaine, nouveau classement.</P>
       </Section>
 
-      <Section title="8 · Les disciplines">
+      <Section title="9 · Les disciplines">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[
             {icon:"🏃",label:"Course à pied",color:"#4A90D9",desc:"5 km · 10 km · semi · marathon"},
