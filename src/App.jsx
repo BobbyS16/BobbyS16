@@ -5701,20 +5701,19 @@ function FilPanel({ myProfile }) {
         .order("race_date", { ascending: true }).limit(20);
 
       const sinceISO = new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-      // Trainings : self + amis. Results : amis uniquement (les courses passées
-      // de self apparaissent déjà dans le profil ; on n'encombre pas le feed).
-      const trainingUserIds = [myProfile.id, ...friendIds];
+      // Self + amis pour trainings ET results : le user voit ses propres
+      // activités dans son feed (cohérence avec les pyros/commentaires
+      // que ses amis peuvent y déposer).
+      const feedUserIds = [myProfile.id, ...friendIds];
       const [trR, reR, prR] = await Promise.all([
         supabase.from("trainings")
           .select("id,user_id,sport,duration,distance,date,points,is_official_race,official_race_name,title,photo_url,elevation_gain_m")
-          .in("user_id", trainingUserIds).gte("date", sinceISO)
+          .in("user_id", feedUserIds).gte("date", sinceISO)
           .order("date", { ascending: false }).limit(40),
-        friendIds.length > 0
-          ? supabase.from("results")
-              .select("id,user_id,discipline,time,race,year,race_date,elevation,elevation_gain_m,photo_url")
-              .in("user_id", friendIds).gte("race_date", sinceISO)
-              .order("race_date", { ascending: false }).limit(40)
-          : Promise.resolve({ data: [] }),
+        supabase.from("results")
+          .select("id,user_id,discipline,time,race,year,race_date,elevation,elevation_gain_m,photo_url")
+          .in("user_id", feedUserIds).gte("race_date", sinceISO)
+          .order("race_date", { ascending: false }).limit(40),
         supabase.from("profiles")
           .select("id,name,avatar,city,birth_year").in("id", upcomingUserIds),
       ]);
