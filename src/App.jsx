@@ -5414,15 +5414,14 @@ function EngagementSheet({ myProfile, activityType, activityId, headerUser, head
 }
 
 // UpcomingRaceCard — ligne de course à venir dans la section dédiée du fil.
-// Discipline UPCOMING_DISCIPLINES (run/trail/tri/hyrox) → couleur de badge
-// via ACTIVITY_BADGE_COLORS. Tap → modal détail. Affiche aussi le compteur
-// public "👥 X pronos" (via RPC get_race_prono_count) sans exposer le contenu.
+// Layout : haut = avatar + nom participant (gros) / nom course (sous-titre) /
+// date · distance. Badge discipline en haut à droite. Bas = compteur public
+// "👥 X amis ont pronostiqué" (via RPC get_race_prono_count).
 function UpcomingRaceCard({ race, onTap }) {
   const disc = UPCOMING_DISCIPLINES.find(d => d.k === race.discipline);
   const badgeColor = ACTIVITY_BADGE_COLORS[race.discipline] || ACTIVITY_BADGE_COLORS.run;
   const dt = new Date(race.race_date);
   const dStr = dt.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
-  const targetStr = intervalToHHMMSS(race.target_time);
   const [pronoCount, setPronoCount] = useState(null);
   useEffect(() => {
     let cancel = false;
@@ -5433,22 +5432,24 @@ function UpcomingRaceCard({ race, onTap }) {
   return (
     <button onClick={onTap} style={{display:"block",flexShrink:0,width:280,textAlign:"left",cursor:"pointer",background:`linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`,border:`1px solid ${badgeColor}55`,borderRadius:20,padding:0,overflow:"hidden",font:"inherit",color:"inherit"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 14px",position:"relative"}}>
-        <div style={{width:46,height:46,borderRadius:14,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{disc?.icon || "🏁"}</div>
+        <Avatar profile={race.user} size={46}/>
         <div style={{flex:1,minWidth:0,paddingRight:64}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{race.race_name}</div>
-          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.5)",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {dStr} · {race.distance_km} km{race.elevation_gain_m ? ` · ⛰️ ${race.elevation_gain_m}m D+` : ""}{targetStr ? ` · 🎯 ${targetStr}` : ""}
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:16,letterSpacing:0.6,color:"#F0EDE8",lineHeight:1.1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(race.user?.name) || "Anonyme"}</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.65)",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{race.race_name}</div>
+          <div style={{fontFamily:"'Barlow',sans-serif",fontSize:10,color:"rgba(240,237,232,0.4)",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {dStr} · {race.distance_km} km
           </div>
         </div>
         <div style={{position:"absolute",top:14,right:14,padding:"4px 10px",borderRadius:99,background:`${badgeColor}1a`,border:`1px solid ${badgeColor}66`,color:badgeColor,fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase"}}>{disc?.label || race.discipline}</div>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",borderTop:`1px solid ${badgeColor}30`}}>
-        <Avatar profile={race.user} size={26}/>
-        <div style={{flex:1,minWidth:0,fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortName(race.user?.name)} y participe</div>
-        {pronoCount !== null && pronoCount > 0 && (
-          <div style={{padding:"3px 8px",borderRadius:99,background:"rgba(255,215,0,0.12)",border:"1px solid rgba(255,215,0,0.35)",color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontSize:10,fontWeight:700,letterSpacing:0.3,flexShrink:0}}>👥 {pronoCount}</div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"10px 14px",borderTop:`1px solid ${badgeColor}30`,fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.7)"}}>
+        {pronoCount === null ? (
+          <span style={{color:"rgba(240,237,232,0.35)"}}>…</span>
+        ) : pronoCount === 0 ? (
+          <span style={{color:"rgba(240,237,232,0.45)"}}>Aucun pronostic</span>
+        ) : (
+          <><span style={{fontSize:13}}>👥</span> <span style={{color:"#FFD700",fontWeight:700}}>{pronoCount}</span> ami{pronoCount>1?"s ont":" a"} pronostiqué</>
         )}
-        <div style={{color:"rgba(240,237,232,0.35)",fontSize:14,flexShrink:0}}>›</div>
       </div>
     </button>
   );
@@ -5461,7 +5462,11 @@ function UpcomingRaceCard({ race, onTap }) {
 //   - Tous les amis après course (race_date < today) : voient tous les pronos
 //     (mode 'révélation') + classement par predicted_time
 // Compteur public "👥 X amis ont pronostiqué" toujours visible (RPC séparée).
-function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
+function UpcomingRaceDetailModal({ race: initialRace, myProfile, onClose, onChanged }) {
+  // race est mis en state local pour refléter immédiatement les éditions
+  // (UpcomingRaceModal) sans attendre que le parent recharge le feed.
+  const [race, setRace] = useState(initialRace);
+  useEffect(() => { setRace(initialRace); }, [initialRace.id]);
   const disc = UPCOMING_DISCIPLINES.find(d => d.k === race.discipline);
   const badgeColor = ACTIVITY_BADGE_COLORS[race.discipline] || ACTIVITY_BADGE_COLORS.run;
   const dt = new Date(race.race_date);
@@ -5472,6 +5477,7 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
   const [pronoCount, setPronoCount] = useState(0);
   const [loadingPronos, setLoadingPronos] = useState(true);
   const [showSubmit, setShowSubmit] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const load = async () => {
     setLoadingPronos(true);
@@ -5534,6 +5540,11 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
             {targetStr ? <>🎯 Objectif : <span style={{color:"#F0EDE8",fontWeight:700}}>{targetStr}</span></> : "Pas d'objectif annoncé"}
           </div>
         </div>
+        {isOwner && !raceIsPast && (
+          <button onClick={()=>setShowEdit(true)} style={{padding:"5px 11px",borderRadius:10,background:"rgba(255,255,255,0.06)",color:"#F0EDE8",border:"1px solid rgba(255,255,255,0.18)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,flexShrink:0}}>
+            ✏️ Modifier
+          </button>
+        )}
       </div>
 
       {/* Compteur public : visible par tous les amis du coureur, indépendant
@@ -5603,6 +5614,23 @@ function UpcomingRaceDetailModal({ race, myProfile, onClose }) {
           userId={myProfile?.id}
           onSaved={()=>{ setShowSubmit(false); load(); }}
           onClose={()=>setShowSubmit(false)}
+        />
+      )}
+
+      {showEdit && (
+        <UpcomingRaceModal
+          userId={myProfile?.id}
+          race={race}
+          onSaved={(updated)=>{
+            setShowEdit(false);
+            if (updated) {
+              // Garde l'objet `user` (jointure non renvoyée par update().select())
+              const merged = { ...race, ...updated, user: race.user };
+              setRace(merged);
+              onChanged?.(merged);
+            }
+          }}
+          onClose={()=>setShowEdit(false)}
         />
       )}
     </Modal>
@@ -5810,7 +5838,15 @@ function FilPanel({ myProfile }) {
         </div>
       )}
       {selectedUpcoming && (
-        <UpcomingRaceDetailModal race={selectedUpcoming} myProfile={myProfile} onClose={()=>setSelectedUpcoming(null)}/>
+        <UpcomingRaceDetailModal
+          race={selectedUpcoming}
+          myProfile={myProfile}
+          onClose={()=>setSelectedUpcoming(null)}
+          onChanged={(updated)=>{
+            setUpcomingRaces(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
+            setSelectedUpcoming(prev => prev && prev.id === updated.id ? { ...prev, ...updated } : prev);
+          }}
+        />
       )}
 
       {openSheet && (
