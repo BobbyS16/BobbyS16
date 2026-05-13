@@ -3349,11 +3349,29 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const myResultsById=useMemo(()=>Object.fromEntries((results||[]).map(r=>[r.id,r])),[results]);
   const myBonusPts=useMemo(()=>sumBonusForSeason(myBonuses,season,myResultsById),[myBonuses,season,myResultsById]);
   const totalPts=sumBestPts(seasonResults)+trainingPts+raceBonusPts(seasonResults,results)+trainingBonusPts(seasonTrainings)+myBonusPts;
+  // Pts affichés sur la card : filtrés par sport si discFilter ≠ "All".
+  // Suit la même logique que le leaderboard (loadRanking) : quand un sport
+  // est sélectionné, on ne compte que les race points de cette catégorie,
+  // les entraînements/bonus saison sont mis à 0.
+  const displayedPts=useMemo(()=>{
+    if(discFilter==="All")return totalPts;
+    const fRes=seasonResults.filter(r=>DISCIPLINES[r.discipline]?.category===discFilter);
+    return sumBestPts(fRes);
+  },[discFilter,seasonResults,totalPts]);
   const bests=Object.values(seasonResults.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{}))
     .sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
   const myBadges=computeBadges({results,profile});
+  // Palier saison : reste basé sur totalPts (tous sports cumulés), même
+  // quand un sport est sélectionné. La contrainte du brief : le filtre
+  // sport change l'AFFICHAGE, pas le palier ni la ligue.
   const myLv=getSeasonLevel(totalPts);
-  const DISC_TABS=[{k:"hyrox",l:"🔥 Hyrox"},{k:"trail",l:"⛰️ Trail"},{k:"triathlon",l:"🏊 Tri"},{k:"running",l:"🏃 Run"},{k:"All",l:"All"}];
+  const SPORT_TABS=[
+    {k:"All",       l:"TOUS"},
+    {k:"running",   l:"🏃 RUN"},
+    {k:"triathlon", l:"🚴 TRI"},
+    {k:"trail",     l:"⛰ TRAIL"},
+    {k:"hyrox",     l:"💪 HYROX"},
+  ];
 
   const [copied,setCopied]=useState(false);
   const handleShare=()=>{
@@ -3458,7 +3476,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             </div>
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:getSeasonLevel(totalPts).color,letterSpacing:1,lineHeight:1}}>{totalPts}</div>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:myLv.color,letterSpacing:1,lineHeight:1}}>{displayedPts}</div>
             <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison</div>
             <div style={{fontSize:8,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif"}}>t:{trainings.length} pts:{trainingPts}</div>
           </div>
@@ -3474,6 +3492,30 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             );})}
           </div>
         )}
+      </div>
+
+      {/* Tabs SPORT : sous la card profil, avant le toggle de leaderboard.
+          Scroll horizontal natif pour les petits écrans. */}
+      <div style={{display:"flex",gap:8,marginBottom:14,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:2}}>
+        {SPORT_TABS.map(({k,l})=>{
+          const sel=discFilter===k;
+          return (
+            <button key={k} onClick={()=>setDiscFilter(k)} style={{
+              flexShrink:0,
+              padding:"8px 14px",
+              borderRadius:18,
+              border:`1px solid ${sel?"#E63946":"#2E2E36"}`,
+              background:sel?"#E63946":"#1A1A1F",
+              color:sel?"#fff":"#8E8E96",
+              cursor:"pointer",
+              fontFamily:"'Bebas Neue'",
+              fontSize:12,
+              letterSpacing:1.5,
+              whiteSpace:"nowrap",
+              lineHeight:1,
+            }}>{l}</button>
+          );
+        })}
       </div>
 
       {/* Rank toggle (4 pilules: Amis · Groupes · Général · Ligue) */}
@@ -3508,14 +3550,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
               })}
               <button onClick={()=>setShowCreateGroup(true)} title="Créer / rejoindre" style={{flexShrink:0,minWidth:42,padding:"10px 12px",borderRadius:14,border:"1px dashed rgba(255,255,255,0.15)",background:"transparent",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:18,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>+</button>
             </div>
-      )}
-
-      {rankFilter!=="ligue"&&(
-        <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",scrollbarWidth:"none"}}>
-          {DISC_TABS.map(({k,l})=>(
-            <button key={k} onClick={()=>setDiscFilter(k)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:discFilter===k?"#E63946":"rgba(255,255,255,0.06)",color:discFilter===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{l}</button>
-          ))}
-        </div>
       )}
 
       {rankFilter==="ligue"
