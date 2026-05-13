@@ -190,3 +190,10 @@ code {
   pointer-events: none;
   transform: translate(-50%, 0);
 }
+
+/* HOME : sur petits écrans (iPhone SE 375px), raccourcir le pill saison
+   à "2026 ▾" en masquant le préfixe "SAISON " pour ne pas faire déborder
+   le header. */
+@media (max-width: 380px) {
+  .season-pill-prefix { display: none; }
+}

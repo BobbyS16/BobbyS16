@@ -3065,10 +3065,51 @@ function JoinGroupModal({userId, prefilledCode = "", onJoined, onClose}) {
   );
 }
 
+function SeasonPickerModal({seasons, currentSeason, onSelect, onClose}){
+  const sorted = [...seasons].sort((a,b) => b - a);
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:2,marginBottom:4,textAlign:"center"}}>Choisir la saison</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:18,textAlign:"center"}}>Sélectionne une saison</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+        {sorted.map(y => {
+          const sel = y === currentSeason;
+          const isCurrent = y === CY;
+          return (
+            <button key={y} onClick={() => { onSelect(y); onClose(); }} style={{
+              display:"flex",alignItems:"center",justifyContent:"space-between",
+              padding:"14px 16px",
+              background: sel ? "rgba(230,57,70,0.12)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${sel ? "#E63946" : "rgba(255,255,255,0.08)"}`,
+              borderRadius:14, cursor:"pointer",
+              fontFamily:"'Bebas Neue'", fontSize:20,
+              color: sel ? "#fff" : "rgba(240,237,232,0.85)",
+              letterSpacing:1.5, textAlign:"left",
+            }}>
+              <span style={{display:"flex",alignItems:"center",gap:12}}>
+                <span style={{
+                  width:12,height:12,borderRadius:"50%",
+                  background: sel ? "#E63946" : "transparent",
+                  border: sel ? "none" : "1px solid rgba(255,255,255,0.2)",
+                  flexShrink:0,
+                }}/>
+                {y}
+              </span>
+              {isCurrent && <span style={{fontFamily:"'Barlow',sans-serif",fontSize:11,letterSpacing:1,textTransform:"uppercase",color: sel ? "#fff" : "#27AE60",fontWeight:700}}>(en cours)</span>}
+            </button>
+          );
+        })}
+      </div>
+      <Btn variant="secondary" onClick={onClose}>Annuler</Btn>
+    </Modal>
+  );
+}
+
 function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner,onOpenLeague}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
+  const [showSeasonPicker,setShowSeasonPicker]=useState(false);
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
   const [pendingClassif,setPendingClassif]=useState([]);
@@ -3118,13 +3159,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     return [...new Set([...base,...fromData])].sort((a,b)=>a-b);
   },[results]);
   const [season,setSeason]=useState(CY);
-  const seasonsRef=useRef(null);
-  useEffect(()=>{
-    if(seasons.length>0){
-      setSeason(seasons[seasons.length-1]);
-      setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);
-    }
-  },[seasons]);
   const [rankFilter,setRankFilter]=useState("amis");
   const [discFilter,setDiscFilter]=useState("All");
   const [rankData,setRankData]=useState([]);
@@ -3347,6 +3381,10 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
           <button onClick={()=>setShowHelp(true)} aria-label="Comment ça marche" style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
             ❓
           </button>
+          <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:20,padding:"8px 12px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:13,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:5,whiteSpace:"nowrap",flexShrink:0,lineHeight:1}}>
+            <span className="season-pill-prefix">SAISON </span>{season}
+            <span style={{fontSize:9,opacity:0.85,marginLeft:1}}>▾</span>
+          </button>
         </div>
       </div>
       </div>
@@ -3438,16 +3476,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
         )}
       </div>
 
-      {/* Season */}
-      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
-        {seasons.map(y=>(
-          <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            {y}
-            {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
-          </button>
-        ))}
-      </div>
-
       {/* Rank toggle (4 pilules: Amis · Groupes · Général · Ligue) */}
       <div style={{display:"flex",gap:6,marginBottom:12}}>
         {[["amis","👥 Amis"],["groupes","🏠 Crew"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
@@ -3530,6 +3558,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange} onNavigateLeague={onOpenLeague} onNavigateProfile={onOpenProfile}/>}
       {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
+      {showSeasonPicker&&<SeasonPickerModal seasons={seasons} currentSeason={season} onSelect={setSeason} onClose={()=>setShowSeasonPicker(false)}/>}
       {classifModalOpen && pendingClassif.length>0 && (
         <RaceClassificationModal
           pending={pendingClassif}
