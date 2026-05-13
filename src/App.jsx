@@ -7334,8 +7334,10 @@ function OnboardingTour({profile, results, onComplete, onAddRace}) {
       <div style={{fontFamily:"'Bebas Neue'",fontSize:38,letterSpacing:1.5,lineHeight:1.05,marginBottom:14,maxWidth:360}}>
         Bienvenue dans le club.
       </div>
-      <div style={{fontSize:15,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.5,maxWidth:340,marginBottom:60}}>
-        Compare tes perfs avec tes amis, peu importe la discipline.
+      <div style={{fontSize:15,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.7,maxWidth:340,marginBottom:60}}>
+        <div>Enregistre tes <span style={{color:PR_RED,fontWeight:700}}>perfs</span>.</div>
+        <div>Pronostique celles de tes <span style={{color:PR_RED,fontWeight:700}}>potes</span>.</div>
+        <div>Gagne des points, monte au <span style={{color:PR_RED,fontWeight:700}}>classement</span>.</div>
       </div>
       <div style={{width:"100%",maxWidth:380}}>
         <PrimaryBtn onClick={next}>C'est parti</PrimaryBtn>
