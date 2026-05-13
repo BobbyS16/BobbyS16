@@ -3520,7 +3520,14 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
         )}
       </div>
 
-      {/* Tabs SPORT : sous la card profil, avant le toggle de leaderboard.
+      {/* Rank toggle (4 pilules: Amis · Groupes · Général · Ligue) */}
+      <div style={{display:"flex",gap:6,marginBottom:12}}>
+        {[["amis","👥 Amis"],["groupes","🏠 Crew"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setRankFilter(k)} style={{flex:1,padding:"9px 0",borderRadius:12,border:"none",cursor:"pointer",background:rankFilter===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:rankFilter===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
+        ))}
+      </div>
+
+      {/* Tabs SPORT : sous le toggle Amis/Crew/Général/Ligue.
           Largeur distribuée en flex pour que les 5 tabs tiennent sur une
           seule ligne, même sur iPhone SE (375px). */}
       <div style={{display:"flex",gap:6,marginBottom:14,paddingBottom:2}}>
@@ -3547,13 +3554,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             }}>{l}</button>
           );
         })}
-      </div>
-
-      {/* Rank toggle (4 pilules: Amis · Groupes · Général · Ligue) */}
-      <div style={{display:"flex",gap:6,marginBottom:12}}>
-        {[["amis","👥 Amis"],["groupes","🏠 Crew"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setRankFilter(k)} style={{flex:1,padding:"9px 0",borderRadius:12,border:"none",cursor:"pointer",background:rankFilter===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:rankFilter===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
-        ))}
       </div>
 
       {/* Section Groupes : empty state OU cards horizontales scrollables */}
