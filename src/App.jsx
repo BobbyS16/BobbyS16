@@ -1712,7 +1712,8 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
     if(!t){setError("Sélectionne un temps valide");return;}
     setLoading(true);setError("");
     const year=raceDate?parseInt(raceDate.slice(0,4)):CY;
-    const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null,elevation:hasElevation&&elevation?parseInt(elevation)||null:null};
+    const elev=hasElevation&&elevation?parseInt(elevation)||null:null;
+    const payload={discipline,time:t,race:raceName||DISCIPLINES[discipline].label,year,race_date:raceDate||null,elevation:elev,points:calcPoints(discipline,t,elev)};
     console.log("[result-save]",existing?"UPDATE":"INSERT",existing?.id,payload);
     // Capture du total AVANT l'INSERT (pour la détection des notifs Phase B).
     // Sur un UPDATE on skip — la détection cible les nouveaux résultats.
@@ -1844,6 +1845,7 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
 // ── RACE CLASSIFICATION MODAL ─────────────────────────────────────────────────
 async function convertTrainingToRace({training, format, name, location, userId}) {
   const yr = parseInt((training.date||"").slice(0,4)) || CY;
+  const elev = training.elevation_gain_m||null;
   const racePayload = {
     user_id: userId,
     discipline: format,
@@ -1851,7 +1853,8 @@ async function convertTrainingToRace({training, format, name, location, userId})
     race: name||DISCIPLINES[format]?.label||"Course",
     year: yr,
     race_date: training.date||null,
-    elevation: null,
+    elevation: elev,
+    points: calcPoints(format, training.duration||0, elev),
   };
   const {data:result, error:resErr} = await supabase.from("results").insert(racePayload).select();
   if (resErr) return {error:resErr};
