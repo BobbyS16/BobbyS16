@@ -3521,24 +3521,29 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       </div>
 
       {/* Tabs SPORT : sous la card profil, avant le toggle de leaderboard.
-          Scroll horizontal natif pour les petits écrans. */}
-      <div style={{display:"flex",gap:8,marginBottom:14,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:2}}>
+          Largeur distribuée en flex pour que les 5 tabs tiennent sur une
+          seule ligne, même sur iPhone SE (375px). */}
+      <div style={{display:"flex",gap:6,marginBottom:14,paddingBottom:2}}>
         {SPORT_TABS.map(({k,l})=>{
           const sel=discFilter===k;
           return (
             <button key={k} onClick={()=>setDiscFilter(k)} style={{
-              flexShrink:0,
-              padding:"8px 14px",
+              flex:1,
+              minWidth:0,
+              padding:"8px 4px",
               borderRadius:18,
               border:`1px solid ${sel?"#E63946":"#2E2E36"}`,
               background:sel?"#E63946":"#1A1A1F",
               color:sel?"#fff":"#8E8E96",
               cursor:"pointer",
               fontFamily:"'Bebas Neue'",
-              fontSize:12,
-              letterSpacing:1.5,
+              fontSize:11,
+              letterSpacing:1,
               whiteSpace:"nowrap",
               lineHeight:1,
+              textAlign:"center",
+              overflow:"hidden",
+              textOverflow:"ellipsis",
             }}>{l}</button>
           );
         })}
