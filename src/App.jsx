@@ -3158,9 +3158,33 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     const fromData=results.map(rYear);
     return [...new Set([...base,...fromData])].sort((a,b)=>a-b);
   },[results]);
-  const [season,setSeason]=useState(CY);
+  // Saison + sport : restaurés depuis localStorage par user (clés
+  // home_season_${userId} et home_sport_${userId}) avec garde-fous.
+  const [season,setSeason]=useState(()=>{
+    if(!userId)return CY;
+    try{
+      const raw=localStorage.getItem(`home_season_${userId}`);
+      if(raw){const n=parseInt(raw,10);if(Number.isFinite(n)&&n>2000&&n<3000)return n;}
+    }catch{}
+    return CY;
+  });
   const [rankFilter,setRankFilter]=useState("amis");
-  const [discFilter,setDiscFilter]=useState("All");
+  const [discFilter,setDiscFilter]=useState(()=>{
+    if(!userId)return "All";
+    try{
+      const raw=localStorage.getItem(`home_sport_${userId}`);
+      if(raw&&["All","running","triathlon","trail","hyrox"].includes(raw))return raw;
+    }catch{}
+    return "All";
+  });
+  useEffect(()=>{
+    if(!userId)return;
+    try{localStorage.setItem(`home_season_${userId}`,String(season));}catch{}
+  },[userId,season]);
+  useEffect(()=>{
+    if(!userId)return;
+    try{localStorage.setItem(`home_sport_${userId}`,discFilter);}catch{}
+  },[userId,discFilter]);
   const [rankData,setRankData]=useState([]);
   const [rankOnFireSet,setRankOnFireSet]=useState(new Set());
   const [myOnFire,setMyOnFire]=useState(false);
