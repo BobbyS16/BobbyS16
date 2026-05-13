@@ -736,38 +736,6 @@ function trainingBonusPts(seasonTrainings) {
 }
 function fmtDuration(sec){if(!sec)return"";const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?`${h}h${String(m).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;}
 function parseDurStr(s){if(!s)return 0;const p=s.split(":").map(Number);return(p[0]||0)*3600+(p[1]||0)*60+(p[2]||0);}
-function getSwimIntensity(paceSecPer100m) {
-  if (paceSecPer100m <= 80)  return 12;
-  if (paceSecPer100m <= 90)  return 10;
-  if (paceSecPer100m <= 100) return 8;
-  if (paceSecPer100m <= 110) return 7;
-  if (paceSecPer100m <= 120) return 6;
-  if (paceSecPer100m <= 130) return 5;
-  if (paceSecPer100m <= 140) return 4;
-  return 2;
-}
-function calcTrainingPts(distKm, sport, durationSec) {
-  const d = distKm||0;
-  if(!d) return 0;
-  const sec = parseInt(durationSec)||0;
-  if(sport==="Natation"){
-    if(sec<=0) return 0;
-    const distM = d*1000;
-    const paceSec100 = sec*100/distM;
-    return Math.round((distM/100) * getSwimIntensity(paceSec100) * 0.4);
-  }
-  let intensity = 3;
-  if(sec > 0) {
-    if(sport==="Run"||sport==="Trail"){
-      const pace = (sec/60)/d;
-      intensity = pace<4?10:pace<5?7:pace<6?5:3;
-    } else if(sport==="Vélo"){
-      const speed = d/(sec/3600);
-      intensity = speed>=40?10:speed>=32?7:speed>=25?5:3;
-    }
-  }
-  return Math.round(d * intensity * 0.2);
-}
 function effectiveTrainingPts(t) {
   if (!t) return 0;
   if (t.is_official_race) return 0;
@@ -7786,10 +7754,9 @@ export default function App(){
     })();
   }, [profile?.id, profile?.last_league_seen, profile?.last_season_level_seen, profile?.celebrations_enabled, enqueueCelebration]);
 
-  // Backfill des points training avec la formule actuelle (calculateTrainingPoints).
-  // Re-tourne une fois par user grâce au flag localStorage v4. Replace la version
-  // v3 qui utilisait l'ancienne formule calcTrainingPts et écrasait des valeurs
-  // récentes correctes par des valeurs plus basses (bug de double formule).
+  // Backfill des points training avec calculateTrainingPoints.
+  // Le flag v4 force une exécution chez les users qui avaient déjà tourné la
+  // v3 (formule legacy supprimée qui sous-évaluait les pts).
   useEffect(()=>{
     if(!profile?.id)return;
     const flag=`trainingPtsFormula_${profile.id}`;
