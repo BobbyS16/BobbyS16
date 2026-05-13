@@ -2327,6 +2327,7 @@ const NOTIF_ICON = {
   prono_exact:         "🎯",
   prono_closest:       "🏆",
   prono_participation: "🎲",
+  friend_prono:        "🎯",
 };
 // Types qui ont un acteur (from_user_id) et donc affichent "<nom> <verbe>".
 // Les autres ont un libellé impersonnel.
@@ -2336,6 +2337,7 @@ const NOTIF_HAS_ACTOR = {
   friend_official_race: true, friend_pr: true, friend_upcoming_race: true,
   league_overtake: true, league_promotion: false, league_relegation: false, lost_podium: false, level_up_imminent: false,
   prono_exact: false, prono_closest: false, prono_participation: false,
+  friend_prono: true,
   pyro_received: true, comment_received: true,
 };
 function renderNotifLabel(n) {
@@ -2400,6 +2402,11 @@ function renderNotifLabel(n) {
         const runner = p.runner_name || "ton ami";
         const race = p.race_name || "une course";
         return `+${p.points || 5} pts pour ta participation sur ${race} (${runner})`;
+      }
+      case "friend_prono": {
+        const race = p.race_name || "ta course";
+        const time = p.predicted_time || "?";
+        return `a pronostiqué ${time} sur ${race}`;
       }
       case "pyro_received": {
         const count = Number(p.count) || 1;

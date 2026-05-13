@@ -58,6 +58,11 @@ function buildPushContent(notif) {
       const when = days === 1 ? "Demain" : (days > 1 ? `Dans ${days} jours` : "Bientôt");
       return { title: `📅 ${fromName} court ${p.race_name || "une course"}`, body: `${when} — fais ton prono !` };
     }
+    case "friend_prono": {
+      const race = p.race_name || "ta course";
+      const time = p.predicted_time || "?";
+      return { title: `🎯 Nouveau prono d'un ami`, body: `${fromName} a pronostiqué ${time} sur ${race}` };
+    }
     case "league_overtake": {
       const lg = p.league_label || p.league_name || "";
       // Phase B : envoyé quand l'user sort du top 5 (rang 4-5 → 6+).
