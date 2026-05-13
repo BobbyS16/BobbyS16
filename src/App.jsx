@@ -6210,9 +6210,8 @@ function ActuTab({myProfile,onNotifsChange}){
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["fil","FIL"],["pronos","PRONOS"],["amis","AMIS"],["defis","DÉFIS"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:1,height:36,borderRadius:18,border:"none",cursor:"pointer",background:tab===k?"#ED2A37":"rgba(255,255,255,0.06)",color:tab===k?"#fff":"rgba(240,237,232,0.55)",fontFamily:"'Bebas Neue'",fontWeight:400,fontSize:14,letterSpacing:1.5,position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <button key={k} onClick={()=>setTab(k)} style={{flex:1,height:36,borderRadius:18,border:"none",cursor:"pointer",background:tab===k?"#ED2A37":"rgba(255,255,255,0.06)",color:tab===k?"#fff":"rgba(240,237,232,0.55)",fontFamily:"'Bebas Neue'",fontWeight:400,fontSize:14,letterSpacing:1.5,display:"flex",alignItems:"center",justifyContent:"center"}}>
             {l}
-            {k==="amis"&&notifs.length>0&&<span style={{position:"absolute",top:4,right:6,background:tab===k?"#fff":"#E63946",color:tab===k?"#E63946":"#fff",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1}}>{notifs.length>9?"9+":notifs.length}</span>}
           </button>
         ))}
       </div>
