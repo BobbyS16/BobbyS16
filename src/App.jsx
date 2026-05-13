@@ -3501,7 +3501,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:myLv.color,letterSpacing:1,lineHeight:1}}>{displayedPts}</div>
-            <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>pts saison</div>
+            <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>{discFilter==="All"?"pts saison":`pts ${({running:"run",triathlon:"tri",trail:"trail",hyrox:"hyrox"})[discFilter]} saison`}</div>
             <div style={{fontSize:8,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif"}}>t:{trainings.length} pts:{trainingPts}</div>
           </div>
         </div>
