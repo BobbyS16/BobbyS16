@@ -771,7 +771,7 @@ function calcTrainingPts(distKm, sport, durationSec) {
 function effectiveTrainingPts(t) {
   if (!t) return 0;
   if (t.is_official_race) return 0;
-  return t.points || calcTrainingPts(t.distance, t.sport, t.duration);
+  return t.points || 0;
 }
 function normalizeText(s) {
   if (!s) return "";
@@ -1672,7 +1672,17 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
     if (!linkedTraining || !existing?.id) return;
     if (!window.confirm("Reclasser cette course en entraînement ? Le résultat officiel sera supprimé et l'activité retournera dans tes entraînements.")) return;
     setLoading(true);
-    const recomputedPts = calcTrainingPts(linkedTraining.distance, linkedTraining.sport, linkedTraining.duration);
+    const _disc = SPORT_TO_DISCIPLINE[linkedTraining.sport];
+    let recomputedPts = 0;
+    try {
+      if (_disc) recomputedPts = calculateTrainingPoints({
+        discipline: _disc,
+        duration_min: (linkedTraining.duration||0)/60,
+        distance_km: linkedTraining.distance||0,
+        elevation_gain_m: linkedTraining.elevation_gain_m||0,
+        pace_or_speed: computePaceOrSpeed(_disc, linkedTraining.distance, linkedTraining.duration),
+      });
+    } catch (e) { console.warn("[reclassify] pts calc failed", e.message); }
     await supabase.from("trainings").update({
       is_official_race: false,
       classification_status: "classified_as_training",
@@ -6519,7 +6529,19 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         const key=`${date}|${sport}|${Math.round(distance*10)}`;
         if(seen.has(key))return;
         seen.add(key);
-        inserts.push({user_id:profile.id,sport,title:a.name||null,distance,duration,date,points:calcTrainingPts(distance,sport,duration),auto_detected_official:detectOfficialRace(a.name||""),source:"strava"});
+        const discipline=SPORT_TO_DISCIPLINE[sport];
+        const elev=a.total_elevation_gain||0;
+        let pts=0;
+        try {
+          if(discipline) pts=calculateTrainingPoints({
+            discipline,
+            duration_min:(duration||0)/60,
+            distance_km:distance,
+            elevation_gain_m:elev,
+            pace_or_speed:computePaceOrSpeed(discipline,distance,duration),
+          });
+        } catch(e) { console.warn("[strava-import] pts calc failed",a.id,e.message); }
+        inserts.push({user_id:profile.id,sport,title:a.name||null,distance,duration,elevation_gain_m:elev||null,date,points:pts,auto_detected_official:detectOfficialRace(a.name||""),source:"strava"});
       });
       if(inserts.length===0){setStravaMsg("Aucune nouvelle activité à importer");return;}
       const{error}=await supabase.from("trainings").insert(inserts);
@@ -7764,22 +7786,45 @@ export default function App(){
     })();
   }, [profile?.id, profile?.last_league_seen, profile?.last_season_level_seen, profile?.celebrations_enabled, enqueueCelebration]);
 
+  // Backfill des points training avec la formule actuelle (calculateTrainingPoints).
+  // Re-tourne une fois par user grâce au flag localStorage v4. Replace la version
+  // v3 qui utilisait l'ancienne formule calcTrainingPts et écrasait des valeurs
+  // récentes correctes par des valeurs plus basses (bug de double formule).
   useEffect(()=>{
     if(!profile?.id)return;
     const flag=`trainingPtsFormula_${profile.id}`;
-    const CURRENT="v3-2026-04";
+    const CURRENT="v4-2026-05-13";
     if(localStorage.getItem(flag)===CURRENT)return;
     (async()=>{
-      console.log("[sync-train-pts] re-calcul des points training pour",profile.id);
-      const{data}=await supabase.from("trainings").select("id,distance,duration,sport,points").eq("user_id",profile.id);
+      console.log("[recalc-train-pts] re-calcul des points training pour",profile.id);
+      const{data}=await supabase.from("trainings")
+        .select("id,sport,distance,duration,elevation_gain_m,points,is_official_race")
+        .eq("user_id",profile.id);
       if(!data)return;
-      const updates=data.map(t=>{const fresh=calcTrainingPts(t.distance,t.sport,t.duration);return fresh!==t.points?{id:t.id,points:fresh}:null;}).filter(Boolean);
+      const updates=data.map(t=>{
+        if(t.is_official_race) return null;
+        const discipline=SPORT_TO_DISCIPLINE[t.sport];
+        if(!discipline||!t.distance||!t.duration) return null;
+        try{
+          const fresh=calculateTrainingPoints({
+            discipline,
+            duration_min:(t.duration||0)/60,
+            distance_km:t.distance||0,
+            elevation_gain_m:t.elevation_gain_m||0,
+            pace_or_speed:computePaceOrSpeed(discipline,t.distance,t.duration),
+          });
+          return fresh!==t.points?{id:t.id,points:fresh}:null;
+        }catch(e){
+          console.warn("[recalc-train-pts] skip",t.id,e.message);
+          return null;
+        }
+      }).filter(Boolean);
       if(updates.length){
-        console.log(`[sync-train-pts] ${updates.length} entraînements à corriger`);
+        console.log(`[recalc-train-pts] ${updates.length} entraînements à corriger`);
         await Promise.all(updates.map(u=>supabase.from("trainings").update({points:u.points}).eq("id",u.id)));
         setResultsKey(k=>k+1);
       } else {
-        console.log("[sync-train-pts] tous les points sont déjà à jour");
+        console.log("[recalc-train-pts] tous les points sont déjà à jour");
       }
       try{localStorage.setItem(flag,CURRENT);}catch{}
     })();
