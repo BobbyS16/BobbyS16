@@ -554,6 +554,30 @@ function detectPointsMilestone(currentPoints, lastMilestone) {
   return highestCrossed;
 }
 
+function detectSeasonLevelUp(currentPts, lastSeenId) {
+  const cur = getSeasonLevel(currentPts || 0);
+  const curIdx = SEASON_LEVEL_ORDER.indexOf(cur.id);
+  const lastIdx = SEASON_LEVEL_ORDER.indexOf(lastSeenId || "debutant");
+  if (curIdx > lastIdx) return cur.id;
+  return null;
+}
+
+function fireSeasonLevelCelebration(levelId) {
+  const meta = (function(){
+    const fakePts = {debutant:0,intermediaire:300,confirme:700,avance:1300,expert:2000,elite:3000,star:4500,superstar:6500,ultrastar:9000}[levelId] ?? 0;
+    return getSeasonLevel(fakePts);
+  })();
+  const colors = [meta.color, "#F0EDE8", PACERANK_COLORS?.[0] || "#FF073A"];
+  const end = Date.now() + 3000;
+  (function frame(){
+    try {
+      confetti({ particleCount:5, angle:60, spread:60, origin:{x:0,y:0.7}, colors });
+      confetti({ particleCount:5, angle:120, spread:60, origin:{x:1,y:0.7}, colors });
+    } catch {}
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
 function LeaguePromotionModal({ leagueId, onClose, onViewRanking }) {
   const league = LEAGUES.find(l => l.id === leagueId) || LEAGUES[0];
   useEffect(() => {
@@ -585,6 +609,37 @@ function LeaguePromotionModal({ leagueId, onClose, onViewRanking }) {
   );
 }
 
+function SeasonLevelUpModal({ levelId, onClose }) {
+  const meta = (function(){
+    const fakePts = {debutant:0,intermediaire:300,confirme:700,avance:1300,expert:2000,elite:3000,star:4500,superstar:6500,ultrastar:9000}[levelId] ?? 0;
+    return getSeasonLevel(fakePts);
+  })();
+  const emoji = SEASON_LEVEL_EMOJI[levelId] || "⭐";
+  const tagline = SEASON_LEVEL_TAGLINES[levelId] || "Nouveau statut atteint !";
+  useEffect(() => {
+    if (!celebrationsEnabled()) return;
+    fireSeasonLevelCelebration(levelId);
+    try { navigator.vibrate?.([40,30,40,30,80]); } catch {}
+  }, [levelId]);
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.94)",backdropFilter:"blur(20px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:24}}>
+      <div onClick={e=>e.stopPropagation()} style={{textAlign:"center",maxWidth:420,width:"100%"}}>
+        <div style={{display:"inline-block",animation:"celeb-bounce 0.9s cubic-bezier(.34,1.56,.64,1)"}}>
+          <div style={{width:120,height:120,borderRadius:"50%",background:`linear-gradient(135deg, ${meta.color}33, ${meta.color}11)`,border:`4px solid ${meta.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:64,marginBottom:18,boxShadow:`0 0 40px ${meta.color}66`}}>
+            {emoji}
+          </div>
+        </div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:32,letterSpacing:2,color:meta.color,lineHeight:1,marginBottom:6}}>NOUVEAU STATUT !</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:10}}>Tu passes <span style={{color:meta.color}}>{meta.label}</span></div>
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.7)",marginBottom:26,padding:"0 12px",lineHeight:1.4}}>{tagline}</div>
+        <button onClick={onClose} style={{background:meta.color,border:"none",borderRadius:14,padding:"12px 24px",color:"#1a1a1a",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",letterSpacing:0.5}}>
+          Continuer 🚀
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CelebrationToast({ item, onClose }) {
   useEffect(() => {
     const t = setTimeout(onClose, 2800);
@@ -593,6 +648,10 @@ function CelebrationToast({ item, onClose }) {
   let label = "";
   if (item.type === "league") label = `🏆 Promotion en Ligue ${LEAGUES.find(l=>l.id===item.leagueId)?.label||item.leagueId}`;
   else if (item.type === "milestone") label = `🎯 Cap des ${item.milestone.toLocaleString("fr-FR")} pts franchi`;
+  else if (item.type === "season_level") {
+    const fakePts = {debutant:0,intermediaire:300,confirme:700,avance:1300,expert:2000,elite:3000,star:4500,superstar:6500,ultrastar:9000}[item.levelId] ?? 0;
+    label = `${SEASON_LEVEL_EMOJI[item.levelId]||"⭐"} Nouveau statut : ${getSeasonLevel(fakePts).label}`;
+  }
   else if (item.type === "overtake") {
     const names = item.overtakes.slice(0,2).map(o => (item.profiles.find(p=>p.id===o.friendId)?.name||"un ami").split(" ")[0]).join(", ");
     label = `🔥 Tu as dépassé ${names}${item.overtakes.length>2?` +${item.overtakes.length-2}`:""}`;
@@ -609,6 +668,7 @@ function CelebrationQueueRenderer({ queue, paused, onClose, onViewRanking }) {
     return <CelebrationToast item={item} onClose={onClose}/>;
   }
   if (item.type === "league") return <LeaguePromotionModal leagueId={item.leagueId} onClose={onClose} onViewRanking={onViewRanking}/>;
+  if (item.type === "season_level") return <SeasonLevelUpModal levelId={item.levelId} onClose={onClose}/>;
   if (item.type === "milestone") return <PointsMilestoneModal milestone={item.milestone} prevPoints={item.prevPoints} newPoints={item.newPoints} onClose={onClose}/>;
   if (item.type === "overtake") return <OvertakeCelebrationModal overtakes={item.overtakes} profiles={item.profiles} onClose={onClose}/>;
   return null;
@@ -779,16 +839,39 @@ function getLevel(pts) {
   return                 {label:"Bronze",  color:"#CD7F32"};
 }
 function getSeasonLevel(pts) {
-  if (pts >= 9000) return {label:"UltraStar", color:"#FF1493"};
-  if (pts >= 6500) return {label:"SuperStar", color:"#FF6B35"};
-  if (pts >= 4500) return {label:"Star",      color:"#00D4FF"};
-  if (pts >= 3000) return {label:"Élite",     color:"#FFD700"};
-  if (pts >= 2000) return {label:"Expert",    color:"#C0C0C0"};
-  if (pts >= 1300) return {label:"Avancé",    color:"#CD7F32"};
-  if (pts >= 700)  return {label:"Confirmé",  color:"#9B59B6"};
-  if (pts >= 300)  return {label:"Interméd.", color:"#4A90D9"};
-  return                  {label:"Débutant",  color:"#27AE60"};
+  if (pts >= 9000) return {id:"ultrastar",    label:"UltraStar", color:"#FF1493"};
+  if (pts >= 6500) return {id:"superstar",    label:"SuperStar", color:"#FF6B35"};
+  if (pts >= 4500) return {id:"star",         label:"Star",      color:"#00D4FF"};
+  if (pts >= 3000) return {id:"elite",        label:"Élite",     color:"#FFD700"};
+  if (pts >= 2000) return {id:"expert",       label:"Expert",    color:"#C0C0C0"};
+  if (pts >= 1300) return {id:"avance",       label:"Avancé",    color:"#CD7F32"};
+  if (pts >= 700)  return {id:"confirme",     label:"Confirmé",  color:"#9B59B6"};
+  if (pts >= 300)  return {id:"intermediaire",label:"Interméd.", color:"#4A90D9"};
+  return                  {id:"debutant",     label:"Débutant",  color:"#27AE60"};
 }
+const SEASON_LEVEL_ORDER = ["debutant","intermediaire","confirme","avance","expert","elite","star","superstar","ultrastar"];
+const SEASON_LEVEL_EMOJI = {
+  debutant:       "🌱",
+  intermediaire:  "🚶",
+  confirme:       "🏃",
+  avance:         "🔥",
+  expert:         "💪",
+  elite:          "🏆",
+  star:           "⭐",
+  superstar:      "🌟",
+  ultrastar:      "💫",
+};
+const SEASON_LEVEL_TAGLINES = {
+  debutant:       "Bienvenue, le voyage commence 🌱",
+  intermediaire:  "Tu prends tes marques 🚶",
+  confirme:       "Tu rentres dans le rythme 🏃",
+  avance:         "Tu montes en puissance 🔥",
+  expert:         "Tu es au-dessus de la moyenne 💪",
+  elite:          "Tu fais partie de l'élite 🏆",
+  star:           "Tu brilles parmi les meilleurs ⭐",
+  superstar:      "Tu joues dans une autre dimension 🌟",
+  ultrastar:      "Tu es entré dans la légende 💫",
+};
 function fmtTime(s) {
   if (!s && s !== 0) return "--:--:--";
   const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
@@ -7627,8 +7710,29 @@ export default function App(){
         enqueueCelebration({type:"league", leagueId: newLeague});
         await supabase.from("profiles").update({last_league_seen: newLeague}).eq("id", profile.id);
       }
+      // Init silencieuse du statut saison pour les comptes existants : si
+      // last_season_level_seen est null, on l'aligne sur le palier actuel SANS
+      // déclencher d'animation (sinon tout user existant prend une modale au
+      // premier load après déploiement). Les futures montées seront détectées
+      // après save dans refresh().
+      if (!profile.last_season_level_seen) {
+        try {
+          const [resR, trR] = await Promise.all([
+            supabase.from("results").select("*").eq("user_id", profile.id),
+            supabase.from("trainings").select("*").eq("user_id", profile.id),
+          ]);
+          const seasonRes = (resR.data||[]).filter(r => rYear(r) === CY);
+          const seasonTr = (trR.data||[]).filter(t => new Date(t.date).getFullYear() === CY);
+          const allRes = resR.data || [];
+          const curPts = sumBestPts(seasonRes) + seasonTr.reduce((s,t) => s + effectiveTrainingPts(t), 0) + raceBonusPts(seasonRes, allRes) + trainingBonusPts(seasonTr);
+          const curLevelId = getSeasonLevel(curPts).id;
+          await supabase.from("profiles").update({last_season_level_seen: curLevelId}).eq("id", profile.id);
+        } catch (e) {
+          console.error("[season-level] init silencieuse failed", e);
+        }
+      }
     })();
-  }, [profile?.id, profile?.last_league_seen, profile?.celebrations_enabled, enqueueCelebration]);
+  }, [profile?.id, profile?.last_league_seen, profile?.last_season_level_seen, profile?.celebrations_enabled, enqueueCelebration]);
 
   useEffect(()=>{
     if(!profile?.id)return;
@@ -7729,12 +7833,13 @@ export default function App(){
         const profs = await fetchProfilesByIds(overtakes.map(o => o.friendId));
         enqueueCelebration({type:"overtake", overtakes, profiles: profs});
       }
-      // Détection palier de points (level_up + level_up_imminent)
+      // Détection palier de points (level_up + level_up_imminent) + statut saison
       try {
         const [{data:fresh}] = await Promise.all([
-          supabase.from("profiles").select("last_points_milestone").eq("id", profile.id).maybeSingle(),
+          supabase.from("profiles").select("last_points_milestone, last_season_level_seen").eq("id", profile.id).maybeSingle(),
         ]);
         const lastMilestone = fresh?.last_points_milestone || 0;
+        const lastSeasonLevelSeen = fresh?.last_season_level_seen || null;
         const [resR, trR] = await Promise.all([
           supabase.from("results").select("*").eq("user_id", profile.id),
           supabase.from("trainings").select("*").eq("user_id", profile.id),
@@ -7743,6 +7848,14 @@ export default function App(){
         const seasonTr = (trR.data||[]).filter(t => new Date(t.date).getFullYear() === CY);
         const allRes = resR.data || [];
         const newPts = sumBestPts(seasonRes) + seasonTr.reduce((s,t) => s + effectiveTrainingPts(t), 0) + raceBonusPts(seasonRes, allRes) + trainingBonusPts(seasonTr);
+        // Détection changement de statut saison (Débutant → UltraStar). Si
+        // last_season_level_seen est null, l'init silencieuse au load gère le
+        // cas premier passage — ici on est en afterSave donc il est déjà set.
+        const newSeasonLevel = detectSeasonLevelUp(newPts, lastSeasonLevelSeen);
+        if (newSeasonLevel) {
+          enqueueCelebration({type:"season_level", levelId: newSeasonLevel});
+          await supabase.from("profiles").update({last_season_level_seen: newSeasonLevel}).eq("id", profile.id);
+        }
         const milestone = detectPointsMilestone(newPts, lastMilestone);
         if (milestone) {
           enqueueCelebration({type:"milestone", milestone, prevPoints: lastMilestone, newPoints: newPts});
