@@ -3408,23 +3408,25 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"0 16px",flexShrink:0}}>
       {/* Header */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:"clamp(10px, 2.5dvh, 20px)",paddingBottom:"clamp(8px, 1.6dvh, 14px)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",paddingTop:"clamp(10px, 2.5dvh, 20px)",paddingBottom:"clamp(8px, 1.6dvh, 14px)"}}>
         <div>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:"clamp(28px, 8vw, 42px)",letterSpacing:3,lineHeight:1}}>
             <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
           </div>
           <div style={{fontSize:"clamp(9px, 2.2vw, 11px)",color:"#F0EDE8",letterSpacing:3,fontFamily:"'Barlow',sans-serif",fontWeight:600,marginTop:4}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
-            🔔
-            {notifCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:"2px solid #0e0e0e",boxSizing:"content-box"}}>{notifCount>9?"9+":notifCount}</span>}
-          </button>
-          <button onClick={()=>setShowHelp(true)} aria-label="Comment ça marche" style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
-            ❓
-          </button>
-          <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:20,padding:"8px 12px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:13,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:5,whiteSpace:"nowrap",flexShrink:0,lineHeight:1}}>
-            <span className="season-pill-prefix">SAISON </span>{season}
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <button onClick={()=>setShowNotifs(true)} aria-label="Notifications" style={{position:"relative",background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
+              🔔
+              {notifCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E63946",borderRadius:"50%",minWidth:16,height:16,padding:"0 4px",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1,border:"2px solid #0e0e0e",boxSizing:"content-box"}}>{notifCount>9?"9+":notifCount}</span>}
+            </button>
+            <button onClick={()=>setShowHelp(true)} aria-label="Comment ça marche" style={{background:"rgba(255,255,255,0.07)",border:"none",borderRadius:12,padding:"7px 10px",boxSizing:"border-box",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontSize:11,lineHeight:1.2,fontFamily:"'Barlow',sans-serif",fontWeight:700,textAlign:"center"}}>
+              ❓
+            </button>
+          </div>
+          <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:20,padding:"8px 14px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:13,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:6,whiteSpace:"nowrap",flexShrink:0,lineHeight:1}}>
+            SAISON {season}
             <span style={{fontSize:9,opacity:0.85,marginLeft:1}}>▾</span>
           </button>
         </div>
