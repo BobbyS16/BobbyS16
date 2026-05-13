@@ -7456,7 +7456,7 @@ function OnboardingTour({profile, results, onComplete, onAddRace}) {
             PaceRank, c'est mieux <span style={{color:PR_RED}}>à plusieurs</span>.
           </div>
           <div style={{fontSize:14,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.55,marginBottom:24}}>
-            Invite tes potes runners, triathlètes ou trailers. Le vrai jeu commence quand vous comparez vos perfs.
+            Invite tes potes runners, triathlètes ou trailers. Le vrai jeu commence quand vous comparez vos perfs ET que vous <span style={{color:PR_RED,fontWeight:700}}>pronostiquez</span> vos courses.
           </div>
           <div style={{position:"relative",width:240,height:240,margin:"10px auto 30px"}}>
             {peers.map((p,i) => (
