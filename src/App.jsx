@@ -2200,7 +2200,7 @@ function HowItWorksModal({onClose}){
       </Section>
 
       <Section title="8 · Les Ligues">
-        <P>Chaque semaine, tu affrontes <span style={{color:"#F0EDE8",fontWeight:700}}>20 athlètes</span> de ton niveau dans une ligue. Le classement est basé uniquement sur tes <span style={{color:"#F0EDE8",fontWeight:700}}>points d'entraînement de la semaine</span> (les courses officielles ne comptent pas).</P>
+        <P>5 ligues, du <span style={{color:"#27AE60",fontWeight:700}}>Rookie</span> à <span style={{color:"#FF073A",fontWeight:700}}>Mythic</span>. Tu démarres en Rookie et tu progresses en marquant des points pendant la semaine.</P>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginTop:10,marginBottom:10}}>
           {[
             {label:"Rookie",icon:"🌱",color:"#27AE60"},
@@ -2215,11 +2215,18 @@ function HowItWorksModal({onClose}){
             </div>
           ))}
         </div>
-        <P>Les nouveaux athlètes démarrent en <span style={{color:"#27AE60",fontWeight:700}}>Rookie</span> et progressent jusqu'à <span style={{color:"#FF073A",fontWeight:700}}>Mythic</span>.</P>
-        <Bullet emoji="🏆" bold="TOP 5 ">→ promotion à la ligue supérieure le lundi suivant</Bullet>
-        <Bullet emoji="🛡️" bold="Du 6e au 15e ">→ maintien dans la ligue actuelle</Bullet>
-        <Bullet emoji="⚠️" bold="BOTTOM 5 ">→ relégation à la ligue inférieure</Bullet>
-        <P>Les points <span style={{color:"#F0EDE8",fontWeight:700}}>remettent à 0 chaque lundi à 00h</span> : nouvelle semaine, nouveau classement.</P>
+        <P><span style={{color:"#F0EDE8",fontWeight:700}}>Chaque dimanche soir, le bilan de la semaine.</span> Top 3 de ta ligue avec un nombre suffisant de points → tu montes d'une ligue. Bottom 3 sous le seuil minimum → tu descends. Sinon, tu stagnes.</P>
+        <P style={{marginTop:10}}><span style={{color:"#F0EDE8",fontWeight:700}}>Seuils pour monter :</span></P>
+        <Bullet emoji="🌱" bold="Rookie → Pro ">50 pts dans la semaine</Bullet>
+        <Bullet emoji="🎯" bold="Pro → Elite ">100 pts dans la semaine</Bullet>
+        <Bullet emoji="🏆" bold="Elite → Legend ">200 pts dans la semaine</Bullet>
+        <Bullet emoji="⚡" bold="Legend → Mythic ">350 pts dans la semaine</Bullet>
+        <P style={{marginTop:10}}><span style={{color:"#F0EDE8",fontWeight:700}}>Seuils pour rester :</span></P>
+        <Bullet emoji="🎯" bold="Pro ">30 pts minimum</Bullet>
+        <Bullet emoji="🏆" bold="Elite ">75 pts minimum</Bullet>
+        <Bullet emoji="⚡" bold="Legend ">150 pts minimum</Bullet>
+        <Bullet emoji="💎" bold="Mythic ">250 pts minimum</Bullet>
+        <P style={{marginTop:10}}>Tous les points comptent : entraînements, courses, bonus, pronos.</P>
       </Section>
 
       <Section title="9 · Les disciplines">
@@ -2313,6 +2320,8 @@ const NOTIF_ICON = {
   friend_pr:           "🏆",
   friend_upcoming_race:"📅",
   league_overtake:     "🏆",
+  league_promotion:    "🎉",
+  league_relegation:   "📉",
   lost_podium:         "🥉",
   level_up_imminent:   "⭐",
   prono_exact:         "🎯",
@@ -2325,7 +2334,7 @@ const NOTIF_HAS_ACTOR = {
   friend_added: true, like_result: true, like_training: true,
   comment_result: true, comment_training: true, friend_overtake: true,
   friend_official_race: true, friend_pr: true, friend_upcoming_race: true,
-  league_overtake: true, lost_podium: false, level_up_imminent: false,
+  league_overtake: true, league_promotion: false, league_relegation: false, lost_podium: false, level_up_imminent: false,
   prono_exact: false, prono_closest: false, prono_participation: false,
   pyro_received: true, comment_received: true,
 };
@@ -2358,6 +2367,16 @@ function renderNotifLabel(n) {
         if (drop > 0) return `Tu as perdu ${drop} place${drop>1?"s":""} dans ta ligue ${lg}`.trim();
         if (drop < 0) return `Tu as gagné ${-drop} place${-drop>1?"s":""} dans ta ligue ${lg}`.trim();
         return "Changement de rang dans ta ligue";
+      }
+      case "league_promotion": {
+        const to = LEAGUES.find(l => l.id === p.to_league);
+        const toLabel = to ? `${to.label} ${to.icon}` : (p.to_league || "ligue supérieure");
+        return `🎉 Tu passes en ${toLabel} !`;
+      }
+      case "league_relegation": {
+        const to = LEAGUES.find(l => l.id === p.to_league);
+        const toLabel = to ? `${to.label} ${to.icon}` : (p.to_league || "ligue inférieure");
+        return `📉 Tu redescends en ${toLabel}`;
       }
       case "level_up_imminent": {
         // Phase B payload : { current_points, next_milestone, pts_remaining }
@@ -2432,7 +2451,7 @@ function NotificationsModal({onClose,onNotifsChange,onNavigateLeague,onNavigateP
   };
   const handleClick=async n=>{
     if(!n.read) await markRead(n.id);
-    if (n.type==="league_overtake") { onNavigateLeague&&onNavigateLeague(); onClose&&onClose(); return; }
+    if (n.type==="league_overtake"||n.type==="league_promotion"||n.type==="league_relegation") { onNavigateLeague&&onNavigateLeague(); onClose&&onClose(); return; }
     if (n.type==="level_up_imminent") { onNavigateProfile&&onNavigateProfile(); onClose&&onClose(); return; }
     if (NOTIF_HAS_ACTOR[n.type] && n.from_user) { setOpenFriend(n.from_user); return; }
   };
@@ -2562,9 +2581,9 @@ function LeagueView({players,myLeague,mySessions,onAddTraining,onOpenFriend}){
         {/* Zones */}
         <div style={{display:"flex",gap:5}}>
           {[
-            {c:"#FFD700",bg:"rgba(255,215,0,0.1)",border:"rgba(255,215,0,0.2)",t:"🏆 TOP 5",s:"Promotion"},
+            {c:"#FFD700",bg:"rgba(255,215,0,0.1)",border:"rgba(255,215,0,0.2)",t:"🏆 TOP 3",s:"Promotion"},
             {c:"rgba(240,237,232,0.4)",bg:"rgba(255,255,255,0.04)",border:"rgba(255,255,255,0.08)",t:"Maintien",s:"Reste en ligue"},
-            {c:"#E63946",bg:"rgba(230,57,70,0.08)",border:"rgba(230,57,70,0.15)",t:"⚠️ BOTTOM 5",s:"Relégation"},
+            {c:"#E63946",bg:"rgba(230,57,70,0.08)",border:"rgba(230,57,70,0.15)",t:"⚠️ BOTTOM 3",s:"Relégation"},
           ].map(({c,bg,border,t,s})=>(
             <div key={t} style={{flex:1,background:bg,border:`1px solid ${border}`,borderRadius:8,padding:"6px 6px",textAlign:"center"}}>
               <div style={{fontSize:8,color:c,fontWeight:700,letterSpacing:0.3,fontFamily:"'Barlow',sans-serif"}}>{t}</div>
