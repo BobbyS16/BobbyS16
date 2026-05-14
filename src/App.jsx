@@ -1193,8 +1193,8 @@ function Modal({onClose,children,fullScreen=false}) {
   );
 }
 function Lbl({c}){return <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:4}}>{c}</div>;}
-function Inp({value,onChange,placeholder,type="text"}){return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type={type} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:15,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10}}/>;}
-function Sel({value,onChange,children}){return <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",background:"#1e1e1e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10,appearance:"none"}}>{children}</select>;}
+function Inp({value,onChange,placeholder,type="text"}){return <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} type={type} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10}}/>;}
+function Sel({value,onChange,children}){return <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",background:"#1e1e1e",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10,appearance:"none"}}>{children}</select>;}
 function Btn({children,onClick,variant="primary",mb=6,disabled=false,style={}}){
   const v={primary:{background:"#E63946",color:"#fff"},secondary:{background:"rgba(255,255,255,0.07)",color:"rgba(240,237,232,0.7)"},danger:{background:"rgba(230,57,70,0.15)",color:"#E63946"}};
   return <button onClick={onClick} disabled={disabled} style={{border:"none",borderRadius:14,cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,padding:"11px 0",width:"100%",transition:"opacity 0.2s",marginBottom:mb,...v[variant],...style,opacity:disabled?0.4:1}}>{children}</button>;
@@ -2843,7 +2843,7 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
         value={date}
         min={todayISO}
         onChange={e=>setDate(e.target.value)}
-        style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:15,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10,colorScheme:"dark",WebkitAppearance:"none",appearance:"none"}}
+        style={{display:"block",width:"100%",maxWidth:"100%",minWidth:0,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:10,colorScheme:"dark",WebkitAppearance:"none",appearance:"none"}}
       />
 
       <Lbl c="Discipline *"/>
@@ -2869,7 +2869,7 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
       <select
         value={distancePreset}
         onChange={e=>setDistancePreset(e.target.value)}
-        style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:15,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:distancePreset==="custom"?6:10,colorScheme:"dark"}}
+        style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:distancePreset==="custom"?6:10,colorScheme:"dark"}}
       >
         <option value="" disabled>Sélectionne une distance…</option>
         {(UPCOMING_DISTANCES[discipline] || []).map(o => (
@@ -2972,7 +2972,7 @@ function CreateGroupModal({userId, onCreated, onClose}) {
         <Lbl c="Description"/><Inp value={description} onChange={setDescription} placeholder="Optionnel"/>
         <Lbl c="Ville"/><Inp value={city} onChange={setCity} placeholder="Optionnel"/>
         <Lbl c="Discipline"/>
-        <select value={discipline} onChange={e=>setDiscipline(e.target.value)} style={{width:"100%",padding:"11px 12px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:14,marginBottom:14}}>
+        <select value={discipline} onChange={e=>setDiscipline(e.target.value)} style={{width:"100%",padding:"11px 12px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:16,marginBottom:14}}>
           <option value="all">Toutes</option>
           <option value="run">Run</option>
           <option value="tri">Triathlon</option>
@@ -4120,7 +4120,7 @@ function TrainingPlanModal({userId,existing,onSave,onDelete,onClose}){
       <Inp value={targetTime} onChange={setTargetTime} placeholder="Ex: Sub-3h30, 1h45, …"/>
       <Lbl c="Notes (optionnel)"/>
       <div style={{marginBottom:16}}>
-        <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Objectifs intermédiaires, contraintes, etc." rows={3} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",resize:"vertical"}}/>
+        <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Objectifs intermédiaires, contraintes, etc." rows={3} style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"12px 14px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",resize:"vertical"}}/>
       </div>
       <Btn onClick={handleSave} mb={8}>{existing?"Mettre à jour":"Créer le plan"}</Btn>
       {existing&&<Btn onClick={handleDelete} variant="secondary" mb={8}>Supprimer le plan</Btn>}
@@ -5564,7 +5564,7 @@ function EngagementSheet({ myProfile, activityType, activityId, headerUser, head
           placeholder="Ajouter un message…"
           rows={1}
           onKeyDown={e=>{ if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-          style={{flex:1,minWidth:0,background:"rgba(255,255,255,0.05)",border:`1px solid ${overLimit?"rgba(237,42,55,0.6)":"rgba(255,255,255,0.1)"}`,borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",resize:"none"}}
+          style={{flex:1,minWidth:0,background:"rgba(255,255,255,0.05)",border:`1px solid ${overLimit?"rgba(237,42,55,0.6)":"rgba(255,255,255,0.1)"}`,borderRadius:12,padding:"10px 14px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box",resize:"none"}}
         />
         <button onClick={submit} disabled={!text.trim() || submitting || overLimit} aria-label="Envoyer" style={{flexShrink:0,width:42,height:42,borderRadius:12,background:text.trim()&&!overLimit?"#ED2A37":"rgba(255,255,255,0.06)",color:text.trim()&&!overLimit?"#fff":"rgba(240,237,232,0.4)",border:"none",cursor:text.trim()&&!overLimit?"pointer":"default",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"}}>
           {submitting ? "…" : "↑"}
@@ -7039,7 +7039,7 @@ function ActivityCard({myId,activityType,activityId,children}){
             </div>
           ))}
           <div style={{display:"flex",gap:6,marginTop:6}}>
-            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendComment();}} placeholder="Commenter…" maxLength={500} style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"8px 12px",color:"#F0EDE8",fontSize:13,fontFamily:"'Barlow',sans-serif",outline:"none"}}/>
+            <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendComment();}} placeholder="Commenter…" maxLength={500} style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"8px 12px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none"}}/>
             <button onClick={sendComment} disabled={!text.trim()||sending} style={{background:"#E63946",border:"none",borderRadius:10,padding:"0 14px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",opacity:!text.trim()||sending?0.4:1}}>OK</button>
           </div>
         </div>
