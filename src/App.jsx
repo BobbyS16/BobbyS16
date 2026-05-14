@@ -2097,10 +2097,7 @@ function HowItWorksModal({onClose}){
 
       <Section title="2 · Calcul des points d'entraînement">
         <P>Les points d'entraînement sont basés sur la <span style={{color:"#F0EDE8",fontWeight:700}}>charge d'entraînement</span>, une approximation de l'effort que ton corps doit fournir pour récupérer après une activité (concept proche de l'EPOC mesuré par les montres connectées).</P>
-        <div style={{padding:"10px 14px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.2)",borderRadius:10,margin:"10px 0 12px",fontFamily:"'Barlow',sans-serif",fontSize:13,color:"#F0EDE8",textAlign:"center",lineHeight:1.5}}>
-          Points = Durée × Intensité<sup style={{fontSize:9}}>1.92</sup> × Coefficient × 0.02
-        </div>
-        <P><span style={{color:"#F0EDE8",fontWeight:700}}>Intensité (RPE 1-10)</span> : déterminée automatiquement à partir de ton allure (course/trail), de ta vitesse moyenne (vélo) ou de ton pace (natation). Plus c'est rapide, plus l'intensité est élevée.</P>
+        <P>Plus une séance est <span style={{color:"#F0EDE8",fontWeight:700}}>longue</span> et <span style={{color:"#F0EDE8",fontWeight:700}}>intense</span>, plus elle rapporte. L'intensité est déterminée automatiquement à partir de ton allure (course/trail), de ta vitesse moyenne (vélo) ou de ton pace (natation) — plus c'est rapide, plus l'intensité est élevée.</P>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Coefficient par discipline</div>
         <Bullet emoji="🏃" bold="Course / Trail ">→ ×1.0</Bullet>
         <Bullet emoji="🚴" bold="Vélo ">→ ×0.6 (moins traumatisant musculairement)</Bullet>
