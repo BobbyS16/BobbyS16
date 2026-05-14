@@ -1163,11 +1163,30 @@ function Modal({onClose,children,fullScreen=false}) {
   const dragging=useRef(false);
   const scrollRef=useRef(null);
   const overlayRef=useRef(null);
+  // Suit le visual viewport (clavier iOS) pour que le bottom-sheet reste
+  // ancré au-dessus du clavier au lieu de rester collé au bottom du
+  // layout viewport (qui passe sous le clavier).
+  const [vvBottomOffset,setVvBottomOffset]=useState(0);
 
   useEffect(()=>{
     const prev=document.body.style.overflow;
     document.body.style.overflow="hidden";
     return()=>{document.body.style.overflow=prev;};
+  },[]);
+  useEffect(()=>{
+    const vv=window.visualViewport;
+    if(!vv)return;
+    const update=()=>{
+      const bottom=Math.max(0,window.innerHeight-(vv.height+vv.offsetTop));
+      setVvBottomOffset(bottom);
+    };
+    update();
+    vv.addEventListener("resize",update);
+    vv.addEventListener("scroll",update);
+    return()=>{
+      vv.removeEventListener("resize",update);
+      vv.removeEventListener("scroll",update);
+    };
   },[]);
   const onHandleTouch=e=>{startY.current=e.touches[0].clientY;dragging.current=true;};
   const onHandleMove=e=>{
@@ -1177,15 +1196,15 @@ function Modal({onClose,children,fullScreen=false}) {
   };
   const onHandleEnd=()=>{dragging.current=false;if(dy>80)onClose();else setDy(0);};
   return (
-    <div ref={overlayRef} onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:fullScreen?"stretch":"flex-end",justifyContent:"center",zIndex:300}}>
+    <div ref={overlayRef} onClick={onClose} style={{position:"fixed",top:0,left:0,right:0,bottom:vvBottomOffset,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:fullScreen?"stretch":"flex-end",justifyContent:"center",zIndex:300,transition:"bottom 0.18s ease"}}>
       <div onClick={e=>e.stopPropagation()}
-        style={{background:"#161616",border:fullScreen?"none":"1px solid rgba(255,255,255,0.09)",borderRadius:fullScreen?0:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:fullScreen?"100dvh":"92dvh",height:fullScreen?"100dvh":"auto",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease",paddingTop:fullScreen?"env(safe-area-inset-top)":0}}>
+        style={{background:"#161616",border:fullScreen?"none":"1px solid rgba(255,255,255,0.09)",borderRadius:fullScreen?0:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:fullScreen?"100%":"92%",height:fullScreen?"100%":"auto",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease",paddingTop:fullScreen?"env(safe-area-inset-top)":0}}>
         <div onTouchStart={onHandleTouch} onTouchMove={onHandleMove} onTouchEnd={onHandleEnd}
           style={{padding:"10px 20px 10px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none",position:"relative"}}>
           <div style={{width:48,height:5,background:"rgba(255,255,255,0.3)",borderRadius:3,margin:"0 auto"}}/>
           {fullScreen&&<button onClick={onClose} aria-label="Fermer" style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.7)",fontSize:16,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
         </div>
-        <div ref={scrollRef} style={{overflowY:"auto",padding:"0 20px",paddingBottom:"calc(44px + env(safe-area-inset-bottom))",flex:1,WebkitOverflowScrolling:"touch"}}>
+        <div ref={scrollRef} style={{overflowY:"auto",padding:"0 20px",paddingBottom:vvBottomOffset>0?20:"calc(44px + env(safe-area-inset-bottom))",flex:1,WebkitOverflowScrolling:"touch"}}>
           {children}
         </div>
       </div>
