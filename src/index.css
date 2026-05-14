@@ -50,10 +50,11 @@
   }
 }
 
-body {
+html, body {
   margin: 0;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
+  background: #0e0e0e;
 }
 
 button {
