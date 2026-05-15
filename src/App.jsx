@@ -1173,10 +1173,23 @@ function Modal({onClose,children,fullScreen=false}) {
     document.body.style.overflow="hidden";
     return()=>{
       document.body.style.overflow=prev;
-      // À la fermeture du modal, blur de l'input actif pour fermer le
-      // clavier proprement avant l'unmount. Le listener global dans App
-      // (visualViewport) prendra le relais pour reset le scroll viewport.
+      // iOS PWA standalone : après fermeture d'un modal avec input qui a
+      // ouvert le clavier, iOS laisse la window scrollée (scrollY=122 typ.)
+      // et visualViewport offset, sans restaurer même après que le clavier
+      // visuellement disparaisse → bande sombre sous la NavBar.
+      // Confirmé en debug live : un reset après ~400ms (iOS keyboard
+      // animation done) + force reflow via offsetHeight repush iOS à
+      // recalculer le viewport. Sans le reflow, scrollTo seul ne suffit pas.
       try{const el=document.activeElement;if(el&&typeof el.blur==="function")el.blur();}catch{}
+      setTimeout(()=>{
+        try{
+          window.scrollTo(0,0);
+          document.documentElement.scrollTop=0;
+          document.body.scrollTop=0;
+          // eslint-disable-next-line no-unused-expressions
+          document.body.offsetHeight;
+        }catch{}
+      },400);
     };
   },[]);
   useEffect(()=>{
