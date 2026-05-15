@@ -1,24 +1,33 @@
 # Push notifications — TODO lock screen iOS
 
-## État au 2026-05-07 (soir)
+## ✅ RÉSOLU le 2026-05-15 (commit `5fd89bd`)
 
-### Validé
-- Pipeline serveur : INSERT `notifications` → trigger pgnet → POST Vercel preview → handler `api/notifs/push-pending` → OneSignal HTTP 200
+**Vraie cause :** conflit de Service Workers au scope `/`.
+
+- `/OneSignalSDKWorker.js` enregistré par `OneSignal.init()`
+- `/sw.js` enregistré par `vite-plugin-pwa` (`injectRegister: 'auto'`)
+
+vite-pwa s'enregistrait après OneSignal et écrasait le SW OneSignal. Résultat :
+OneSignal acceptait la requête (HTTP 200, `pushed:1`), APNS livrait au device,
+mais aucun SW OneSignal n'était là pour réceptionner → drop silencieux.
+Symptôme dans Safari Web Inspector : `[WM] No SW registration for postMessage`.
+
+**Fix :**
+- `vite.config.js` : `injectRegister: false`
+- `public/OneSignalSDKWorker.js` : `importScripts('/sw.js')` en plus du SDK
+  OneSignal → un seul SW unifié qui gère push + workbox precache.
+
+**Validation :** désinstaller la PWA iOS + réinstaller (nécessaire pour
+remplacer le SW déjà enregistré), puis envoyer une notif test. Lock screen OK.
+
+## Historique (pour archive)
+
+### État au 2026-05-07 (soir)
+
+- Pipeline serveur : INSERT `notifications` → trigger pgnet → POST Vercel → handler `api/notifs/push-pending` → OneSignal HTTP 200 ✅
 - Notifications in-app : OK
-- Branche : `notifs-triggers-v2` (preview Vercel only, pas encore mergée sur `main`)
+- **Lock screen iOS** : réception intermittente — hypothèse OneSignal/iOS bug ❌ (mauvaise piste, c'était le conflit SW)
 
-### Problème ouvert
-- **Lock screen iOS** : réception intermittente sur écran verrouillé
-- Cause probable : bug connu OneSignal (Web Push + iOS Safari/PWA, payload livré au service worker mais pas systématiquement remonté en bannière lock screen)
-- Pas un bug applicatif côté Pacerank — le pipeline délivre, OneSignal accepte (HTTP 200)
+### Sécurité
 
-## À faire demain matin
-
-1. Merge `notifs-triggers-v2` → `main`
-2. Update le secret Vault `notifs_dispatch_url` pour repointer vers l'endpoint production (`https://www.pacerank.app/api/notifs/push-pending?x-vercel-set-bypass-cookie=true` — ou retirer le query param + retirer le header bypass si plus nécessaire en prod)
-3. Désinstaller la PWA iOS, vider le cache Safari, réinstaller fresh
-4. Renvoyer une notification test et vérifier la livraison sur lock screen
-5. Si toujours intermittent : tracker le `notification.id` côté OneSignal dashboard pour confirmer "delivered" vs "displayed"
-
-## Sécurité
-- Token Vercel Protection Bypass à régénérer (transité dans le chat aujourd'hui) — voir secret Vault `notifs_bypass_token` (id `b7f7c1cc-6140-4059-9dac-9a6ef71670a2`)
+- Token Vercel Protection Bypass à régénérer (transité dans le chat le 2026-05-07) — secret Vault `notifs_bypass_token` (id `b7f7c1cc-6140-4059-9dac-9a6ef71670a2`)
