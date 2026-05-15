@@ -3508,7 +3508,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   // sport change l'AFFICHAGE, pas le palier ni la ligue.
   const myLv=getSeasonLevel(totalPts);
   const SPORT_TABS=[
-    {k:"All",       l:"TOUS"},
+    {k:"All",       l:"TOUS LES SPORTS"},
     {k:"running",   l:"🏃 RUN"},
     {k:"triathlon", l:"🚴 TRI"},
     {k:"trail",     l:"⛰ TRAIL"},
@@ -3865,7 +3865,7 @@ function RankingTab({myProfile}){
     }
   };
 
-  const FILTERS=[{k:"general",l:"🌍 Tous"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
+  const FILTERS=[{k:"general",l:"🌍 Général"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
