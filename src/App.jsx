@@ -1169,18 +1169,28 @@ function Modal({onClose,children,fullScreen=false}) {
   const [vvBottomOffset,setVvBottomOffset]=useState(0);
 
   useEffect(()=>{
-    const prev=document.body.style.overflow;
+    // iOS Safari scroll-lock : `overflow: hidden` ne suffit pas à empêcher
+    // iOS de scroller la page quand le clavier s'ouvre dans un input du
+    // modal — résultat, après fermeture le viewport reste shifté et laisse
+    // une bande du bg root visible sous la NavBar fixée à `bottom: 0`.
+    // On bloque la page en place avec `position: fixed` sur le body (top
+    // négatif = scroll actuel), puis on restaure tout à la cleanup.
+    const prevOverflow=document.body.style.overflow;
+    const prevPosition=document.body.style.position;
+    const prevTop=document.body.style.top;
+    const prevWidth=document.body.style.width;
     const prevScrollY=window.scrollY;
     document.body.style.overflow="hidden";
+    document.body.style.position="fixed";
+    document.body.style.top=`-${prevScrollY}px`;
+    document.body.style.width="100%";
     return()=>{
-      document.body.style.overflow=prev;
-      // iOS Safari : si le clavier s'est ouvert pendant que le modal était
-      // affiché, la window peut rester légèrement scrollée après fermeture,
-      // ce qui laisse une bande du bg root visible sous la NavBar fixée.
-      // On force le blur de l'input actif (clavier descend proprement) puis
-      // on restaure le scrollY initial sur le prochain frame.
+      document.body.style.overflow=prevOverflow;
+      document.body.style.position=prevPosition;
+      document.body.style.top=prevTop;
+      document.body.style.width=prevWidth;
       try{const el=document.activeElement;if(el&&typeof el.blur==="function")el.blur();}catch{}
-      requestAnimationFrame(()=>{try{window.scrollTo(0,prevScrollY);}catch{}});
+      window.scrollTo(0,prevScrollY);
     };
   },[]);
   useEffect(()=>{
