@@ -3429,7 +3429,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
           <div style={{fontFamily:"'Bebas Neue'",fontSize:"clamp(28px, 8vw, 42px)",letterSpacing:3,lineHeight:1}}>
             <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
           </div>
-          <div style={{fontSize:"clamp(9px, 2.2vw, 11px)",color:"#F0EDE8",letterSpacing:3,fontFamily:"'Barlow',sans-serif",fontWeight:600,marginTop:4}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -3451,14 +3450,11 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
 
       <PullToRefresh onRefresh={refreshHome} paddingBottom="calc(110px + env(safe-area-inset-bottom))">
       {pushOptedIn===false && !pushBannerDismissed && (
-        <div style={{background:"linear-gradient(135deg, rgba(99,102,241,0.14), rgba(99,102,241,0.04))",border:"1px solid rgba(99,102,241,0.35)",borderRadius:14,padding:"12px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
-          <div style={{fontSize:22,flexShrink:0}}>🔔</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,color:"#A5B4FC"}}>ACTIVE LES NOTIFS</div>
-            <div style={{fontSize:11,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.35}}>Reçois un push quand un ami te dépasse ou bat un record.</div>
-          </div>
-          <button type="button" onClick={onEnablePush} style={{flexShrink:0,background:"#6366F1",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}>Activer</button>
-          <button type="button" onClick={onDismissPushBanner} aria-label="Plus tard" style={{flexShrink:0,background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",fontSize:18,cursor:"pointer",padding:4,lineHeight:1,touchAction:"manipulation"}}>✕</button>
+        <div style={{background:"linear-gradient(135deg, rgba(99,102,241,0.14), rgba(99,102,241,0.04))",border:"1px solid rgba(99,102,241,0.35)",borderRadius:12,padding:"8px 12px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+          <div style={{fontSize:16,flexShrink:0}}>🔔</div>
+          <div style={{flex:1,minWidth:0,fontSize:12,color:"#A5B4FC",fontFamily:"'Barlow',sans-serif",fontWeight:600,letterSpacing:0.3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Active les notifs push</div>
+          <button type="button" onClick={onEnablePush} style={{flexShrink:0,background:"#6366F1",border:"none",borderRadius:8,padding:"5px 12px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,cursor:"pointer",letterSpacing:0.3,touchAction:"manipulation",WebkitTapHighlightColor:"rgba(255,255,255,0.2)"}}>Activer</button>
+          <button type="button" onClick={onDismissPushBanner} aria-label="Plus tard" style={{flexShrink:0,background:"transparent",border:"none",color:"rgba(240,237,232,0.4)",fontSize:16,cursor:"pointer",padding:2,lineHeight:1,touchAction:"manipulation"}}>✕</button>
         </div>
       )}
       {overtakenBanner && overtakenBanner.overtakes.length > 0 && (() => {
@@ -3520,7 +3516,6 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
           <div style={{textAlign:"right",flexShrink:0}}>
             <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:myLv.color,letterSpacing:1,lineHeight:1}}>{displayedPts}</div>
             <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>{discFilter==="All"?"pts saison":`pts ${({running:"run",triathlon:"tri",trail:"trail",hyrox:"hyrox"})[discFilter]} saison`}</div>
-            <div style={{fontSize:8,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif"}}>t:{trainings.length} pts:{trainingPts}</div>
           </div>
         </div>
         {bests.length>0&&(
