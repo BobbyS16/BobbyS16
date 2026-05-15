@@ -11,7 +11,12 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // injectRegister: false — on n'enregistre PAS /sw.js séparément. Sinon
+      // il écrase /OneSignalSDKWorker.js (même scope `/`) et OneSignal ne
+      // peut plus réceptionner les pushs iOS → drop silencieux du lock screen.
+      // À la place, OneSignalSDKWorker.js importe /sw.js (cf. public/OneSignalSDKWorker.js)
+      // pour avoir un seul SW unifié qui gère push + workbox precache.
+      injectRegister: false,
       manifest: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
