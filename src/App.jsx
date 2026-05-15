@@ -1170,8 +1170,18 @@ function Modal({onClose,children,fullScreen=false}) {
 
   useEffect(()=>{
     const prev=document.body.style.overflow;
+    const prevScrollY=window.scrollY;
     document.body.style.overflow="hidden";
-    return()=>{document.body.style.overflow=prev;};
+    return()=>{
+      document.body.style.overflow=prev;
+      // iOS Safari : si le clavier s'est ouvert pendant que le modal était
+      // affiché, la window peut rester légèrement scrollée après fermeture,
+      // ce qui laisse une bande du bg root visible sous la NavBar fixée.
+      // On force le blur de l'input actif (clavier descend proprement) puis
+      // on restaure le scrollY initial sur le prochain frame.
+      try{const el=document.activeElement;if(el&&typeof el.blur==="function")el.blur();}catch{}
+      requestAnimationFrame(()=>{try{window.scrollTo(0,prevScrollY);}catch{}});
+    };
   },[]);
   useEffect(()=>{
     const vv=window.visualViewport;
