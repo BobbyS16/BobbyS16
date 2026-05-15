@@ -3676,7 +3676,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             <span className="flame-particle-card" style={{left:"90%",animation:"flame-rise-card 2.3s ease-out infinite",animationDelay:"0.8s"}}/>
           </>
         )}
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:bests.length>0?12:0,position:"relative"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,position:"relative"}}>
           <div style={{position:"relative"}}>
             <Avatar profile={profile} size={52} highlight={myLv.color} onFire={myOnFire?"feed":false}/>
             {myBadges.length>0&&<div style={{position:"absolute",bottom:-2,right:-2,background:myLv.color,borderRadius:"50%",width:18,height:18,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'"}}>{myBadges.length}</div>}
@@ -3693,17 +3693,8 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif"}}>{discFilter==="All"?"pts saison":`pts ${({running:"run",triathlon:"tri",trail:"trail",hyrox:"hyrox"})[discFilter]} saison`}</div>
           </div>
         </div>
-        {bests.length>0&&(
-          <div style={{borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12,display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px"}}>
-            {bests.map((r,i)=>{const pts=calcPoints(r.discipline,r.time,r.elevation);const lv=getLevel(pts);return(
-              <div key={i}>
-                <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
-                <div style={{fontSize:11,color:lv.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
-              </div>
-            );})}
-          </div>
-        )}
+        {/* Grille des records par discipline : déplacée dans ProfileModal au
+            tap sur la card. Card Home allégée pour gagner ~100px en bas. */}
       </div>
 
       {/* Rank toggle (Amis · Crew). Le Général a migré vers l'onglet Ranking ;
@@ -6914,6 +6905,35 @@ function ProfileModal({profile,results,onRefresh,onClose}){
         racePts={racePtsBreakdown}
         bonusByType={bonusByType}
       />
+      {/* Records par discipline pour la saison sélectionnée. Déplacé depuis
+          la card Home (qui est plus compacte maintenant). */}
+      {(() => {
+        const bestsSeason = Object.values(seasonResults.reduce((acc,r)=>{
+          if(!acc[r.discipline]||r.time<acc[r.discipline].time) acc[r.discipline]=r;
+          return acc;
+        },{})).sort((a,b)=>calcPoints(b.discipline,b.time,b.elevation)-calcPoints(a.discipline,a.time,a.elevation));
+        if(bestsSeason.length===0) return null;
+        return (
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:8}}>
+              Records par discipline · {season}
+            </div>
+            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:12,padding:"14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 16px"}}>
+              {bestsSeason.map((r,i)=>{
+                const pts=calcPoints(r.discipline,r.time,r.elevation);
+                const lvl=getLevel(pts);
+                return (
+                  <div key={i}>
+                    <div style={{fontSize:10,color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:2}}>{DISCIPLINES[r.discipline]?.icon} {DISCIPLINES[r.discipline]?.label}</div>
+                    <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1}}>{fmtTime(r.time)}</div>
+                    <div style={{fontSize:11,color:lvl.color,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>{pts} pts</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
       <div style={{display:"flex",gap:10,marginBottom:18}}>
         <div onClick={()=>setPanel("amis")} style={{flex:1,background:panel==="amis"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="amis"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="amis"?"#E63946":"#F0EDE8"}}>{friendCount}</div>
