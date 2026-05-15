@@ -3847,7 +3847,10 @@ function RankingTab({myProfile}){
     const{data:profilesRaw}=await supabase.from("profiles").select("*");
     const profiles=(profilesRaw||[]).filter(p=>!p.ranking_hidden);
     const{data:results}=await supabase.from("results").select("*");
-    const{data:trainings}=await supabase.from("trainings").select("user_id,date,points");
+    // distance nécessaire pour trainingBonusPts (bonus +200/mois si ≥100km).
+    // Sans distance, le bonus mensuel n'est jamais comptabilisé et le total
+    // affiché ici diverge du total de la card Home (qui fait select * en amont).
+    const{data:trainings}=await supabase.from("trainings").select("user_id,date,points,distance");
     const{data:bonusesRaw}=await supabase.from("point_bonuses").select("user_id,points,bonus_type,metadata,created_at");
     if(!profiles||!results){setLoading(false);return;}
     const seasonResults=results.filter(r=>rYear(r)===season);
