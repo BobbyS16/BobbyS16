@@ -140,6 +140,15 @@ function raceBonusPts(seasonResults, allUserResults) {
   }
   return bonus;
 }
+// Retourne le détail des bonus race (par type) pour affichage dans le
+// breakdown de pts dans ProfileModal. Somme = raceBonusPts.
+function raceBonusBreakdown(seasonResults){
+  const out={first_race:{count:0,points:0}};
+  if(!seasonResults||seasonResults.length===0) return out;
+  const dated=seasonResults.filter(r=>resultDate(r));
+  if(dated.length>0){out.first_race={count:1,points:30};}
+  return out;
+}
 async function checkAndNotifyOvertake(userId){
   if(!userId)return;
   try{
@@ -712,8 +721,18 @@ function PointsMilestoneModal({ milestone, prevPoints, newPoints, onClose }) {
 }
 
 function trainingBonusPts(seasonTrainings) {
-  if(!seasonTrainings||seasonTrainings.length===0) return 0;
-  let bonus=0;
+  const bd=trainingBonusBreakdown(seasonTrainings);
+  return bd.streak_week.points+bd.streak_month.points+bd.monthly_100km.points;
+}
+// Retourne le détail des bonus training (par type) pour affichage dans le
+// breakdown de pts. Somme = trainingBonusPts.
+function trainingBonusBreakdown(seasonTrainings){
+  const out={
+    streak_week: {count:0,points:0},
+    streak_month:{count:0,points:0},
+    monthly_100km:{count:0,points:0},
+  };
+  if(!seasonTrainings||seasonTrainings.length===0) return out;
   const days=[...new Set(seasonTrainings.map(t=>t.date).filter(Boolean))].sort();
   if(days.length>0){
     const streaks=[];
@@ -725,14 +744,14 @@ function trainingBonusPts(seasonTrainings) {
     }
     streaks.push(cur);
     streaks.forEach(len=>{
-      if(len>=30) bonus+=500;
-      else if(len>=7) bonus+=100;
+      if(len>=30){out.streak_month.count++;out.streak_month.points+=500;}
+      else if(len>=7){out.streak_week.count++;out.streak_week.points+=100;}
     });
   }
   const byMonth={};
   seasonTrainings.forEach(t=>{if(!t.date)return;const m=t.date.slice(0,7);byMonth[m]=(byMonth[m]||0)+(t.distance||0);});
-  Object.values(byMonth).forEach(km=>{ if(km>=100) bonus+=200; });
-  return bonus;
+  Object.values(byMonth).forEach(km=>{ if(km>=100){out.monthly_100km.count++;out.monthly_100km.points+=200;} });
+  return out;
 }
 function fmtDuration(sec){if(!sec)return"";const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?`${h}h${String(m).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;}
 function parseDurStr(s){if(!s)return 0;const p=s.split(":").map(Number);return(p[0]||0)*3600+(p[1]||0)*60+(p[2]||0);}
@@ -6601,7 +6620,14 @@ function BadgesByCategory({badges}){
 // défaut, ouvert au clic. Lignes à 0 masquées. Animation max-height/opacity
 // pour rester fluide même avec beaucoup de lignes (1 par type de bonus).
 function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
+  // Ordre = ordre d'affichage des lignes bonus.
+  // Les 4 premiers sont des bonus calculés en JS (training streaks, monthly km,
+  // 1ʳᵉ course saison). Les autres viennent de la table point_bonuses.
   const BONUS_LABELS = {
+    monthly_100km:       {label:"Bonus mensuel ≥100 km", unit:200, multi:true, noun:"mois"},
+    streak_week:         {label:"Streak 7 jours",        unit:100, multi:true, noun:"streak"},
+    streak_month:        {label:"Streak 30 jours",       unit:500, multi:true, noun:"streak"},
+    first_race:          {label:"1ʳᵉ course de la saison", unit:30, multi:false},
     signup:              {label:"Bonus inscription",  unit:5,   multi:false},
     invitation:          {label:"Bonus invitations",  unit:5,   multi:true,  noun:"ami"},
     weekly_streak:       {label:"Bonus streak",       unit:5,   multi:true,  noun:"semaine"},
@@ -6801,18 +6827,25 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const seasonResults=results.filter(r=>rYear(r)===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
-  const trainPtsBreakdown=seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+trainingBonusPts(seasonTrainings);
-  const racePtsBreakdown=sumBestPts(seasonResults)+raceBonusPts(seasonResults,results);
+  // Breakdown : on sépare le brut (Entraînements / Courses) des bonus.
+  // Chaque bonus (streak, mensuel, 1ʳᵉ course, DB) devient une ligne distincte
+  // dans PointsBreakdown pour la transparence.
+  const trainPtsBreakdown=seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0);
+  const racePtsBreakdown=sumBestPts(seasonResults);
+  const trainBonusBd=trainingBonusBreakdown(seasonTrainings);
+  const raceBonusBd=raceBonusBreakdown(seasonResults);
   const resultsByIdProfile=Object.fromEntries((results||[]).map(r=>[r.id,r]));
   const seasonBonuses=(bonuses||[]).filter(b=>bonusSeason(b,resultsByIdProfile)===season);
-  const bonusByType=seasonBonuses.reduce((acc,b)=>{
+  const dbBonusByType=seasonBonuses.reduce((acc,b)=>{
     const k=b.bonus_type;
     if(!acc[k])acc[k]={count:0,points:0};
     acc[k].count++;acc[k].points+=b.points||0;
     return acc;
   },{});
-  const bonusTotalPts=seasonBonuses.reduce((s,b)=>s+(b.points||0),0);
-  const seasonPts=trainPtsBreakdown+racePtsBreakdown+bonusTotalPts;
+  const bonusByType={...trainBonusBd,...raceBonusBd,...dbBonusByType};
+  const computedBonusTotal=Object.values(trainBonusBd).reduce((s,b)=>s+b.points,0)+Object.values(raceBonusBd).reduce((s,b)=>s+b.points,0);
+  const dbBonusTotal=seasonBonuses.reduce((s,b)=>s+(b.points||0),0);
+  const seasonPts=trainPtsBreakdown+racePtsBreakdown+computedBonusTotal+dbBonusTotal;
   const lv=getSeasonLevel(seasonPts);
 
   useEffect(()=>{
@@ -7298,14 +7331,20 @@ function FriendProfileModal({friend,myId,onClose}){
   const resultsByIdFriend=Object.fromEntries((results||[]).map(r=>[r.id,r]));
   const seasonBonusesFriend=(bonuses||[]).filter(b=>bonusSeason(b,resultsByIdFriend)===season);
   const friendBonusPts=seasonBonusesFriend.reduce((s,b)=>s+(b.points||0),0);
-  const trainPtsBreakdown=seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0)+trainingBonusPts(seasonTrainings);
-  const racePtsBreakdown=sumBestPts(seasonResults)+raceBonusPts(seasonResults,results);
-  const bonusByType=seasonBonusesFriend.reduce((acc,b)=>{
+  // Breakdown : pts bruts séparés des bonus (calculés + DB) — voir ProfileModal
+  // pour la logique de fusion (ligne par type dans PointsBreakdown).
+  const trainPtsBreakdown=seasonTrainings.reduce((s,t)=>s+(effectiveTrainingPts(t)),0);
+  const racePtsBreakdown=sumBestPts(seasonResults);
+  const trainBonusBdF=trainingBonusBreakdown(seasonTrainings);
+  const raceBonusBdF=raceBonusBreakdown(seasonResults);
+  const dbBonusByTypeF=seasonBonusesFriend.reduce((acc,b)=>{
     const k=b.bonus_type;
     if(!acc[k])acc[k]={count:0,points:0};
     acc[k].count++;acc[k].points+=b.points||0;
     return acc;
   },{});
+  const bonusByType={...trainBonusBdF,...raceBonusBdF,...dbBonusByTypeF};
+  const computedBonusTotalF=Object.values(trainBonusBdF).reduce((s,b)=>s+b.points,0)+Object.values(raceBonusBdF).reduce((s,b)=>s+b.points,0);
   // Bonus rattachables à une course donnée : client-side (PR / 1ʳᵉ saison)
   // + DB (pr_beaten via metadata.result_id). Affichés dans FriendRaceRow.
   const bonusesByResultId={};
@@ -7322,7 +7361,7 @@ function FriendProfileModal({friend,myId,onClose}){
       points:b.points,
     });
   });
-  const seasonPts=trainPtsBreakdown+racePtsBreakdown+friendBonusPts;
+  const seasonPts=trainPtsBreakdown+racePtsBreakdown+computedBonusTotalF+friendBonusPts;
   const lv=getSeasonLevel(seasonPts);
   const badges=computeBadges({results,trainings,profile:fullProfile,friendCount,groupsCreated});
 
