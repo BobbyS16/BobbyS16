@@ -2217,8 +2217,6 @@ function HowItWorksModal({onClose}){
       <Section title="6 · Points bonus">
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginBottom:8}}>Courses</div>
         <Bullet emoji="🏆" bold="PR battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+50 pts</span></Bullet>
-        <Bullet emoji="🥇" bold="Top 3 de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+300 pts</span></Bullet>
-        <Bullet emoji="🎖️" bold="Top 10% de ta catégorie ">→ <span style={{color:"#E63946",fontWeight:700}}>+150 pts</span></Bullet>
         <Bullet emoji="🚀" bold="Première course de la saison ">→ <span style={{color:"#E63946",fontWeight:700}}>+30 pts</span></Bullet>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Entraînement</div>
         <Bullet emoji="🔥" bold="7 jours consécutifs d'activité ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
