@@ -3121,11 +3121,51 @@ function SeasonPickerModal({seasons, currentSeason, onSelect, onClose}){
   );
 }
 
+function SportPickerModal({current, onSelect, onClose}){
+  const SPORTS=[
+    {k:"All",       l:"Tous les sports", icon:"🌍"},
+    {k:"running",   l:"Run",              icon:"🏃"},
+    {k:"triathlon", l:"Triathlon",        icon:"🚴"},
+    {k:"trail",     l:"Trail",            icon:"⛰"},
+    {k:"hyrox",     l:"Hyrox",            icon:"💪"},
+  ];
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:2,marginBottom:4,textAlign:"center"}}>Choisir un sport</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:18,textAlign:"center"}}>Filtrer le classement</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+        {SPORTS.map(s=>{
+          const sel=s.k===current;
+          return (
+            <button key={s.k} onClick={()=>{onSelect(s.k);onClose();}} style={{
+              display:"flex",alignItems:"center",gap:14,
+              padding:"14px 16px",
+              background:sel?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",
+              border:`1px solid ${sel?"#E63946":"rgba(255,255,255,0.08)"}`,
+              borderRadius:14,cursor:"pointer",
+              fontFamily:"'Bebas Neue'",fontSize:20,
+              color:sel?"#fff":"rgba(240,237,232,0.85)",
+              letterSpacing:1.5,textAlign:"left",
+            }}>
+              <span style={{fontSize:22,lineHeight:1}}>{s.icon}</span>
+              <span style={{flex:1}}>{s.l}</span>
+              {sel&&<span style={{width:10,height:10,borderRadius:"50%",background:"#E63946",flexShrink:0}}/>}
+            </button>
+          );
+        })}
+      </div>
+      <Btn variant="secondary" onClick={onClose}>Annuler</Btn>
+    </Modal>
+  );
+}
+
 function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner,onOpenLeague}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const [showPicker,setShowPicker]=useState(false);
   const [showSeasonPicker,setShowSeasonPicker]=useState(false);
+  const [showSportPicker,setShowSportPicker]=useState(false);
+  const [showLeagueModal,setShowLeagueModal]=useState(false);
   const [results,setResults]=useState([]);
   const [trainings,setTrainings]=useState([]);
   const [pendingClassif,setPendingClassif]=useState([]);
@@ -3258,6 +3298,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     if (!t1.error) setTrainings(t1.data||[]);
     await loadPendingClassif();
     await loadRanking();
+    await loadLeagueData();
   };
 
   const handleAddFriend=async id=>{
@@ -3270,6 +3311,67 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
     const{error}=await supabase.rpc("remove_friend",{p_friend_id:id});
     if(error)setFriendIds(s=>{const n=new Set(s);n.add(id);return n;});
   };
+
+  // Charge les données de ligue indépendamment du leaderboard, pour alimenter
+  // la carte Ligue (toujours visible en haut) et le modal LeagueView qui
+  // s'ouvre au tap. Calcule la semaine en cours (lundi → lundi).
+  const loadLeagueData=useCallback(async()=>{
+    if(!userId)return;
+    const now=new Date();
+    const day=now.getDay();
+    const offsetToMonday=day===0?-6:1-day;
+    const monday=new Date(now.getFullYear(),now.getMonth(),now.getDate()+offsetToMonday);
+    const nextMonday=new Date(monday.getTime()+7*86400000);
+
+    let myLeagueRow=null;
+    try{
+      const r=await supabase.from("user_leagues").select("*").eq("user_id",userId).maybeSingle();
+      if(r.error)throw r.error;
+      myLeagueRow=r.data;
+      if(!myLeagueRow){
+        const ins=await supabase.from("user_leagues").insert({user_id:userId,current_league:"bronze"}).select().maybeSingle();
+        myLeagueRow=ins.data||{user_id:userId,current_league:"bronze",league_group_id:null};
+      }
+    }catch(e){
+      console.error("[league] user_leagues indisponible — fallback Bronze solo",e?.message||e);
+      myLeagueRow={user_id:userId,current_league:"bronze",league_group_id:null};
+    }
+    const tier=myLeagueRow.current_league||"bronze";
+    const groupId=myLeagueRow.league_group_id;
+
+    let memberIds=[userId];
+    try{
+      let q=supabase.from("user_leagues").select("user_id,league_group_id").eq("current_league",tier);
+      if(groupId)q=q.eq("league_group_id",groupId);else q=q.is("league_group_id",null);
+      const{data:mates,error}=await q;
+      if(error)throw error;
+      if(mates&&mates.length>0)memberIds=[...new Set([userId,...mates.map(m=>m.user_id)])];
+    }catch(e){
+      console.error("[league] requête mates échouée — solo dans la ligue",e?.message||e);
+    }
+    const memberSet=new Set(memberIds);
+    const {data:profilesRaw}=await supabase.from("profiles").select("id,name,avatar").in("id",memberIds);
+    const {data:weekTrains}=await supabase.from("trainings").select("user_id,sport,distance,points,date").in("user_id",memberIds).gte("date",monday.toISOString().slice(0,10)).lt("date",nextMonday.toISOString().slice(0,10));
+    const memberProfiles=(profilesRaw||[]);
+    const allWeekTrainings=(weekTrains||[]).filter(t=>memberSet.has(t.user_id));
+    const players=memberProfiles.map(p=>{
+      const pTrains=allWeekTrainings.filter(t=>t.user_id===p.id);
+      const trainPts=pTrains.reduce((s,t)=>s+(effectiveTrainingPts(t)),0);
+      const sports=[...new Set(pTrains.map(t=>t.sport).filter(Boolean))];
+      return{id:p.id,name:p.name||"Athlète",avatar:p.avatar,trainPts,sessions:pTrains.length,sports,isMe:p.id===userId};
+    }).sort((a,b)=>b.trainPts-a.trainPts).slice(0,20);
+    const myWeekTrainings=allWeekTrainings.filter(t=>t.user_id===userId);
+    const mySessions=myWeekTrainings.map(t=>{
+      const dt=t.date?new Date(t.date):null;
+      const dlbl=dt?DAY_FR[dt.getDay()]:"";
+      const pts=effectiveTrainingPts(t);
+      return{sport:t.sport,dist:t.distance,day:dlbl,pts};
+    }).sort((a,b)=>b.pts-a.pts);
+    const myLeague=LEAGUES.find(l=>l.id===tier)||LEAGUES[0];
+    setLeagueData({players,myLeague,mySessions});
+  },[userId]);
+
+  useEffect(()=>{loadLeagueData();},[loadLeagueData,refreshKey]);
 
   const loadRanking=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
@@ -3429,6 +3531,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
           <div style={{fontFamily:"'Bebas Neue'",fontSize:"clamp(28px, 8vw, 42px)",letterSpacing:3,lineHeight:1}}>
             <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
           </div>
+          <div style={{fontSize:"clamp(9px, 2.2vw, 11px)",color:"#F0EDE8",letterSpacing:3,fontFamily:"'Barlow',sans-serif",fontWeight:600,marginTop:4}}>RUN · TRIATHLON · TRAIL · HYROX</div>
         </div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -3489,6 +3592,40 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
           {classifToast}
         </div>
       )}
+      {/* Carte Ligue : remplace l'ancienne pilule Ligue. Toujours visible,
+          tap → ouvre LeagueView en modal. Affiche position + écart au rang
+          supérieur (ou "1ʳᵉ" si en tête). */}
+      {leagueData.players.length>0 && (() => {
+        const myIdx = leagueData.players.findIndex(p=>p.isMe);
+        const myPos = myIdx>=0 ? myIdx+1 : leagueData.players.length+1;
+        const totalP = leagueData.players.length;
+        const myPts = myIdx>=0 ? (leagueData.players[myIdx]?.trainPts||0) : 0;
+        const aboveGap = myIdx>0 ? (leagueData.players[myIdx-1].trainPts - myPts) : 0;
+        const posLbl = myPos===1 ? "1ʳᵉ" : `${myPos}ᵉ`;
+        const subLbl = myIdx===0
+          ? "Tu mènes la ligue 🏆"
+          : myIdx<0
+            ? "Aucune session cette semaine"
+            : `+${aboveGap} pts pour passer ${myPos-1===1?"1ʳᵉ":`${myPos-1}ᵉ`}`;
+        const L = leagueData.myLeague;
+        return (
+          <div onClick={()=>setShowLeagueModal(true)} style={{
+            background:`linear-gradient(135deg, ${L.color}22, ${L.color}08)`,
+            border:`1px solid ${L.color}55`,
+            borderRadius:14, padding:"10px 14px", marginBottom:12,
+            display:"flex", alignItems:"center", gap:12, cursor:"pointer",
+          }}>
+            <LeagueBadge league={L} size={40} active/>
+            <div style={{flex:1, minWidth:0}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,color:L.color,lineHeight:1.1}}>
+                LIGUE {L.label.toUpperCase()} · {posLbl} / {totalP}
+              </div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:3,lineHeight:1.3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{subLbl}</div>
+            </div>
+            <div style={{color:"rgba(240,237,232,0.4)",fontSize:22,flexShrink:0}}>›</div>
+          </div>
+        );
+      })()}
       {/* My card */}
       <div onClick={onOpenProfile} style={{background:`${myLv.color}12`,border:`1px solid ${myLv.color}44`,borderRadius:18,padding:"16px",marginBottom:16,cursor:"pointer",position:"relative",overflow:"hidden"}}>
         {myOnFire && (
@@ -3531,40 +3668,41 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
         )}
       </div>
 
-      {/* Rank toggle (4 pilules: Amis · Groupes · Général · Ligue) */}
+      {/* Rank toggle (Amis · Crew). Le Général a migré vers l'onglet Ranking ;
+          la Ligue est accessible via la carte en haut de page. */}
       <div style={{display:"flex",gap:6,marginBottom:12}}>
-        {[["amis","👥 Amis"],["groupes","🏠 Crew"],["general","🌍 Général"],["ligue","🏆 Ligue"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setRankFilter(k)} style={{flex:1,padding:"9px 0",borderRadius:12,border:"none",cursor:"pointer",background:rankFilter===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:rankFilter===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11}}>{l}</button>
+        {[["amis","👥 Amis"],["groupes","🏠 Crew"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setRankFilter(k)} style={{flex:1,padding:"9px 0",borderRadius:12,border:"none",cursor:"pointer",background:rankFilter===k?"rgba(255,255,255,0.1)":"rgba(255,255,255,0.04)",color:rankFilter===k?"#F0EDE8":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}>{l}</button>
         ))}
       </div>
 
-      {/* Tabs SPORT : sous le toggle Amis/Crew/Général/Ligue.
-          Largeur distribuée en flex pour que les 5 tabs tiennent sur une
-          seule ligne, même sur iPhone SE (375px). */}
-      <div style={{display:"flex",gap:6,marginBottom:14,paddingBottom:2}}>
-        {SPORT_TABS.map(({k,l})=>{
-          const sel=discFilter===k;
-          return (
-            <button key={k} onClick={()=>setDiscFilter(k)} style={{
-              flex:1,
-              minWidth:0,
-              padding:"8px 4px",
-              borderRadius:18,
-              border:`1px solid ${sel?"#E63946":"#2E2E36"}`,
-              background:sel?"#E63946":"#1A1A1F",
-              color:sel?"#fff":"#8E8E96",
-              cursor:"pointer",
-              fontFamily:"'Bebas Neue'",
-              fontSize:11,
-              letterSpacing:1,
-              whiteSpace:"nowrap",
-              lineHeight:1,
-              textAlign:"center",
-              overflow:"hidden",
-              textOverflow:"ellipsis",
-            }}>{l}</button>
-          );
-        })}
+      {/* Sport : pill rétractable (les 5 sports sont dans un sélecteur modal).
+          Affiche le sport courant + compteur du pool à droite. */}
+      <div style={{display:"flex",gap:8,marginBottom:14,alignItems:"center"}}>
+        <button onClick={()=>setShowSportPicker(true)} style={{
+          background:discFilter==="All"?"#1A1A1F":"#E63946",
+          border:`1px solid ${discFilter==="All"?"#2E2E36":"#E63946"}`,
+          borderRadius:18,
+          padding:"8px 14px",
+          color:discFilter==="All"?"#F0EDE8":"#fff",
+          cursor:"pointer",
+          fontFamily:"'Bebas Neue'",
+          fontSize:12,
+          letterSpacing:1,
+          display:"inline-flex",
+          alignItems:"center",
+          gap:6,
+          lineHeight:1,
+        }}>
+          {SPORT_TABS.find(s=>s.k===discFilter)?.l||"TOUS"}
+          <span style={{fontSize:9,opacity:0.7}}>▾</span>
+        </button>
+        <div style={{flex:1}}/>
+        {rankData.length>0 && (
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,letterSpacing:0.3}}>
+            {rankData.length} {rankFilter==="amis"?(rankData.length>1?"athlètes":"athlète"):(rankData.length>1?"membres":"membre")}
+          </div>
+        )}
       </div>
 
       {/* Section Groupes : empty state OU cards horizontales scrollables */}
@@ -3594,11 +3732,9 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
             </div>
       )}
 
-      {rankFilter==="ligue"
-        ?<LeagueView players={leagueData.players} myLeague={leagueData.myLeague} mySessions={leagueData.mySessions} onAddTraining={onAddTraining} onOpenFriend={p=>setOpenFriend(p)}/>
-        :rankData.length===0
-          ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
-          :rankData.map((p,i)=>{
+      {rankData.length===0
+        ?<div style={{textAlign:"center",color:"#444",padding:"30px 0",fontFamily:"'Barlow',sans-serif",fontSize:13}}>{rankFilter==="amis"?"Ajoute des amis pour voir le classement !":"Aucun résultat pour cette saison"}</div>
+        :rankData.map((p,i)=>{
             const lv=getSeasonLevel(p.pts);
             const inCommunity=rankFilter==="general"&&p.id!==profile?.id;
             const isFriend=friendIds.has(p.id);
@@ -3635,6 +3771,21 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange} onNavigateLeague={onOpenLeague} onNavigateProfile={onOpenProfile}/>}
       {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
       {showSeasonPicker&&<SeasonPickerModal seasons={seasons} currentSeason={season} onSelect={setSeason} onClose={()=>setShowSeasonPicker(false)}/>}
+      {showSportPicker&&<SportPickerModal current={discFilter} onSelect={setDiscFilter} onClose={()=>setShowSportPicker(false)}/>}
+      {showLeagueModal&&(
+        <Modal onClose={()=>setShowLeagueModal(false)} fullScreen>
+          <div style={{padding:"8px 0 4px"}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:24,color:"#F0EDE8",letterSpacing:2,marginBottom:14,textAlign:"center"}}>Ligue</div>
+            <LeagueView
+              players={leagueData.players}
+              myLeague={leagueData.myLeague}
+              mySessions={leagueData.mySessions}
+              onAddTraining={()=>{setShowLeagueModal(false);onAddTraining();}}
+              onOpenFriend={p=>setOpenFriend(p)}
+            />
+          </div>
+        </Modal>
+      )}
       {classifModalOpen && pendingClassif.length>0 && (
         <RaceClassificationModal
           pending={pendingClassif}
@@ -3656,7 +3807,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
 
 // ── RANKING TAB ───────────────────────────────────────────────────────────────
 function RankingTab({myProfile}){
-  const [filter,setFilter]=useState("discipline");
+  const [filter,setFilter]=useState("general");
   const [season,setSeason]=useState(CY);
   const seasonsRef=useRef(null);
   const [discFilter,setDisc]=useState("marathon");
@@ -3714,7 +3865,7 @@ function RankingTab({myProfile}){
     }
   };
 
-  const FILTERS=[{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
+  const FILTERS=[{k:"general",l:"🌍 Tous"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -3722,8 +3873,8 @@ function RankingTab({myProfile}){
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Rank</div>
       </div>
       <PullToRefresh onRefresh={loadPlayers} paddingBottom="calc(100px + env(safe-area-inset-bottom))">
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:12}}>
-        {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"7px 4px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.l}</button>)}
+      <div style={{display:"grid",gridTemplateColumns:"1.35fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:12}}>
+        {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"7px 4px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:10,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.l}</button>)}
       </div>
       {/* Season selector — caché en mode discipline (all-time) */}
       {filter!=="discipline"&&(
