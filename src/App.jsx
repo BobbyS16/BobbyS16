@@ -7441,7 +7441,7 @@ function NavBar({tab,onChange,notifCount=0}){
     {k:"perf",    icon:"📈",label:"Stats"},
   ];
   return (
-    <div style={{flexShrink:0,background:"rgba(14,14,14,0.97)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",paddingTop:"clamp(4px, 1dvh, 8px)",paddingBottom:"max(env(safe-area-inset-bottom), clamp(10px, 2.2dvh, 20px))"}}>
+    <div style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(14,14,14,0.97)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(255,255,255,0.07)",display:"flex",paddingTop:"clamp(4px, 1dvh, 8px)",paddingBottom:"max(env(safe-area-inset-bottom), clamp(10px, 2.2dvh, 20px))",zIndex:100}}>
       {items.map(({k,icon,label})=>(
         <button key={k} onClick={()=>onChange(k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:"none",border:"none",cursor:"pointer",padding:"4px 0",position:"relative"}}>
           <span style={{fontSize:"clamp(15px, 4vw, 19px)",opacity:tab===k?1:0.3,transition:"opacity 0.2s",position:"relative"}}>
@@ -7894,6 +7894,29 @@ function InstallPrompt(){
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App(){
+  // iOS PWA standalone : `100dvh` reste parfois figé à la hauteur réduite
+  // par le clavier, même après fermeture → ~800px de bg noir révélé sous
+  // la NavBar fixée à `bottom: 0`. On track window.innerHeight (qui se met
+  // à jour fiablement sur resize en standalone) et on l'applique en pixels
+  // sur le conteneur root, en bypass du `100dvh` capricieux.
+  const [appHeight,setAppHeight]=useState(typeof window!=="undefined"?window.innerHeight:0);
+  useEffect(()=>{
+    const onResize=()=>setAppHeight(window.innerHeight);
+    // visualViewport.resize est plus réactif que window.resize sur iOS pour
+    // la fermeture du clavier. On reset aussi le scroll au passage.
+    const vv=window.visualViewport;
+    const onVvResize=()=>{
+      setAppHeight(window.innerHeight);
+      try{window.scrollTo(0,0);}catch{}
+      try{document.documentElement.scrollTop=0;}catch{}
+    };
+    window.addEventListener("resize",onResize);
+    if(vv)vv.addEventListener("resize",onVvResize);
+    return()=>{
+      window.removeEventListener("resize",onResize);
+      if(vv)vv.removeEventListener("resize",onVvResize);
+    };
+  },[]);
 
   const [session,setSession]=useState(null);
   const [profile,setProfile]=useState(null);
@@ -8220,7 +8243,7 @@ export default function App(){
   if(profile&&profile.onboarding_completed===false) return <OnboardingTour profile={profile} results={results} onComplete={loadProfile} onAddRace={(disc)=>{setPendingResultDisc(disc||null);setAddMode("result");}}/>;
 
   return (
-    <div style={{background:"#0e0e0e",position:"fixed",top:0,left:0,right:0,bottom:0,color:"#F0EDE8",maxWidth:480,margin:"0 auto",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
+    <div style={{background:"#0e0e0e",height:appHeight?`${appHeight}px`:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
       {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} onAddUpcoming={()=>setAddMode("upcoming")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} pushOptedIn={pushOptedIn} pushBannerDismissed={pushBannerDismissed} onEnablePush={enablePush} onDismissPushBanner={dismissPushBanner} onOpenLeague={()=>setTab("ranking")}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
