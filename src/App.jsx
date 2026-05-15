@@ -1171,7 +1171,13 @@ function Modal({onClose,children,fullScreen=false}) {
   useEffect(()=>{
     const prev=document.body.style.overflow;
     document.body.style.overflow="hidden";
-    return()=>{document.body.style.overflow=prev;};
+    return()=>{
+      document.body.style.overflow=prev;
+      // À la fermeture du modal, blur de l'input actif pour fermer le
+      // clavier proprement avant l'unmount. Le listener global dans App
+      // (visualViewport) prendra le relais pour reset le scroll viewport.
+      try{const el=document.activeElement;if(el&&typeof el.blur==="function")el.blur();}catch{}
+    };
   },[]);
   useEffect(()=>{
     const vv=window.visualViewport;
@@ -7888,6 +7894,30 @@ function InstallPrompt(){
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App(){
+  // iOS PWA standalone : quand le clavier se ferme après avoir été ouvert
+  // dans un modal, iOS laisse parfois le viewport scrollé vers le haut,
+  // ce qui révèle une bande sombre du bg root sous la NavBar fixée à
+  // `bottom: 0`. On écoute visualViewport.resize : à chaque réagrandissement
+  // significatif (= clavier qui descend), on force le reset du scroll sur
+  // tous les conteneurs susceptibles d'avoir été déplacés par iOS.
+  useEffect(()=>{
+    const vv=window.visualViewport;
+    if(!vv)return;
+    let lastHeight=vv.height;
+    const onResize=()=>{
+      const grew=vv.height-lastHeight;
+      lastHeight=vv.height;
+      if(grew>100){
+        // Clavier vient de se fermer
+        try{window.scrollTo(0,0);}catch{}
+        try{document.documentElement.scrollTop=0;}catch{}
+        try{document.body.scrollTop=0;}catch{}
+      }
+    };
+    vv.addEventListener("resize",onResize);
+    return()=>vv.removeEventListener("resize",onResize);
+  },[]);
+
   const [session,setSession]=useState(null);
   const [profile,setProfile]=useState(null);
   const [results,setResults]=useState([]);
