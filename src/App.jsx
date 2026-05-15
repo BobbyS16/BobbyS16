@@ -7894,28 +7894,28 @@ function InstallPrompt(){
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App(){
-  // iOS PWA standalone : quand le clavier se ferme après avoir été ouvert
-  // dans un modal, iOS laisse parfois le viewport scrollé vers le haut,
-  // ce qui révèle une bande sombre du bg root sous la NavBar fixée à
-  // `bottom: 0`. On écoute visualViewport.resize : à chaque réagrandissement
-  // significatif (= clavier qui descend), on force le reset du scroll sur
-  // tous les conteneurs susceptibles d'avoir été déplacés par iOS.
+  // iOS PWA standalone : `100dvh` reste parfois figé à la hauteur réduite
+  // par le clavier, même après fermeture → ~800px de bg noir révélé sous
+  // la NavBar fixée à `bottom: 0`. On track window.innerHeight (qui se met
+  // à jour fiablement sur resize en standalone) et on l'applique en pixels
+  // sur le conteneur root, en bypass du `100dvh` capricieux.
+  const [appHeight,setAppHeight]=useState(typeof window!=="undefined"?window.innerHeight:0);
   useEffect(()=>{
+    const onResize=()=>setAppHeight(window.innerHeight);
+    // visualViewport.resize est plus réactif que window.resize sur iOS pour
+    // la fermeture du clavier. On reset aussi le scroll au passage.
     const vv=window.visualViewport;
-    if(!vv)return;
-    let lastHeight=vv.height;
-    const onResize=()=>{
-      const grew=vv.height-lastHeight;
-      lastHeight=vv.height;
-      if(grew>100){
-        // Clavier vient de se fermer
-        try{window.scrollTo(0,0);}catch{}
-        try{document.documentElement.scrollTop=0;}catch{}
-        try{document.body.scrollTop=0;}catch{}
-      }
+    const onVvResize=()=>{
+      setAppHeight(window.innerHeight);
+      try{window.scrollTo(0,0);}catch{}
+      try{document.documentElement.scrollTop=0;}catch{}
     };
-    vv.addEventListener("resize",onResize);
-    return()=>vv.removeEventListener("resize",onResize);
+    window.addEventListener("resize",onResize);
+    if(vv)vv.addEventListener("resize",onVvResize);
+    return()=>{
+      window.removeEventListener("resize",onResize);
+      if(vv)vv.removeEventListener("resize",onVvResize);
+    };
   },[]);
 
   const [session,setSession]=useState(null);
@@ -8243,7 +8243,7 @@ export default function App(){
   if(profile&&profile.onboarding_completed===false) return <OnboardingTour profile={profile} results={results} onComplete={loadProfile} onAddRace={(disc)=>{setPendingResultDisc(disc||null);setAddMode("result");}}/>;
 
   return (
-    <div style={{background:"#0e0e0e",height:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
+    <div style={{background:"#0e0e0e",height:appHeight?`${appHeight}px`:"100dvh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
       {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} onAddUpcoming={()=>setAddMode("upcoming")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} pushOptedIn={pushOptedIn} pushBannerDismissed={pushBannerDismissed} onEnablePush={enablePush} onDismissPushBanner={dismissPushBanner} onOpenLeague={()=>setTab("ranking")}/>}
       {tab==="ranking" &&<RankingTab myProfile={profile}/>}
