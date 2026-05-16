@@ -767,7 +767,7 @@ function trainingBonusBreakdown(seasonTrainings){
   });
   Object.values(byMonthSport).forEach(km=>{
     if(km.run>=100){out.monthly_run.count++;out.monthly_run.points+=200;}
-    if(km.bike>=500){out.monthly_bike.count++;out.monthly_bike.points+=200;}
+    if(km.bike>=400){out.monthly_bike.count++;out.monthly_bike.points+=200;}
     if(km.swim>=20){out.monthly_swim.count++;out.monthly_swim.points+=200;}
   });
   return out;
@@ -2241,7 +2241,7 @@ function HowItWorksModal({onClose}){
         <Bullet emoji="🔥" bold="7 jours consécutifs d'activité ">→ <span style={{color:"#E63946",fontWeight:700}}>+5 pts</span></Bullet>
         <Bullet emoji="⚡" bold="30 jours consécutifs ">→ <span style={{color:"#E63946",fontWeight:700}}>+30 pts</span></Bullet>
         <Bullet emoji="🏃" bold="≥100 km Run/Trail dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
-        <Bullet emoji="🚴" bold="≥500 km Vélo dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
+        <Bullet emoji="🚴" bold="≥400 km Vélo dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
         <Bullet emoji="🏊" bold="≥20 km Natation dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
       </Section>
 
@@ -6635,7 +6635,7 @@ function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
   // 1ʳᵉ course saison). Les autres viennent de la table point_bonuses.
   const BONUS_LABELS = {
     monthly_run:         {label:"Bonus mensuel Run/Trail ≥100 km", unit:200, multi:true, noun:"mois"},
-    monthly_bike:        {label:"Bonus mensuel Vélo ≥500 km",      unit:200, multi:true, noun:"mois"},
+    monthly_bike:        {label:"Bonus mensuel Vélo ≥400 km",      unit:200, multi:true, noun:"mois"},
     monthly_swim:        {label:"Bonus mensuel Natation ≥20 km",   unit:200, multi:true, noun:"mois"},
     streak_week:         {label:"Streak 7 jours",        unit:5,   multi:true, noun:"streak"},
     streak_month:        {label:"Streak 30 jours",       unit:30,  multi:true, noun:"streak"},
