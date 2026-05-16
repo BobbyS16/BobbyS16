@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { createClient } from "@supabase/supabase-js";
 import confetti from "canvas-confetti";
 import { calculateTrainingPoints } from "./utils/trainingPoints.js";
 import { usePushSubscription } from "./hooks/usePushSubscription.js";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+// Singleton Supabase importé depuis src/supabase.js — un seul GoTrueClient
+// par browser context, sinon warning "Multiple GoTrueClient instances detected".
+import { supabase } from "./supabase";
 
 // Capture Strava OAuth callback synchronously at module load, before Supabase
 // can consume the URL params. Persist via sessionStorage so a re-render or
