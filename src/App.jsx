@@ -3038,6 +3038,9 @@ function CreateGroupModal({userId, onCreated, onClose}) {
     if (!name.trim()) { setError("Nom requis"); return; }
     setLoading(true); setError("");
     const join_code = isPublic ? null : Math.random().toString(36).slice(2, 8).toUpperCase();
+    // Debug : log complet du payload + réponse pour identifier la cause exacte
+    // d'un éventuel échec RLS (visible côté Web Inspector PWA).
+    console.log("[CreateGroup] payload", { name: name.trim(), is_public: isPublic, join_code, discipline, created_by: userId });
     const { data, error: err } = await supabase.from("groups").insert({
       name: name.trim(),
       description: description.trim() || null,
@@ -3048,7 +3051,11 @@ function CreateGroupModal({userId, onCreated, onClose}) {
       created_by: userId,
     }).select().single();
     setLoading(false);
-    if (err) { setError(err.message); return; }
+    if (err) {
+      console.error("[CreateGroup] err full:", err);
+      setError(`${err.message}${err.details ? " — " + err.details : ""}${err.hint ? " (" + err.hint + ")" : ""}`);
+      return;
+    }
     setCreated(data);
     if (isPublic) setTimeout(() => onCreated(data), 600);
   };
