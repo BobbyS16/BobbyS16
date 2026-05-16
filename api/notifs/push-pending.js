@@ -175,19 +175,20 @@ export default async function handler(req, res) {
     }
   }
 
-  // Stamps groupés : on regroupe les ids par push_skipped_reason pour 1 update / cas.
-  const stampNormal = [];     // push réel parti → pushed_at = now, reason = NULL
-  const stampDisabled = [];   // recipient introuvable (profil supprimé)
-  const stampRateLimit = [];  // skip parce que <1h depuis dernier push
-  const stampSoftError = [];  // OneSignal a renvoyé une erreur soft (ex: external_id introuvable)
+  // Résultat par notif. Permet de stocker la réponse OneSignal (push_response)
+  // par notif individuelle pour debug a posteriori sans avoir à chercher dans
+  // les logs Vercel (qui expirent / sont rate-limitées via le MCP).
+  // Forme : { [notif.id]: { push_skipped_reason: null|string, push_response?: object } }
+  const notifResults = {};
   let pushed = 0, skipped = 0, failed = 0;
+  let stampRateLimitCount = 0;
 
   for (const n of notifs) {
     const recipient = byId[n.user_id];
     if (!recipient) {
       // Profil introuvable (ex: user supprimé) → on stamp pour ne plus
       // retraiter mais on n'envoie pas.
-      stampDisabled.push(n.id);
+      notifResults[n.id] = { push_skipped_reason: "push_disabled" };
       skipped++;
       continue;
     }
@@ -196,7 +197,8 @@ export default async function handler(req, res) {
     const lastTs = lastPushByUser[recipient.id] || 0;
     if (lastTs && (Date.now() - lastTs) < RATE_LIMIT_MS) {
       console.log("[push-pending] rate-limited", n.id, "user", recipient.id, "last push", new Date(lastTs).toISOString());
-      stampRateLimit.push(n.id);
+      notifResults[n.id] = { push_skipped_reason: "rate_limit" };
+      stampRateLimitCount++;
       skipped++;
       continue;
     }
@@ -239,14 +241,21 @@ export default async function handler(req, res) {
       });
       const json = await r.json().catch(() => ({}));
       console.log("[push-pending] ←OneSignal", n.id, "status", r.status, "json", JSON.stringify(json));
+      // Snapshot de la réponse pour stockage en DB (notif.push_response).
+      const pushResponse = {
+        http_status: r.status,
+        ...(json.id ? { onesignal_id: json.id } : {}),
+        ...(json.recipients !== undefined ? { recipients: json.recipients } : {}),
+        ...(json.errors !== undefined ? { errors: json.errors } : {}),
+      };
       const errMsg = Array.isArray(json.errors) ? json.errors.join(" | ") : (json.errors?.invalid_external_user_ids ? "external_id not found" : "");
       if (!r.ok) {
         console.error("[push-pending] OneSignal http error", n.id, r.status, json);
         failed++;
-        if (r.status >= 400 && r.status < 500) stampSoftError.push(n.id);
+        if (r.status >= 400 && r.status < 500) notifResults[n.id] = { push_skipped_reason: "soft_error", push_response: pushResponse };
       } else if (errMsg) {
         console.warn("[push-pending] OneSignal soft error", n.id, errMsg);
-        stampSoftError.push(n.id);
+        notifResults[n.id] = { push_skipped_reason: "soft_error", push_response: pushResponse };
         skipped++;
       } else {
         // Sanity check : si recipients = 0 dans la réponse, le push n'a pas
@@ -254,7 +263,7 @@ export default async function handler(req, res) {
         if (json.recipients !== undefined && json.recipients === 0) {
           console.warn("[push-pending] OneSignal accepted but recipients=0", n.id, "external_id", recipient.id);
         }
-        stampNormal.push(n.id);
+        notifResults[n.id] = { push_skipped_reason: null, push_response: pushResponse };
         // On met à jour le map pour rate-limiter les notifs suivantes du
         // même user dans le même batch (sauf si bypass actif).
         if (!bypassRateLimit) lastPushByUser[recipient.id] = Date.now();
@@ -267,20 +276,15 @@ export default async function handler(req, res) {
     }
   }
 
+  // Update par notif (chaque ligne a sa propre push_response). Avec batch ≤50,
+  // c'est acceptable. À optimiser via RPC bulk-update si la volumétrie grimpe.
   const nowIso = new Date().toISOString();
-  const updates = [
-    { ids: stampNormal,     reason: null,             label: "normal" },
-    { ids: stampDisabled,   reason: "push_disabled",  label: "disabled" },
-    { ids: stampRateLimit,  reason: "rate_limit",     label: "rate_limit" },
-    { ids: stampSoftError,  reason: "soft_error",     label: "soft_error" },
-  ];
-  for (const u of updates) {
-    if (u.ids.length === 0) continue;
+  for (const [id, result] of Object.entries(notifResults)) {
     const { error: uErr } = await supabase
       .from("notifications")
-      .update({ pushed_at: nowIso, push_skipped_reason: u.reason })
-      .in("id", u.ids);
-    if (uErr) console.error(`[push-pending] stamp ${u.label} failed`, uErr);
+      .update({ pushed_at: nowIso, ...result })
+      .eq("id", id);
+    if (uErr) console.error("[push-pending] stamp failed", id, uErr);
   }
 
   return res.status(200).json({
@@ -288,6 +292,6 @@ export default async function handler(req, res) {
     pushed,
     skipped,
     failed,
-    rate_limited: stampRateLimit.length,
+    rate_limited: stampRateLimitCount,
   });
 }
