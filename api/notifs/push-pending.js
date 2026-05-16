@@ -81,6 +81,20 @@ function buildPushContent(notif) {
     }
     case "level_up":
       return { title: "🎉 Palier franchi", body: `Tu as franchi le cap des ${p.milestone} pts !` };
+    case "league_promotion": {
+      const LEAGUE_LABELS = { bronze: "Rookie", silver: "Pro", gold: "Elite", diamond: "Legend", elite: "Mythic" };
+      const toLbl = LEAGUE_LABELS[p.to_league] || p.to_league || "?";
+      const wp = p.week_points;
+      return {
+        title: "🎉 Promotion !",
+        body: wp ? `Tu montes en ligue ${toLbl} avec ${wp} pts cette semaine` : `Tu montes en ligue ${toLbl}`,
+      };
+    }
+    case "league_relegation": {
+      const LEAGUE_LABELS = { bronze: "Rookie", silver: "Pro", gold: "Elite", diamond: "Legend", elite: "Mythic" };
+      const toLbl = LEAGUE_LABELS[p.to_league] || p.to_league || "?";
+      return { title: "📉 Relégation", body: `Tu redescends en ligue ${toLbl}` };
+    }
     case "weekly_recap":
       return { title: "📊 Récap de la semaine", body: "Ouvre PaceRank pour voir ton bilan" };
     case "comeback":
