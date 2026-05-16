@@ -730,7 +730,12 @@ function trainingBonusBreakdown(seasonTrainings){
   const out={
     streak_week: {count:0,points:0},
     streak_month:{count:0,points:0},
-    monthly_100km:{count:0,points:0},
+    // Seuils mensuels différenciés par sport (un mois peut cumuler les 3).
+    // Run et Trail partagent le même seuil (100 km), Vélo plus haut (500 km),
+    // Natation plus bas (20 km). Hyrox non concerné.
+    monthly_run: {count:0,points:0},
+    monthly_bike:{count:0,points:0},
+    monthly_swim:{count:0,points:0},
   };
   if(!seasonTrainings||seasonTrainings.length===0) return out;
   const days=[...new Set(seasonTrainings.map(t=>t.date).filter(Boolean))].sort();
@@ -744,13 +749,27 @@ function trainingBonusBreakdown(seasonTrainings){
     }
     streaks.push(cur);
     streaks.forEach(len=>{
-      if(len>=30){out.streak_month.count++;out.streak_month.points+=500;}
-      else if(len>=7){out.streak_week.count++;out.streak_week.points+=100;}
+      if(len>=30){out.streak_month.count++;out.streak_month.points+=30;}
+      else if(len>=7){out.streak_week.count++;out.streak_week.points+=5;}
     });
   }
-  const byMonth={};
-  seasonTrainings.forEach(t=>{if(!t.date)return;const m=t.date.slice(0,7);byMonth[m]=(byMonth[m]||0)+(t.distance||0);});
-  Object.values(byMonth).forEach(km=>{ if(km>=100){out.monthly_100km.count++;out.monthly_100km.points+=200;} });
+  // Cumul km par mois ET par groupe de sport.
+  const byMonthSport={};
+  seasonTrainings.forEach(t=>{
+    if(!t.date)return;
+    const m=t.date.slice(0,7);
+    if(!byMonthSport[m]) byMonthSport[m]={run:0,bike:0,swim:0};
+    const km=t.distance||0;
+    const s=t.sport;
+    if(s==="Run"||s==="Trail") byMonthSport[m].run+=km;
+    else if(s==="Vélo") byMonthSport[m].bike+=km;
+    else if(s==="Natation") byMonthSport[m].swim+=km;
+  });
+  Object.values(byMonthSport).forEach(km=>{
+    if(km.run>=100){out.monthly_run.count++;out.monthly_run.points+=200;}
+    if(km.bike>=500){out.monthly_bike.count++;out.monthly_bike.points+=200;}
+    if(km.swim>=20){out.monthly_swim.count++;out.monthly_swim.points+=200;}
+  });
   return out;
 }
 function fmtDuration(sec){if(!sec)return"";const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?`${h}h${String(m).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;}
@@ -2219,9 +2238,11 @@ function HowItWorksModal({onClose}){
         <Bullet emoji="🏆" bold="PR battu ">→ <span style={{color:"#E63946",fontWeight:700}}>+50 pts</span></Bullet>
         <Bullet emoji="🚀" bold="Première course de la saison ">→ <span style={{color:"#E63946",fontWeight:700}}>+30 pts</span></Bullet>
         <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:14,marginBottom:8}}>Entraînement</div>
-        <Bullet emoji="🔥" bold="7 jours consécutifs d'activité ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
-        <Bullet emoji="⚡" bold="30 jours consécutifs ">→ <span style={{color:"#E63946",fontWeight:700}}>+500 pts</span></Bullet>
-        <Bullet emoji="📏" bold="100 km parcourus dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
+        <Bullet emoji="🔥" bold="7 jours consécutifs d'activité ">→ <span style={{color:"#E63946",fontWeight:700}}>+5 pts</span></Bullet>
+        <Bullet emoji="⚡" bold="30 jours consécutifs ">→ <span style={{color:"#E63946",fontWeight:700}}>+30 pts</span></Bullet>
+        <Bullet emoji="🏃" bold="≥100 km Run/Trail dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
+        <Bullet emoji="🚴" bold="≥500 km Vélo dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
+        <Bullet emoji="🏊" bold="≥20 km Natation dans le mois ">→ <span style={{color:"#E63946",fontWeight:700}}>+200 pts</span></Bullet>
       </Section>
 
       <Section title="7 · Le Streak">
@@ -6613,9 +6634,11 @@ function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
   // Les 4 premiers sont des bonus calculés en JS (training streaks, monthly km,
   // 1ʳᵉ course saison). Les autres viennent de la table point_bonuses.
   const BONUS_LABELS = {
-    monthly_100km:       {label:"Bonus mensuel ≥100 km", unit:200, multi:true, noun:"mois"},
-    streak_week:         {label:"Streak 7 jours",        unit:100, multi:true, noun:"streak"},
-    streak_month:        {label:"Streak 30 jours",       unit:500, multi:true, noun:"streak"},
+    monthly_run:         {label:"Bonus mensuel Run/Trail ≥100 km", unit:200, multi:true, noun:"mois"},
+    monthly_bike:        {label:"Bonus mensuel Vélo ≥500 km",      unit:200, multi:true, noun:"mois"},
+    monthly_swim:        {label:"Bonus mensuel Natation ≥20 km",   unit:200, multi:true, noun:"mois"},
+    streak_week:         {label:"Streak 7 jours",        unit:5,   multi:true, noun:"streak"},
+    streak_month:        {label:"Streak 30 jours",       unit:30,  multi:true, noun:"streak"},
     first_race:          {label:"1ʳᵉ course de la saison", unit:30, multi:false},
     signup:              {label:"Bonus inscription",  unit:5,   multi:false},
     invitation:          {label:"Bonus invitations",  unit:5,   multi:true,  noun:"ami"},
