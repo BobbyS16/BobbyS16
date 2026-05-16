@@ -722,7 +722,7 @@ function PointsMilestoneModal({ milestone, prevPoints, newPoints, onClose }) {
 
 function trainingBonusPts(seasonTrainings) {
   const bd=trainingBonusBreakdown(seasonTrainings);
-  return bd.streak_week.points+bd.streak_month.points+bd.monthly_100km.points;
+  return bd.streak_week.points+bd.streak_month.points+bd.monthly_run.points+bd.monthly_bike.points+bd.monthly_swim.points;
 }
 // Retourne le détail des bonus training (par type) pour affichage dans le
 // breakdown de pts. Somme = trainingBonusPts.
