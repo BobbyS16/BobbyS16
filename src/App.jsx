@@ -3158,6 +3158,173 @@ function JoinGroupModal({userId, prefilledCode = "", onJoined, onClose}) {
   );
 }
 
+// Détail / gestion d'un crew : ouvert au tap sur une card de groupe dans
+// HomeTab. Affiche infos, membres, code d'invitation (si privé), et actions
+// selon le rôle : admin peut éditer/supprimer, membre peut quitter, tous
+// peuvent "voir le classement" (sélectionne le groupe dans le leaderboard).
+function GroupDetailModal({group, userId, onClose, onSelect, onUpdated, onDeleted, onLeft}) {
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState("view"); // view | edit | confirmDelete | confirmLeave
+  const [editName, setEditName] = useState(group.name||"");
+  const [editDesc, setEditDesc] = useState(group.description||"");
+  const [editCity, setEditCity] = useState(group.city||"");
+  const [editDisc, setEditDisc] = useState(group.discipline||"all");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const {data} = await supabase.from("group_members")
+        .select("user_id, role, profile:profiles(id, name, avatar)")
+        .eq("group_id", group.id);
+      setMembers(data || []);
+      setLoading(false);
+    })();
+  }, [group.id]);
+
+  const myMembership = members.find(m => m.user_id === userId);
+  const isAdmin = myMembership?.role === "admin";
+
+  const saveEdit = async () => {
+    if (!editName.trim()) { setError("Nom requis"); return; }
+    setBusy(true); setError("");
+    const {error: err} = await supabase.from("groups").update({
+      name: editName.trim(),
+      description: editDesc.trim() || null,
+      city: editCity.trim() || null,
+      discipline: editDisc,
+    }).eq("id", group.id);
+    setBusy(false);
+    if (err) { setError(err.message); return; }
+    setMode("view");
+    onUpdated?.();
+  };
+
+  const doDelete = async () => {
+    setBusy(true); setError("");
+    // FK group_members.group_id a ON DELETE CASCADE → les membres sont
+    // automatiquement retirés.
+    const {error: err} = await supabase.from("groups").delete().eq("id", group.id);
+    setBusy(false);
+    if (err) { setError(err.message); return; }
+    onDeleted?.();
+  };
+
+  const doLeave = async () => {
+    setBusy(true); setError("");
+    const {error: err} = await supabase.from("group_members").delete()
+      .eq("group_id", group.id).eq("user_id", userId);
+    setBusy(false);
+    if (err) { setError(err.message); return; }
+    onLeft?.();
+  };
+
+  const copyLink = () => {
+    if (!group.join_code) return;
+    const url = `${window.location.origin}/join/${group.join_code}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true); setTimeout(()=>setCopied(false), 1800);
+    });
+  };
+
+  const discLabel = (d) =>
+    d==="all"?"🏆 Toutes":d==="run"?"🏃 Course":d==="tri"?"🏊 Triathlon":d==="trail"?"⛰️ Trail":d==="hyrox"?"🔥 Hyrox":d;
+
+  return (
+    <Modal onClose={onClose}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:10}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,minWidth:0}}>{group.name}</div>
+        <div style={{flexShrink:0,fontSize:10,letterSpacing:1,padding:"3px 8px",borderRadius:6,color:group.is_public?"#27AE60":"#E63946",border:`1px solid ${group.is_public?"rgba(39,174,96,0.4)":"rgba(230,57,70,0.4)"}`,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>
+          {group.is_public ? "🌍 PUBLIC" : "🔒 PRIVÉ"}
+        </div>
+      </div>
+
+      {mode === "view" && (<>
+        {group.description && <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",marginBottom:10,lineHeight:1.4}}>{group.description}</div>}
+        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+          <div style={{padding:"4px 10px",background:"rgba(255,255,255,0.05)",borderRadius:8,fontSize:11,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif"}}>{discLabel(group.discipline)}</div>
+          {group.city && <div style={{padding:"4px 10px",background:"rgba(255,255,255,0.05)",borderRadius:8,fontSize:11,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif"}}>📍 {group.city}</div>}
+        </div>
+
+        {!group.is_public && group.join_code && (
+          <div style={{marginBottom:14}}>
+            <Lbl c="Code d'invitation"/>
+            <div style={{padding:"12px 14px",background:"rgba(255,255,255,0.04)",borderRadius:12,fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:3,color:"#E63946",textAlign:"center",border:"1px dashed rgba(230,57,70,0.4)",marginBottom:8}}>
+              {group.join_code}
+            </div>
+            <Btn onClick={copyLink} mb={0}>{copied?"✓ Copié !":"📋 Copier le lien d'invitation"}</Btn>
+          </div>
+        )}
+
+        <Lbl c={`Membres (${members.length})`}/>
+        <div style={{marginBottom:14,maxHeight:200,overflowY:"auto"}}>
+          {loading ? <div style={{fontSize:12,color:"rgba(240,237,232,0.5)",padding:"10px 0"}}>Chargement…</div>
+          : members.map(m => (
+            <div key={m.user_id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 4px",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+              <Avatar profile={m.profile} size={32}/>
+              <div style={{flex:1,minWidth:0,fontSize:13,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {m.profile?.name || "Athlète"}
+                {m.user_id === userId && <span style={{color:"rgba(240,237,232,0.4)",marginLeft:6}}>(toi)</span>}
+              </div>
+              {m.role === "admin" && <span style={{fontSize:9,padding:"2px 8px",background:"rgba(230,57,70,0.15)",border:"1px solid rgba(230,57,70,0.35)",borderRadius:6,color:"#E63946",fontWeight:700,letterSpacing:1}}>ADMIN</span>}
+            </div>
+          ))}
+        </div>
+
+        <Btn onClick={()=>{onSelect?.(group); onClose();}} mb={6}>📊 Voir le classement</Btn>
+        {isAdmin && <Btn onClick={()=>setMode("edit")} variant="secondary" mb={6}>✏️ Modifier</Btn>}
+        {isAdmin && <Btn onClick={()=>setMode("confirmDelete")} variant="danger" mb={6}>🗑️ Supprimer le crew</Btn>}
+        {!isAdmin && myMembership && <Btn onClick={()=>setMode("confirmLeave")} variant="danger" mb={6}>🚪 Quitter le crew</Btn>}
+        <Btn onClick={onClose} variant="secondary" mb={0}>Fermer</Btn>
+      </>)}
+
+      {mode === "edit" && (<>
+        <Lbl c="Nom"/><Inp value={editName} onChange={setEditName}/>
+        <Lbl c="Description"/><Inp value={editDesc} onChange={setEditDesc} placeholder="Optionnel"/>
+        <Lbl c="Ville"/><Inp value={editCity} onChange={setEditCity} placeholder="Optionnel"/>
+        <Lbl c="Discipline"/>
+        <select value={editDisc} onChange={e=>setEditDisc(e.target.value)} style={{width:"100%",padding:"11px 12px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:16,marginBottom:14}}>
+          <option value="all">Toutes</option>
+          <option value="run">Run</option>
+          <option value="tri">Triathlon</option>
+          <option value="trail">Trail</option>
+          <option value="hyrox">Hyrox</option>
+        </select>
+        {error && <div style={{color:"#E63946",fontSize:12,fontFamily:"'Barlow',sans-serif",marginBottom:10}}>{error}</div>}
+        <Btn onClick={saveEdit} mb={6} disabled={busy || !editName.trim()}>{busy?"Sauvegarde…":"Sauvegarder"}</Btn>
+        <Btn onClick={()=>setMode("view")} variant="secondary" mb={0}>Annuler</Btn>
+      </>)}
+
+      {mode === "confirmDelete" && (<>
+        <div style={{padding:14,background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:12,marginBottom:14}}>
+          <div style={{fontSize:13,color:"#E63946",fontWeight:700,fontFamily:"'Barlow',sans-serif",marginBottom:6}}>⚠️ Action irréversible</div>
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
+            Le crew <strong>{group.name}</strong> sera supprimé définitivement.
+            {members.length>1 && ` Les ${members.length-1} autre${members.length>2?"s":""} membre${members.length>2?"s":""} seront retiré${members.length>2?"s":""}.`}
+          </div>
+        </div>
+        {error && <div style={{color:"#E63946",fontSize:12,fontFamily:"'Barlow',sans-serif",marginBottom:10}}>{error}</div>}
+        <Btn onClick={doDelete} variant="danger" mb={6} disabled={busy}>{busy?"Suppression…":"Confirmer la suppression"}</Btn>
+        <Btn onClick={()=>setMode("view")} variant="secondary" mb={0}>Annuler</Btn>
+      </>)}
+
+      {mode === "confirmLeave" && (<>
+        <div style={{padding:14,background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:12,marginBottom:14}}>
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
+            Tu vas quitter le crew <strong>{group.name}</strong>.
+            {!group.is_public && " Tu auras besoin d'un nouveau lien pour le rejoindre à nouveau."}
+          </div>
+        </div>
+        {error && <div style={{color:"#E63946",fontSize:12,fontFamily:"'Barlow',sans-serif",marginBottom:10}}>{error}</div>}
+        <Btn onClick={doLeave} variant="danger" mb={6} disabled={busy}>{busy?"…":"Quitter le crew"}</Btn>
+        <Btn onClick={()=>setMode("view")} variant="secondary" mb={0}>Annuler</Btn>
+      </>)}
+    </Modal>
+  );
+}
+
 function SeasonPickerModal({seasons, currentSeason, onSelect, onClose}){
   const sorted = [...seasons].sort((a,b) => b - a);
   return (
@@ -3328,6 +3495,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
   const [selectedGroupId,setSelectedGroupId]=useState(null);
   const [showCreateGroup,setShowCreateGroup]=useState(false);
   const [showJoinGroup,setShowJoinGroup]=useState(false);
+  const [groupDetail,setGroupDetail]=useState(null); // groupe en cours d'affichage dans GroupDetailModal
 
   useEffect(()=>{loadRanking();},[season,rankFilter,discFilter,selectedGroupId]);
   useEffect(()=>{
@@ -3788,7 +3956,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
               {myGroups.map(g=>{
                 const sel = g.id===selectedGroupId;
                 return (
-                  <button key={g.id} onClick={()=>setSelectedGroupId(g.id)} style={{flexShrink:0,minWidth:140,padding:"10px 12px",borderRadius:14,border:sel?"1px solid #E63946":"1px solid rgba(255,255,255,0.08)",background:sel?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.03)",cursor:"pointer",textAlign:"left"}}>
+                  <button key={g.id} onClick={()=>setGroupDetail(g)} style={{flexShrink:0,minWidth:140,padding:"10px 12px",borderRadius:14,border:sel?"1px solid #E63946":"1px solid rgba(255,255,255,0.08)",background:sel?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.03)",cursor:"pointer",textAlign:"left"}}>
                     <div style={{fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.name}</div>
                     <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:2,letterSpacing:0.4}}>
                       {g.discipline && g.discipline!=="all" ? g.discipline.toUpperCase() : "MIXTE"}{g.city?` · ${g.city}`:""}
@@ -3835,6 +4003,28 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
       {showPicker&&<AddPickerModal onPickTraining={onAddTraining} onPickRace={onAddRace} onPickUpcoming={onAddUpcoming} onClose={()=>setShowPicker(false)}/>}
       {showCreateGroup&&<CreateGroupModal userId={userId} onCreated={(g)=>{setShowCreateGroup(false); loadMyGroups(); setSelectedGroupId(g.id);}} onClose={()=>setShowCreateGroup(false)}/>}
       {showJoinGroup&&<JoinGroupModal userId={userId} prefilledCode={typeof showJoinGroup==="object"?showJoinGroup.prefilledCode:""} onJoined={(g)=>{setShowJoinGroup(false); loadMyGroups(); setSelectedGroupId(g.id); setRankFilter("groupes");}} onClose={()=>setShowJoinGroup(false)}/>}
+      {groupDetail && (
+        <GroupDetailModal
+          group={groupDetail}
+          userId={userId}
+          onClose={()=>setGroupDetail(null)}
+          onSelect={(g)=>{setSelectedGroupId(g.id); setRankFilter("groupes");}}
+          onUpdated={()=>{loadMyGroups(); setGroupDetail(null);}}
+          onDeleted={()=>{
+            // Refresh la liste + désélectionne si c'était le groupe courant.
+            const wasSelected=groupDetail.id===selectedGroupId;
+            loadMyGroups();
+            if(wasSelected)setSelectedGroupId(null);
+            setGroupDetail(null);
+          }}
+          onLeft={()=>{
+            const wasSelected=groupDetail.id===selectedGroupId;
+            loadMyGroups();
+            if(wasSelected)setSelectedGroupId(null);
+            setGroupDetail(null);
+          }}
+        />
+      )}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={profile?.id} onClose={()=>setOpenFriend(null)}/>}
       {showNotifs&&<NotificationsModal onClose={()=>setShowNotifs(false)} onNotifsChange={onNotifsChange} onNavigateLeague={onOpenLeague} onNavigateProfile={onOpenProfile}/>}
       {showHelp&&<HowItWorksModal onClose={()=>setShowHelp(false)}/>}
