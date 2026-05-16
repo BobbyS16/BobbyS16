@@ -22,8 +22,8 @@ function buildPushContent(notif) {
   switch (notif.type) {
     case "friend_added":         return { title: "👋 Nouvel ami",       body: `${fromName} t'a ajouté en ami` };
     case "friend_request":       return { title: "✉️ Demande d'ami",    body: `${fromName} veut t'ajouter en ami` };
-    case "like_result":          return { title: "❤️ Like",             body: `${fromName} a aimé ta course` };
-    case "like_training":        return { title: "❤️ Like",             body: `${fromName} a aimé ton entraînement` };
+    // like_result et like_training : retirés (remplacés par pyro_received
+    // depuis migration supabase_pyros_and_comments_v1, commit 7f747d3).
     case "comment_result":       return { title: "💬 Commentaire",      body: `${fromName} a commenté ta course` };
     case "comment_training":     return { title: "💬 Commentaire",      body: `${fromName} a commenté ton entraînement` };
     case "pyro_received": {
