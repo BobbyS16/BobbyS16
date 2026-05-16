@@ -32,6 +32,29 @@ const STRAVA_PENDING_KEY = "strava_pending_code";
   }
 })();
 
+// Capture du paramètre ?ref=<user_id> au mount (lien de parrainage généré
+// par handleShare). Persistance en sessionStorage pour survivre au redirect
+// OAuth Google → callback retour à l'origine sans query params. Consommé
+// (et nettoyé) au moment du profile insert pour déclencher le trigger DB
+// award_signup_and_invitation_bonuses (+5 pts au referrer, capé à 25 pts).
+const REFERRER_PENDING_KEY = "pacerank_pending_referrer";
+(function captureReferrer(){
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+    // UUID v4 validation pour pas stocker n'importe quoi
+    if (ref && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) {
+      sessionStorage.setItem(REFERRER_PENDING_KEY, ref);
+      console.log("[referral] ref capturé:", ref.slice(0,8)+"...");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("ref");
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
+    }
+  } catch (e) {
+    console.error("[referral] capture failed", e);
+  }
+})();
+
 const DISCIPLINES = {
   "5km":      { label:"5 km",                icon:"🏃", category:"running",   refTime:13*60,        prestige:1.0 },
   "10km":     { label:"10 km",               icon:"🏃", category:"running",   refTime:27*60,        prestige:1.0 },
@@ -8232,7 +8255,26 @@ export default function App(){
   const loadProfile=async()=>{
     const{data:{user}}=await supabase.auth.getUser();
     let{data}=await supabase.from("profiles").select("*").eq("id",user.id).single();
-    if(!data){await supabase.from("profiles").insert({id:user.id,name:user.user_metadata?.full_name||"",avatar:user.user_metadata?.avatar_url||""});({data}=await supabase.from("profiles").select("*").eq("id",user.id).single());}
+    if(!data){
+      // Consomme un éventuel referrer_id pending (lien de parrainage cliqué
+      // avant signin OAuth). Le trigger DB award_signup_and_invitation_bonuses
+      // attribue +5 pts au parrain si referrer_id non null à l'insert.
+      let pendingRef=null;
+      try{
+        pendingRef=sessionStorage.getItem(REFERRER_PENDING_KEY);
+        if(pendingRef===user.id)pendingRef=null; // pas de auto-parrainage
+      }catch{}
+      const payload={
+        id:user.id,
+        name:user.user_metadata?.full_name||"",
+        avatar:user.user_metadata?.avatar_url||"",
+        ...(pendingRef?{referrer_id:pendingRef}:{}),
+      };
+      await supabase.from("profiles").insert(payload);
+      // One-shot : on nettoie pour éviter de re-attribuer si l'user re-login.
+      try{sessionStorage.removeItem(REFERRER_PENDING_KEY);}catch{}
+      ({data}=await supabase.from("profiles").select("*").eq("id",user.id).single());
+    }
     setProfile(data);setLoading(false);
   };
   const loadResults=async()=>{
