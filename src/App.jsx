@@ -5760,13 +5760,12 @@ function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyr
     : (DISCIPLINES[e.discipline]?.label || e.discipline) + (e.race ? ` · ${e.race}` : "");
 
   // La couleur de la card matche celle du sport (bordure + léger fond teinté)
-  // pour une lecture rapide du type d'activité dans le fil. Si l'activité a
-  // au moins un pyro, on superpose une légère teinte rouge sur la bordure
-  // pour la rendre plus visible dans le fil.
+  // pour une lecture rapide du type d'activité dans le fil. Le signal "pyro"
+  // est donné par la flamme allumée du PyroButton (et le count à côté), pas
+  // par une bordure rouge qui rendait les cards trail/run rouges et trompait
+  // sur la couleur du sport.
   const cardBg = `linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`;
-  const cardBorder = pyroCount >= 1
-    ? `1px solid rgba(237, 42, 55, 0.35)`
-    : `1px solid ${badgeColor}55`;
+  const cardBorder = `1px solid ${badgeColor}55`;
   const innerSeparator = `1px solid ${badgeColor}30`;
   const preview = buildPyroPreview(pyroters, myId);
   return (
