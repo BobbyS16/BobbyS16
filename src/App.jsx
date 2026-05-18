@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import confetti from "canvas-confetti";
 import { calculateTrainingPoints } from "./utils/trainingPoints.js";
 import { usePushSubscription } from "./hooks/usePushSubscription.js";
@@ -1272,7 +1273,12 @@ function Modal({onClose,children,fullScreen=false}) {
     if(d>0)setDy(d);
   };
   const onHandleEnd=()=>{dragging.current=false;if(dy>80)onClose();else setDy(0);};
-  return (
+  // Portal vers document.body : sinon le Modal hérite du containing block
+  // de ses ancêtres (un parent avec `transform`, `will-change: transform`,
+  // `filter` ou `contain` casse position: fixed → le Modal s'ancre au
+  // parent au lieu du viewport). C'est pile le cas dans le fil Club où
+  // l'éditeur d'activité apparaissait sous l'en-tête "Club".
+  return createPortal(
     <div ref={overlayRef} onClick={onClose} style={{position:"fixed",top:0,left:0,right:0,bottom:vvBottomOffset,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:fullScreen?"stretch":"flex-end",justifyContent:"center",zIndex:300,transition:"bottom 0.18s ease"}}>
       <div onClick={e=>e.stopPropagation()}
         style={{background:"#161616",border:fullScreen?"none":"1px solid rgba(255,255,255,0.09)",borderRadius:fullScreen?0:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:fullScreen?"100%":"92%",height:fullScreen?"100%":"auto",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease",paddingTop:fullScreen?"env(safe-area-inset-top)":0}}>
@@ -1285,7 +1291,8 @@ function Modal({onClose,children,fullScreen=false}) {
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 function Lbl({c}){return <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",marginBottom:4}}>{c}</div>;}
