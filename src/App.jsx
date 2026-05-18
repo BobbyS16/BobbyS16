@@ -8122,25 +8122,35 @@ function AuthScreen(){
 }
 
 // ── INSTALL PROMPT ────────────────────────────────────────────────────────────
+// InstallPrompt v2 : modal plein écran dès l'ouverture (iOS), avec bénéfices
+// + étapes claires. Android continue d'utiliser le natif beforeinstallprompt
+// (pas de modal custom).
+//
+// Stratégie de dismiss :
+//   - "Plus tard"     → revient dans 24h
+//   - "J'ai installé" → ne revient pas avant 30 jours (l'user dit avoir installé)
+//   - Standalone détecté → jamais (rien à montrer)
 function InstallPrompt(){
   const [show,setShow]=useState(false);
-  const [showHelp,setShowHelp]=useState(false);
   const [deferred,setDeferred]=useState(null);
   const [platform,setPlatform]=useState(null);
 
   useEffect(()=>{
     const isStandalone=window.matchMedia("(display-mode: standalone)").matches||window.navigator.standalone===true;
     if(isStandalone)return;
-    const dismissedAt=parseInt(localStorage.getItem("installPromptDismissedAt")||"0");
-    if(dismissedAt&&Date.now()-dismissedAt<7*24*3600*1000)return;
+    const dismissedUntil=parseInt(localStorage.getItem("installPromptDismissedUntil")||"0");
+    if(dismissedUntil&&Date.now()<dismissedUntil)return;
     const ua=navigator.userAgent;
     const isIOS=/iPad|iPhone|iPod/.test(ua)&&!window.MSStream;
     const isInIOSWebView=isIOS&&!/Safari/.test(ua);
     if(isIOS&&!isInIOSWebView){
+      // iOS : pas de beforeinstallprompt, on affiche notre modal d'instructions
+      // immédiatement (l'user voit l'app pour la 1ʳᵉ fois — on capte son attention).
       setPlatform("ios");
-      const t=setTimeout(()=>setShow(true),10000);
-      return()=>clearTimeout(t);
+      setShow(true);
+      return;
     }
+    // Android / desktop Chrome : utiliser le natif via beforeinstallprompt.
     const handler=e=>{
       e.preventDefault();
       setDeferred(e);
@@ -8151,51 +8161,82 @@ function InstallPrompt(){
     return()=>window.removeEventListener("beforeinstallprompt",handler);
   },[]);
 
-  const dismiss=()=>{
-    try{localStorage.setItem("installPromptDismissedAt",String(Date.now()));}catch{}
-    setShow(false);setShowHelp(false);
+  const dismissUntil=(ms)=>{
+    try{localStorage.setItem("installPromptDismissedUntil",String(Date.now()+ms));}catch{}
+    setShow(false);
   };
+  const dismissLater=()=>dismissUntil(24*3600*1000);       // 24h
+  const dismissInstalled=()=>dismissUntil(30*24*3600*1000); // 30 jours
+
   const installAndroid=async()=>{
-    if(!deferred){setShowHelp(true);return;}
+    if(!deferred){return;}
     deferred.prompt();
     const{outcome}=await deferred.userChoice;
-    setDeferred(null);setShow(false);
-    if(outcome==="dismissed")dismiss();
+    setDeferred(null);
+    if(outcome==="accepted")dismissInstalled();
+    else dismissLater();
   };
 
-  if(!show&&!showHelp)return null;
+  if(!show)return null;
 
-  return (<>
-    {show&&(
-      <div style={{position:"fixed",left:12,right:12,bottom:"calc(80px + env(safe-area-inset-bottom))",zIndex:200,background:"rgba(20,20,20,0.97)",backdropFilter:"blur(12px)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"11px 13px",display:"flex",alignItems:"center",gap:10,maxWidth:460,margin:"0 auto",boxShadow:"0 8px 24px rgba(0,0,0,0.45)"}}>
-        <div onClick={()=>platform==="android"?installAndroid():setShowHelp(true)} style={{flex:1,minWidth:0,cursor:"pointer",color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontSize:13,lineHeight:1.4}}>
-          📱 Installe PaceRank sur ton écran d'accueil pour un accès rapide
+  // Android : modal simple avec bouton "Installer" qui déclenche le natif
+  if(platform==="android"){
+    return (
+      <Modal onClose={dismissLater}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:30,letterSpacing:3,textAlign:"center",lineHeight:1,marginBottom:6}}>
+          <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
         </div>
-        {platform==="android"&&<button onClick={installAndroid} style={{padding:"7px 12px",borderRadius:10,background:"#E63946",border:"none",color:"#fff",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,flexShrink:0}}>Installer</button>}
-        <button onClick={dismiss} aria-label="Fermer" style={{padding:"6px 9px",borderRadius:8,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.55)",cursor:"pointer",fontSize:14,flexShrink:0,lineHeight:1}}>✕</button>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",textAlign:"center",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:18}}>Run · Triathlon · Trail · Hyrox</div>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:1,color:"#F0EDE8",textAlign:"center",marginBottom:10}}>Installe l'app pour la meilleure expérience</div>
+        <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",textAlign:"center",lineHeight:1.5,marginBottom:18}}>Notifications push, accès direct depuis l'écran d'accueil, plein écran sans barres du navigateur.</div>
+        <Btn onClick={installAndroid} mb={6}>📲 Installer</Btn>
+        <button onClick={dismissLater} style={{width:"100%",padding:10,background:"transparent",border:"none",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:12}}>Plus tard</button>
+      </Modal>
+    );
+  }
+
+  // iOS : modal avec bénéfices + 3 étapes d'installation à la main
+  return (
+    <Modal onClose={dismissLater}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:3,textAlign:"center",lineHeight:1,marginBottom:6}}>
+        <span style={{color:"#F0EDE8"}}>PACE</span><span style={{color:"#E63946"}}>RANK</span>
       </div>
-    )}
-    {showHelp&&(
-      <Modal onClose={()=>setShowHelp(false)}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:6}}>Installer PaceRank</div>
-        <div style={{fontSize:13,color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",marginBottom:18,lineHeight:1.5}}>Ajoute l'app à ton écran d'accueil iOS en 3 étapes :</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",textAlign:"center",fontFamily:"'Barlow',sans-serif",fontWeight:600,marginBottom:18}}>Run · Triathlon · Trail · Hyrox</div>
+
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",textAlign:"center",marginBottom:10,lineHeight:1.15}}>Installe l'app pour la meilleure expérience</div>
+      <div style={{fontSize:13,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",textAlign:"center",lineHeight:1.5,marginBottom:18}}>PaceRank fonctionne aussi sans, mais l'install te débloque :</div>
+
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"10px 14px",marginBottom:20}}>
         {[
-          {n:"1",icon:"⬆️",title:"Tape sur le bouton Partager",desc:"En bas de Safari, l'icône carré avec une flèche vers le haut"},
-          {n:"2",icon:"🏠",title:"Choisis « Sur l'écran d'accueil »",desc:"Fais défiler le menu Partager si besoin"},
-          {n:"3",icon:"✅",title:"Confirme en haut à droite",desc:"L'icône PaceRank apparaît sur ton écran d'accueil"},
-        ].map(s=>(
-          <div key={s.n} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"12px 14px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,marginBottom:8}}>
-            <div style={{width:30,height:30,flexShrink:0,borderRadius:"50%",background:"rgba(230,57,70,0.15)",border:"1px solid rgba(230,57,70,0.45)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:15,color:"#E63946"}}>{s.n}</div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,color:"#F0EDE8"}}>{s.icon} {s.title}</div>
-              <div style={{fontSize:12,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>{s.desc}</div>
-            </div>
+          {ico:"🔔",txt:"Notifications push (records d'amis, dépassements…)"},
+          {ico:"⚡",txt:"Accès direct depuis l'écran d'accueil"},
+          {ico:"📱",txt:"Plein écran, sans barres Safari"},
+        ].map((b,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",fontSize:12,color:"rgba(240,237,232,0.8)",fontFamily:"'Barlow',sans-serif"}}>
+            <div style={{width:22,height:22,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>{b.ico}</div>
+            {b.txt}
           </div>
         ))}
-        <Btn onClick={()=>setShowHelp(false)} mb={0}>C'est compris</Btn>
-      </Modal>
-    )}
-  </>);
+      </div>
+
+      {[
+        {n:"1",title:"Tape sur ⤴ en bas de Safari",desc:"L'icône Partager (carré avec flèche vers le haut)"},
+        {n:"2",title:"Choisis « Sur l'écran d'accueil »",desc:"Fais défiler le menu Partager si besoin"},
+        {n:"3",title:"Tape « Ajouter » en haut à droite",desc:"L'icône PaceRank apparaît sur ton écran d'accueil"},
+      ].map(s=>(
+        <div key={s.n} style={{display:"flex",gap:12,alignItems:"flex-start",padding:"12px 14px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,marginBottom:8}}>
+          <div style={{width:28,height:28,flexShrink:0,borderRadius:"50%",background:"rgba(230,57,70,0.15)",border:"1px solid rgba(230,57,70,0.45)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue'",fontSize:14,color:"#E63946"}}>{s.n}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,color:"#F0EDE8"}}>{s.title}</div>
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>{s.desc}</div>
+          </div>
+        </div>
+      ))}
+
+      <Btn onClick={dismissInstalled} mb={4}>J'ai installé</Btn>
+      <button onClick={dismissLater} style={{width:"100%",padding:10,background:"transparent",border:"none",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:12,fontFamily:"'Barlow',sans-serif"}}>Plus tard</button>
+    </Modal>
+  );
 }
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
