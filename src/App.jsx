@@ -2496,8 +2496,18 @@ function renderNotifLabel(n) {
         const n_sess = p.sessions_count || 0;
         const km = Math.round((p.total_km || 0) * 10) / 10;
         const pts = p.points_gained || 0;
-        if (n_sess === 0) return `📊 Bilan de la semaine — touche pour voir`;
-        return `📊 ${n_sess} session${n_sess>1?"s":""} · ${km} km · ${pts} pts cette semaine`;
+        // Préfixe selon le changement de ligue (priorité forte sur le visuel)
+        const LEAGUE_LABELS = {bronze:"Rookie",silver:"Pro",gold:"Elite",diamond:"Legend",elite:"Mythic"};
+        let leaguePrefix = "";
+        if (p.league_status === "promoted") {
+          const to = LEAGUE_LABELS[p.current_league] || p.current_league || "?";
+          leaguePrefix = `🎉 Promotion en ligue ${to} ! · `;
+        } else if (p.league_status === "relegated") {
+          const to = LEAGUE_LABELS[p.current_league] || p.current_league || "?";
+          leaguePrefix = `📉 Relégation en ligue ${to} · `;
+        }
+        if (n_sess === 0) return `📊 ${leaguePrefix}Bilan de la semaine — touche pour voir`;
+        return `📊 ${leaguePrefix}${n_sess} session${n_sess>1?"s":""} · ${km} km · ${pts} pts`;
       }
       // legacy types : si jamais un payload est fourni, on retombe sur libellé legacy
       default: return NOTIF_LEGACY_LABEL[n.type] || "";
@@ -2521,10 +2531,54 @@ function WeeklyRecapModal({notif, onClose}){
     {label:"Points",   value: p.points_gained || 0, accent: "#E63946"},
     {label:"Rang amis", value: p.friends_rank ? `#${p.friends_rank}` : "—"},
   ];
+
+  // Section ligue : 3 cas possibles
+  //   promoted   → fond vert, "Tu montes en {nouvelle ligue}"
+  //   relegated  → fond rouge, "Tu redescends en {nouvelle ligue}"
+  //   stay       → fond neutre, "Tu maintiens {ligue} ({position}ᵉ/{size})"
+  const LEAGUE = {bronze:{label:"Rookie",icon:"🌱",color:"#27AE60"},silver:{label:"Pro",icon:"🎯",color:"#4A90D9"},gold:{label:"Elite",icon:"🏆",color:"#9B59B6"},diamond:{label:"Legend",icon:"⚡",color:"#FF6B35"},elite:{label:"Mythic",icon:"💎",color:"#FF073A"}};
+  const cur = LEAGUE[p.current_league];
+  const prev = LEAGUE[p.previous_league];
+  let leagueBlock = null;
+  if (cur && p.league_status === "promoted") {
+    leagueBlock = (
+      <div style={{padding:"14px 16px",background:`${cur.color}14`,border:`1px solid ${cur.color}55`,borderRadius:14,marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{fontSize:28,flexShrink:0}}>🎉</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:cur.color,letterSpacing:1,lineHeight:1.1}}>PROMOTION EN LIGUE {cur.label.toUpperCase()}</div>
+          {prev && <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:3}}>Tu passes de {prev.label} à {cur.label}</div>}
+        </div>
+        <div style={{fontSize:28,flexShrink:0}}>{cur.icon}</div>
+      </div>
+    );
+  } else if (cur && p.league_status === "relegated") {
+    leagueBlock = (
+      <div style={{padding:"14px 16px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{fontSize:28,flexShrink:0}}>📉</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#E63946",letterSpacing:1,lineHeight:1.1}}>RELÉGATION EN LIGUE {cur.label.toUpperCase()}</div>
+          {prev && <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:3}}>Tu redescends de {prev.label} à {cur.label}</div>}
+        </div>
+        <div style={{fontSize:28,flexShrink:0}}>{cur.icon}</div>
+      </div>
+    );
+  } else if (cur && p.league_position && p.league_size) {
+    leagueBlock = (
+      <div style={{padding:"14px 16px",background:`${cur.color}0d`,border:`1px solid ${cur.color}30`,borderRadius:14,marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{fontSize:28,flexShrink:0}}>{cur.icon}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:cur.color,letterSpacing:1,lineHeight:1.1}}>LIGUE {cur.label.toUpperCase()} MAINTENUE</div>
+          <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:3}}>{p.league_position}{p.league_position===1?"ᵉʳ":"ᵉ"} sur {p.league_size} cette semaine</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:4,textAlign:"center"}}>📊 Bilan de la semaine</div>
-      <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:20,textAlign:"center"}}>Du {fmt(p.week_start)} au {fmt(p.week_end)}</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:18,textAlign:"center"}}>Du {fmt(p.week_start)} au {fmt(p.week_end)}</div>
+      {leagueBlock}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
         {stats.map(s => (
           <div key={s.label} style={{padding:"16px 12px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,textAlign:"center"}}>
