@@ -2213,8 +2213,8 @@ function HowItWorksModal({onClose}){
       <Section title="3 · Pronostics entre amis">
         <P>Quand un ami déclare une course à venir, tu peux pronostiquer son temps. Les pronos sont <span style={{color:"#F0EDE8",fontWeight:700}}>secrets avant la course</span> : tu ne vois pas ceux des autres, juste un compteur "X amis ont pronostiqué".</P>
         <P>Après la course, la révélation :</P>
-        <Bullet emoji="🎯" bold="Pronostic exact (à 30 secondes près) ">→ <span style={{color:"#FFD700",fontWeight:700}}>+200 pts</span></Bullet>
-        <Bullet emoji="🏆" bold="Le plus proche ">→ <span style={{color:"#E63946",fontWeight:700}}>+100 pts</span></Bullet>
+        <Bullet emoji="🎯" bold="Pronostic exact (à 30 secondes près) ">→ <span style={{color:"#FFD700",fontWeight:700}}>+100 pts</span></Bullet>
+        <Bullet emoji="🏆" bold="Le plus proche ">→ <span style={{color:"#E63946",fontWeight:700}}>+50 pts</span></Bullet>
         <Bullet emoji="🎲" bold="Simple participation ">→ <span style={{color:"#F0EDE8",fontWeight:700}}>+5 pts</span></Bullet>
         <P>Le coureur, lui, voit tous les pronos <span style={{color:"#F0EDE8",fontWeight:700}}>en temps réel</span> sur sa propre course.</P>
       </Section>
@@ -6893,8 +6893,8 @@ function PointsBreakdown({expanded, trainPts, racePts, bonusByType}){
     invitation:          {label:"Bonus invitations",  unit:5,   multi:true,  noun:"ami"},
     weekly_streak:       {label:"Bonus streak",       unit:5,   multi:true,  noun:"semaine"},
     pr_beaten:           {label:"Bonus PR",           unit:50,  multi:true,  noun:"PR battu"},
-    prono_exact:         {label:"Pronos exacts",            unit:200, multi:true, noun:"prono"},
-    prono_closest:       {label:"Pronos les plus proches",  unit:100, multi:true, noun:"prono"},
+    prono_exact:         {label:"Pronos exacts",            unit:100, multi:true, noun:"prono"},
+    prono_closest:       {label:"Pronos les plus proches",  unit:50,  multi:true, noun:"prono"},
     prono_participation: {label:"Pronos (participation)",   unit:5,   multi:true, noun:"prono"},
   };
   const lines = [];
