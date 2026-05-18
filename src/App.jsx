@@ -3403,6 +3403,44 @@ function SportPickerModal({current, onSelect, onClose}){
   );
 }
 
+function RankFilterPickerModal({current, onSelect, onClose}){
+  const FILTERS=[
+    {k:"general",   l:"Général",        icon:"🌍"},
+    {k:"discipline",l:"Discipline",     icon:"🏅"},
+    {k:"age_cat",   l:"Catégorie d'âge",icon:"📅"},
+    {k:"gender",    l:"Sexe",           icon:"⚧"},
+    {k:"city",      l:"Ville",          icon:"🏙️"},
+  ];
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:2,marginBottom:4,textAlign:"center"}}>Filtrer le classement</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:18,textAlign:"center"}}>Choisis le périmètre</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+        {FILTERS.map(f=>{
+          const sel=f.k===current;
+          return (
+            <button key={f.k} onClick={()=>{onSelect(f.k);onClose();}} style={{
+              display:"flex",alignItems:"center",gap:14,
+              padding:"14px 16px",
+              background:sel?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",
+              border:`1px solid ${sel?"#E63946":"rgba(255,255,255,0.08)"}`,
+              borderRadius:14,cursor:"pointer",
+              fontFamily:"'Bebas Neue'",fontSize:18,
+              color:sel?"#fff":"rgba(240,237,232,0.85)",
+              letterSpacing:1.5,textAlign:"left",
+            }}>
+              <span style={{fontSize:22,lineHeight:1}}>{f.icon}</span>
+              <span style={{flex:1}}>{f.l}</span>
+              {sel&&<span style={{width:10,height:10,borderRadius:"50%",background:"#E63946",flexShrink:0}}/>}
+            </button>
+          );
+        })}
+      </div>
+      <Btn variant="secondary" onClick={onClose}>Annuler</Btn>
+    </Modal>
+  );
+}
+
 function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKey,onOpenProfile,notifCount=0,onNotifsChange,overtakenBanner,onDismissOvertakenBanner,onOpenOvertakenDetail,pushOptedIn,pushBannerDismissed,onEnablePush,onDismissPushBanner,onOpenLeague}){
   const [showNotifs,setShowNotifs]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
@@ -4073,6 +4111,7 @@ function RankingTab({myProfile}){
   const [loading,setLoading]=useState(true);
   const [openFriend,setOpenFriend]=useState(null);
   const [showSeasonPicker,setShowSeasonPicker]=useState(false);
+  const [showFilterPicker,setShowFilterPicker]=useState(false);
   const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
 
   useEffect(()=>{loadPlayers();},[filter,discFilter,season]);
@@ -4130,19 +4169,22 @@ function RankingTab({myProfile}){
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Rank</div>
       </div>
       <PullToRefresh onRefresh={loadPlayers} paddingBottom="calc(100px + env(safe-area-inset-bottom))">
-      <div style={{display:"grid",gridTemplateColumns:"1.35fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:12}}>
-        {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"7px 4px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:10,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.l}</button>)}
-      </div>
-      {/* Season selector — bouton qui ouvre SeasonPickerModal, même UX que Home.
-          Caché en mode discipline (all-time). */}
+      {/* Saison en premier (au-dessus du filtre). Cachée en mode discipline
+          puisque ce mode est all-time. */}
       {filter!=="discipline"&&(
-        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
           <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:20,padding:"8px 14px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:13,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:6,whiteSpace:"nowrap",lineHeight:1}}>
             SAISON {season}
             <span style={{fontSize:9,opacity:0.85,marginLeft:1}}>▾</span>
           </button>
         </div>
       )}
+      {/* Filtre de classement : dropdown unique qui ouvre un modal de sélection.
+          Remplace l'ancienne grille de 5 boutons compressés à fontSize 10. */}
+      <button onClick={()=>setShowFilterPicker(true)} style={{width:"100%",padding:"11px 14px",borderRadius:14,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <span>{(FILTERS.find(f=>f.k===filter)||FILTERS[0]).l.toUpperCase()}</span>
+        <span style={{fontSize:10,color:"rgba(240,237,232,0.5)"}}>▾</span>
+      </button>
       {filter==="discipline"&&<Sel value={discFilter} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>}
       {loading?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
       :players.length===0?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
@@ -4166,6 +4208,7 @@ function RankingTab({myProfile}){
       </PullToRefresh>
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myProfile?.id} onClose={()=>setOpenFriend(null)}/>}
       {showSeasonPicker&&<SeasonPickerModal seasons={SEASONS} currentSeason={season} onSelect={setSeason} onClose={()=>setShowSeasonPicker(false)}/>}
+      {showFilterPicker&&<RankFilterPickerModal current={filter} onSelect={setFilter} onClose={()=>setShowFilterPicker(false)}/>}
     </div>
   );
 }
