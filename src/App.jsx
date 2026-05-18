@@ -8229,14 +8229,6 @@ function OnboardingTour({profile, results, onComplete, onAddRace}) {
 
   // ─── SCREEN 3 ────────────────────────────────────────────────────────────
   if (screen === 3) {
-    const levels = [
-      {label:"Bronze", color:"#CD7F32"},
-      {label:"Argent", color:"#C0C0C0"},
-      {label:"Or",     color:"#FFD700"},
-      {label:"Platine",color:"#E5E4E2"},
-      {label:"Diamant",color:"#B9F2FF"},
-      {label:"Master", color:PR_RED},
-    ];
     const leagues = [
       {icon:"🌱",label:"Rookie",color:"#27AE60"},
       {icon:"🎯",label:"Pro",   color:"#4A90D9"},
@@ -8249,25 +8241,16 @@ function OnboardingTour({profile, results, onComplete, onAddRace}) {
         <ProgressDots active={2}/>
         <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",maxWidth:420,margin:"0 auto",width:"100%"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:1.2,lineHeight:1.1,marginBottom:14}}>
-            Niveaux <span style={{color:PR_RED}}>& ligues</span>.
+            Monte les <span style={{color:PR_RED}}>ligues</span>.
           </div>
-          <div style={{fontSize:14,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.55,marginBottom:22}}>
-            Chaque course te donne un <span style={{color:TEXT,fontWeight:700}}>niveau</span>. Tes points cumulés te placent dans une <span style={{color:TEXT,fontWeight:700}}>ligue</span> hebdo contre 20 athlètes.
+          <div style={{fontSize:14,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.55,marginBottom:24}}>
+            Chaque lundi, tes points de la semaine te placent dans une ligue contre 20 athlètes. <span style={{color:TEXT,fontWeight:700}}>Top 3 → promotion</span>. Bottom 3 → relégation.
           </div>
-          <div style={{fontSize:11,color:DIM,fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>Niveaux par course</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:22}}>
-            {levels.map(l => (
-              <div key={l.label} style={{padding:"10px 8px",background:`${l.color}18`,border:`1px solid ${l.color}55`,borderRadius:10,textAlign:"center",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,color:l.color,letterSpacing:0.5}}>
-                {l.label}
-              </div>
-            ))}
-          </div>
-          <div style={{fontSize:11,color:DIM,fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>Ligues hebdo</div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {leagues.map(l => (
-              <div key={l.label} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:`${l.color}10`,border:`1px solid ${l.color}40`,borderRadius:10}}>
-                <div style={{fontSize:18}}>{l.icon}</div>
-                <div style={{fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,color:l.color,letterSpacing:0.5}}>{l.label}</div>
+              <div key={l.label} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 16px",background:`${l.color}12`,border:`1px solid ${l.color}45`,borderRadius:12}}>
+                <div style={{fontSize:22}}>{l.icon}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontWeight:400,fontSize:18,color:l.color,letterSpacing:1.2}}>{l.label}</div>
               </div>
             ))}
           </div>
@@ -8295,7 +8278,7 @@ function OnboardingTour({profile, results, onComplete, onAddRace}) {
             PaceRank, c'est mieux <span style={{color:PR_RED}}>à plusieurs</span>.
           </div>
           <div style={{fontSize:14,color:DIM,fontFamily:"'Barlow',sans-serif",lineHeight:1.55,marginBottom:24}}>
-            Invite tes potes runners, triathlètes ou trailers. Le vrai jeu commence quand vous comparez vos perfs ET que vous <span style={{color:PR_RED,fontWeight:700}}>pronostiquez</span> vos courses.
+            Invite tes potes runners, triathlètes ou trailers. Le vrai jeu commence quand tu <span style={{color:PR_RED,fontWeight:700}}>challenges</span> tes potes et que tu <span style={{color:PR_RED,fontWeight:700}}>pronostiques</span> leurs courses.
           </div>
           <div style={{position:"relative",width:240,height:240,margin:"10px auto 30px"}}>
             {peers.map((p,i) => (
