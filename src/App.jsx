@@ -4360,9 +4360,9 @@ function RankingTab({myProfile}){
           puisque ce mode est all-time. */}
       {filter!=="discipline"&&(
         <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-          <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:20,padding:"8px 14px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:13,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:6,whiteSpace:"nowrap",lineHeight:1}}>
+          <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:22,padding:"10px 18px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap",lineHeight:1}}>
             SAISON {season}
-            <span style={{fontSize:9,opacity:0.85,marginLeft:1}}>▾</span>
+            <span style={{fontSize:11,opacity:0.85,marginLeft:1}}>▾</span>
           </button>
         </div>
       )}
