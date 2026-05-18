@@ -3502,6 +3502,7 @@ function SportPickerModal({current, onSelect, onClose}){
 function RankFilterPickerModal({current, onSelect, onClose}){
   const FILTERS=[
     {k:"general",   l:"Général",        icon:"🌍"},
+    {k:"crews",     l:"Crews",          icon:"🏠"},
     {k:"discipline",l:"Discipline",     icon:"🏅"},
     {k:"age_cat",   l:"Catégorie d'âge",icon:"📅"},
     {k:"gender",    l:"Sexe",           icon:"⚧"},
@@ -4208,6 +4209,7 @@ function RankingTab({myProfile}){
   const [openFriend,setOpenFriend]=useState(null);
   const [showSeasonPicker,setShowSeasonPicker]=useState(false);
   const [showFilterPicker,setShowFilterPicker]=useState(false);
+  const [openCrew,setOpenCrew]=useState(null); // crew ouvert dans GroupDetailModal
   const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
 
   useEffect(()=>{loadPlayers();},[filter,discFilter,season]);
@@ -4227,6 +4229,56 @@ function RankingTab({myProfile}){
     const seasonTrainings=(trainings||[]).filter(t=>new Date(t.date).getFullYear()===season);
     const resultsById=Object.fromEntries((results||[]).map(r=>[r.id,r]));
     const bonusByUser=bonusPtsByUserForSeason(bonusesRaw,season,resultsById);
+
+    // ── Branch CREWS : on calcule un classement de crews par moyenne top 3 ──
+    // Méthode "Tour de France team time" : pour chaque crew, on prend les 3
+    // membres les plus performants et on fait leur moyenne. Évite que les
+    // gros crews dominent automatiquement, encourage à recruter sans pénaliser
+    // les petites équipes. Les crews < 3 membres sont exclus du classement.
+    if (filter === "crews") {
+      const userPts = {};
+      profiles.forEach(p => {
+        const pRes = seasonResults.filter(r => r.user_id === p.id);
+        const pAllRes = results.filter(r => r.user_id === p.id);
+        const pTr = seasonTrainings.filter(t => t.user_id === p.id);
+        const racePts = sumBestPts(pRes);
+        const tPts = pTr.reduce((s,t)=>s+(t.points||0),0);
+        const bonusPts = raceBonusPts(pRes,pAllRes) + trainingBonusPts(pTr);
+        const tableBonus = bonusByUser[p.id]||0;
+        userPts[p.id] = racePts + tPts + bonusPts + tableBonus;
+      });
+      const [{data:gmsRaw},{data:gsRaw}] = await Promise.all([
+        supabase.from("group_members").select("group_id,user_id"),
+        supabase.from("groups").select("id,name,description,discipline,city,is_public,join_code,created_by"),
+      ]);
+      const byGroup = {};
+      (gmsRaw||[]).forEach(gm => {
+        if (!byGroup[gm.group_id]) byGroup[gm.group_id] = [];
+        byGroup[gm.group_id].push({user_id: gm.user_id, pts: userPts[gm.user_id] || 0});
+      });
+      const crewsList = [];
+      (gsRaw||[]).forEach(g => {
+        const members = byGroup[g.id] || [];
+        if (members.length < 3) return; // minimum 3 membres pour être classé
+        const sorted = members.slice().sort((a,b)=>b.pts-a.pts);
+        const top3 = sorted.slice(0,3);
+        const avg = Math.round(top3.reduce((s,m)=>s+m.pts,0) / 3);
+        const active = members.filter(m=>m.pts>0).length;
+        crewsList.push({
+          ...g,
+          isCrew: true,
+          pts: avg,
+          total_members: members.length,
+          active_members: active,
+        });
+      });
+      crewsList.sort((a,b)=>b.pts-a.pts);
+      setPlayers(crewsList);
+      setLoading(false);
+      setPlayersOnFireSet(new Set()); // pas d'effet on_fire pour les crews
+      return;
+    }
+
     const pool=profiles;
     let display=pool.map(p=>{
       const pRes=seasonResults.filter(r=>r.user_id===p.id);
@@ -4257,7 +4309,7 @@ function RankingTab({myProfile}){
     }
   };
 
-  const FILTERS=[{k:"general",l:"🌍 Général"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
+  const FILTERS=[{k:"general",l:"🌍 Général"},{k:"crews",l:"🏠 Crews"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -4283,8 +4335,33 @@ function RankingTab({myProfile}){
       </button>
       {filter==="discipline"&&<Sel value={discFilter} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>}
       {loading?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Chargement…</div>
-      :players.length===0?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif"}}>Aucun résultat</div>
-      :players.map((p,i)=>{const lv=getSeasonLevel(p.pts);const isMe=p.id===myProfile?.id;return(
+      :players.length===0?<div style={{textAlign:"center",color:"#444",padding:"40px 0",fontFamily:"'Barlow',sans-serif",fontSize:13,lineHeight:1.5}}>
+        {filter==="crews"
+          ? "Aucun crew avec ≥ 3 membres pour le moment. Recrute pour entrer au classement !"
+          : "Aucun résultat"}
+      </div>
+      :filter==="crews"
+        ? players.map((c,i) => (
+          // Row crew : nom + (membres / actifs) + moyenne top 3
+          <div key={c.id} onClick={()=>setOpenCrew(c)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:"rgba(196,164,132,0.05)",border:"1px solid rgba(196,164,132,0.2)",cursor:"pointer"}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</div>
+            <div style={{width:36,height:36,borderRadius:"50%",background:"rgba(196,164,132,0.18)",border:"1px solid rgba(196,164,132,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🏠</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,minWidth:0}}>{c.name}</div>
+                {!c.is_public && <span style={{fontSize:9,color:"#E63946",flexShrink:0}}>🔒</span>}
+              </div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",marginTop:2,letterSpacing:0.2}}>
+                {c.total_members} membre{c.total_members>1?"s":""} · {c.active_members} actif{c.active_members>1?"s":""}{c.city?` · ${c.city}`:""}
+              </div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#c4a484",letterSpacing:1,lineHeight:1}}>{c.pts}</div>
+              <div style={{fontSize:9,color:"rgba(240,237,232,0.4)",letterSpacing:1,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginTop:2}}>moy. top 3</div>
+            </div>
+          </div>
+        ))
+        : players.map((p,i)=>{const lv=getSeasonLevel(p.pts);const isMe=p.id===myProfile?.id;return(
         <div key={p.id} onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,cursor:"pointer"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</div>
           <Avatar profile={p} size={36} onFire={playersOnFireSet.has(p.id)?"feed":false}/>
@@ -4303,6 +4380,7 @@ function RankingTab({myProfile}){
       );})}
       </PullToRefresh>
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myProfile?.id} onClose={()=>setOpenFriend(null)}/>}
+      {openCrew&&<GroupDetailModal group={openCrew} userId={myProfile?.id} onClose={()=>setOpenCrew(null)} onSelect={()=>{}} onUpdated={()=>{setOpenCrew(null);loadPlayers();}} onDeleted={()=>{setOpenCrew(null);loadPlayers();}} onLeft={()=>{setOpenCrew(null);loadPlayers();}}/>}
       {showSeasonPicker&&<SeasonPickerModal seasons={SEASONS} currentSeason={season} onSelect={setSeason} onClose={()=>setShowSeasonPicker(false)}/>}
       {showFilterPicker&&<RankFilterPickerModal current={filter} onSelect={setFilter} onClose={()=>setShowFilterPicker(false)}/>}
     </div>
