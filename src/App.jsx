@@ -1860,8 +1860,17 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
   const [date,setDate]=useState(existing?.date||"");
   const [loading,setLoading]=useState(false);
   const [error,setErr]=useState("");
+  const [confirmDelete,setConfirmDelete]=useState(false);
   const needsElevation=sport==="Trail"||sport==="Vélo";
   useEffect(()=>{if(!needsElevation) setDeniv("");},[needsElevation]);
+  const handleDelete=async()=>{
+    if(!existing)return;
+    setLoading(true);setErr("");
+    const{error:err}=await supabase.from("trainings").delete().eq("id",existing.id);
+    setLoading(false);
+    if(err){setErr(err.message||"Suppression impossible");return;}
+    onSave(); // ferme + reload côté parent
+  };
   const handleSave=async()=>{
     if(!dist){setErr("La distance est obligatoire");return;}
     if(needsElevation&&deniv===""){setErr("Le dénivelé est obligatoire pour le trail et le vélo");return;}
@@ -1895,9 +1904,28 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
     if(err){setErr(err.message||err.details||JSON.stringify(err));return;}
     onSave();
   };
+  // Écran de confirmation de suppression (mode édition uniquement).
+  if(confirmDelete){
+    return (
+      <Modal onClose={()=>setConfirmDelete(false)}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1.5,color:"#E63946",marginBottom:8}}>Supprimer l'activité ?</div>
+        <div style={{padding:14,background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:12,marginBottom:14}}>
+          <div style={{fontSize:13,color:"#E63946",fontWeight:700,fontFamily:"'Barlow',sans-serif",marginBottom:6}}>⚠️ Action irréversible</div>
+          <div style={{fontSize:12,color:"rgba(240,237,232,0.7)",fontFamily:"'Barlow',sans-serif",lineHeight:1.5}}>
+            Cette activité ({existing?.sport}{existing?.distance?` · ${existing.distance} km`:""}) sera supprimée définitivement. Les pts associés ne seront plus comptés.
+          </div>
+        </div>
+        {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:10,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
+        <Btn onClick={handleDelete} variant="danger" mb={6} disabled={loading}>{loading?"Suppression…":"Confirmer la suppression"}</Btn>
+        <Btn onClick={()=>setConfirmDelete(false)} variant="secondary" mb={0}>Annuler</Btn>
+        <div style={{height:24}}/>
+      </Modal>
+    );
+  }
+
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1,marginBottom:8}}>{existing?"Modifier":"Ajouter"} un entraînement</div>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:22,color:"#F0EDE8",letterSpacing:1.5,marginBottom:14}}>{existing?"Modifier":"Ajouter"} une activité</div>
       <Lbl c="Sport"/><Sel value={sport} onChange={setSport}>{TRAINING_SPORTS.filter(s=>s!=="All").map(s=><option key={s} value={s}>{s}</option>)}</Sel>
       <Lbl c="Titre (optionnel)"/><Inp value={title} onChange={setTitle} placeholder="Ex: Bassin matinal, Sortie longue…"/>
       <Lbl c="Distance (km)"/><Inp value={dist} onChange={setDist} placeholder="Ex: 12.5" type="number"/>
@@ -1908,10 +1936,14 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><DatePicker value={date} onChange={setDate}/></div>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Btn onClick={handleSave} mb={6}>{loading?"Enregistrement...":"Valider"}</Btn>
-      <Btn onClick={onClose} variant="secondary" mb={existing&&onConvertToRace?6:0}>Annuler</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={6}>Annuler</Btn>
       {existing && onConvertToRace && !existing.is_official_race && (
-        <button onClick={()=>{onClose();onConvertToRace(existing);}} style={{width:"100%",background:"transparent",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,padding:"9px 0",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3}}>🏁 Convertir en course officielle</button>
+        <button onClick={()=>{onClose();onConvertToRace(existing);}} style={{width:"100%",background:"transparent",border:"1px solid rgba(230,57,70,0.3)",borderRadius:14,padding:"9px 0",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3,marginBottom:6}}>🏁 Convertir en course officielle</button>
       )}
+      {existing && (
+        <Btn onClick={()=>setConfirmDelete(true)} variant="danger" mb={0}>🗑️ Supprimer l'activité</Btn>
+      )}
+      <div style={{height:24}}/>
     </Modal>
   );
 }
