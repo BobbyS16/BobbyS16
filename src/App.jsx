@@ -2399,6 +2399,7 @@ const NOTIF_ICON = {
   prono_closest:       "🏆",
   prono_participation: "🎲",
   friend_prono:        "🎯",
+  weekly_recap:        "📊",
 };
 // Types qui ont un acteur (from_user_id) et donc affichent "<nom> <verbe>".
 // Les autres ont un libellé impersonnel.
@@ -2491,6 +2492,13 @@ function renderNotifLabel(n) {
         const intro = isOwner ? `a commenté ${aType}` : "a aussi commenté";
         return p.preview ? `${intro} : « ${p.preview} »` : intro;
       }
+      case "weekly_recap": {
+        const n_sess = p.sessions_count || 0;
+        const km = Math.round((p.total_km || 0) * 10) / 10;
+        const pts = p.points_gained || 0;
+        if (n_sess === 0) return `📊 Bilan de la semaine — touche pour voir`;
+        return `📊 ${n_sess} session${n_sess>1?"s":""} · ${km} km · ${pts} pts cette semaine`;
+      }
       // legacy types : si jamais un payload est fourni, on retombe sur libellé legacy
       default: return NOTIF_LEGACY_LABEL[n.type] || "";
     }
@@ -2499,11 +2507,43 @@ function renderNotifLabel(n) {
   return NOTIF_LEGACY_LABEL[n.type] || "";
 }
 
+// Affiche le détail d'une notif weekly_recap : sessions / km / pts / rang amis
+// sur la semaine. Ouvert au tap dans NotificationsModal.
+function WeeklyRecapModal({notif, onClose}){
+  const p = notif.payload || {};
+  const fmt = (s) => {
+    if (!s) return "?";
+    try { return new Date(s).toLocaleDateString("fr-FR", {day:"numeric", month:"short"}); } catch { return s; }
+  };
+  const stats = [
+    {label:"Sessions", value: p.sessions_count || 0},
+    {label:"Distance", value: `${Math.round((p.total_km || 0) * 10) / 10} km`},
+    {label:"Points",   value: p.points_gained || 0, accent: "#E63946"},
+    {label:"Rang amis", value: p.friends_rank ? `#${p.friends_rank}` : "—"},
+  ];
+  return (
+    <Modal onClose={onClose}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1,color:"#F0EDE8",marginBottom:4,textAlign:"center"}}>📊 Bilan de la semaine</div>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginBottom:20,textAlign:"center"}}>Du {fmt(p.week_start)} au {fmt(p.week_end)}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
+        {stats.map(s => (
+          <div key={s.label} style={{padding:"16px 12px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,textAlign:"center"}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:28,color:s.accent||"#F0EDE8",letterSpacing:1,lineHeight:1}}>{s.value}</div>
+            <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",letterSpacing:1.2,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",marginTop:6}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      <Btn onClick={onClose} mb={0}>Fermer</Btn>
+    </Modal>
+  );
+}
+
 function NotificationsModal({onClose,onNotifsChange,onNavigateLeague,onNavigateProfile}){
   const [notifs,setNotifs]=useState([]);
   const [loading,setLoading]=useState(true);
   const [openFriend,setOpenFriend]=useState(null);
   const [myId,setMyId]=useState(null);
+  const [recapNotif,setRecapNotif]=useState(null);
   const load=async()=>{
     setLoading(true);
     const{data:{user}}=await supabase.auth.getUser();
@@ -2531,6 +2571,7 @@ function NotificationsModal({onClose,onNotifsChange,onNavigateLeague,onNavigateP
     if(!n.read) await markRead(n.id);
     if (n.type==="league_overtake"||n.type==="league_promotion"||n.type==="league_relegation") { onNavigateLeague&&onNavigateLeague(); onClose&&onClose(); return; }
     if (n.type==="level_up_imminent") { onNavigateProfile&&onNavigateProfile(); onClose&&onClose(); return; }
+    if (n.type==="weekly_recap") { setRecapNotif(n); return; }
     if (NOTIF_HAS_ACTOR[n.type] && n.from_user) { setOpenFriend(n.from_user); return; }
   };
   const hasUnread = notifs.some(n=>!n.read);
@@ -2565,6 +2606,7 @@ function NotificationsModal({onClose,onNotifsChange,onNavigateLeague,onNavigateP
               );
             })}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myId} onClose={()=>setOpenFriend(null)}/>}
+      {recapNotif&&<WeeklyRecapModal notif={recapNotif} onClose={()=>setRecapNotif(null)}/>}
     </Modal>
   );
 }
