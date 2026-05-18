@@ -4067,18 +4067,14 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
 function RankingTab({myProfile}){
   const [filter,setFilter]=useState("general");
   const [season,setSeason]=useState(CY);
-  const seasonsRef=useRef(null);
   const [discFilter,setDisc]=useState("marathon");
   const [players,setPlayers]=useState([]);
   const [playersOnFireSet,setPlayersOnFireSet]=useState(new Set());
   const [loading,setLoading]=useState(true);
   const [openFriend,setOpenFriend]=useState(null);
+  const [showSeasonPicker,setShowSeasonPicker]=useState(false);
   const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
 
-  useEffect(()=>{
-    if(filter==="discipline")return;
-    setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);
-  },[filter]);
   useEffect(()=>{loadPlayers();},[filter,discFilter,season]);
 
   const loadPlayers=async()=>{
@@ -4137,15 +4133,14 @@ function RankingTab({myProfile}){
       <div style={{display:"grid",gridTemplateColumns:"1.35fr 1fr 1fr 1fr 1fr",gap:4,marginBottom:12}}>
         {FILTERS.map(f=><button key={f.k} onClick={()=>setFilter(f.k)} style={{padding:"7px 4px",borderRadius:20,border:"none",cursor:"pointer",background:filter===f.k?"#E63946":"rgba(255,255,255,0.06)",color:filter===f.k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:10,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.l}</button>)}
       </div>
-      {/* Season selector — caché en mode discipline (all-time) */}
+      {/* Season selector — bouton qui ouvre SeasonPickerModal, même UX que Home.
+          Caché en mode discipline (all-time). */}
       {filter!=="discipline"&&(
-        <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
-          {SEASONS.map(y=>(
-            <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-              {y}
-              {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
-            </button>
-          ))}
+        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+          <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:20,padding:"8px 14px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:13,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:6,whiteSpace:"nowrap",lineHeight:1}}>
+            SAISON {season}
+            <span style={{fontSize:9,opacity:0.85,marginLeft:1}}>▾</span>
+          </button>
         </div>
       )}
       {filter==="discipline"&&<Sel value={discFilter} onChange={setDisc}>{Object.entries(DISCIPLINES).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}</Sel>}
@@ -4170,6 +4165,7 @@ function RankingTab({myProfile}){
       );})}
       </PullToRefresh>
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myProfile?.id} onClose={()=>setOpenFriend(null)}/>}
+      {showSeasonPicker&&<SeasonPickerModal seasons={SEASONS} currentSeason={season} onSelect={setSeason} onClose={()=>setShowSeasonPicker(false)}/>}
     </div>
   );
 }
