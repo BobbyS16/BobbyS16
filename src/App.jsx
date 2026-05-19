@@ -3164,25 +3164,38 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
 }
 
 function AddPickerModal({onPickTraining,onPickRace,onPickUpcoming,onClose}){
-  const opts=[
-    {icon:"🏋️",label:"Entraînement",desc:"Run, Vélo, Natation, Trail",color:"#4ade80",cb:onPickTraining},
-    {icon:"🏅",label:"Course officielle",desc:"5km, 10km, marathon, trail, triathlon, hyrox…",color:"#E63946",cb:onPickRace},
-    {icon:"📅",label:"Course à venir",desc:"Déclare une course que tu prépares",color:"#FFD700",cb:onPickUpcoming},
+  // Regroupé en Passé / À venir avec wording 1re personne :
+  // ancienne formule ("Entraînement / Course officielle / Course à venir")
+  // mélangeait 2 verbes implicites différents (faire/déclarer). Cette version
+  // sépare visuellement l'intent : 2 actions sur du déjà-fait, 1 sur le futur.
+  const past=[
+    {icon:"🏋️",label:"J'ai fait un entraînement",desc:"Run · Vélo · Natation · Trail · Salle",color:"#4ade80",cb:onPickTraining},
+    {icon:"🏅",label:"J'ai fait une course",desc:"10km · marathon · trail · triathlon · hyrox",color:"#E63946",cb:onPickRace},
   ];
+  const future=[
+    {icon:"📅",label:"Je prépare une course",desc:"Pour que tes potes puissent pronostiquer",color:"#FFD700",cb:onPickUpcoming},
+  ];
+  const SectionLabel=({c})=>(
+    <div style={{fontSize:9,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",margin:"6px 0 8px 4px"}}>{c}</div>
+  );
+  const OptionBtn=({o})=>(
+    <button onClick={()=>{onClose();o.cb();}} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"16px 18px",background:`${o.color}10`,border:`1px solid ${o.color}40`,borderRadius:14,marginBottom:10,cursor:"pointer",textAlign:"left"}}>
+      <div style={{width:48,height:48,borderRadius:12,background:`${o.color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{o.icon}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:o.color,letterSpacing:1}}>{o.label}</div>
+        <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>{o.desc}</div>
+      </div>
+      <div style={{color:o.color,fontSize:18,flexShrink:0}}>›</div>
+    </button>
+  );
   return (
     <Modal onClose={onClose}>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:6}}>Ajouter une activité</div>
-      <div style={{fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginBottom:18,lineHeight:1.5}}>Choisis le type d'activité — la discipline se choisira ensuite.</div>
-      {opts.map(o=>(
-        <button key={o.label} onClick={()=>{onClose();o.cb();}} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"16px 18px",background:`${o.color}10`,border:`1px solid ${o.color}40`,borderRadius:14,marginBottom:10,cursor:"pointer",textAlign:"left"}}>
-          <div style={{width:48,height:48,borderRadius:12,background:`${o.color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0}}>{o.icon}</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:o.color,letterSpacing:1}}>{o.label}</div>
-            <div style={{fontSize:11,color:"rgba(240,237,232,0.55)",fontFamily:"'Barlow',sans-serif",marginTop:2,lineHeight:1.4}}>{o.desc}</div>
-          </div>
-          <div style={{color:o.color,fontSize:18,flexShrink:0}}>›</div>
-        </button>
-      ))}
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:1.5,color:"#F0EDE8",marginBottom:6}}>Qu'est-ce que tu ajoutes ?</div>
+      <div style={{fontSize:12,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginBottom:14,lineHeight:1.5}}>Saisis une activité passée ou une course à venir.</div>
+      <SectionLabel c="Passé"/>
+      {past.map(o=><OptionBtn key={o.label} o={o}/>)}
+      <SectionLabel c="À venir"/>
+      {future.map(o=><OptionBtn key={o.label} o={o}/>)}
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
     </Modal>
   );
@@ -5046,6 +5059,32 @@ function buildRacePredictions(runTrainings) {
   return { predictions: out, sampleCount: eligible.length, weeklyKm, exponent: riegelExponent(weeklyKm) };
 }
 
+// Wrapper d'une section dépliable pour Stats. Tap sur le header ouvre/ferme,
+// la flèche pivote, le contenu apparaît avec une transition CSS sur max-height.
+// On utilise max-height + transition plutôt que height:auto pour pouvoir
+// animer ; le contenu peut dépasser dans la limite des 2000px (suffit pour
+// nos sections records/predictions/progression). Si jamais une section
+// devient plus haute, on peut bump cette valeur.
+function ExpandableStatsSection({icon, title, meta, open, onToggle, children}) {
+  return (
+    <div style={{background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,marginBottom:10,overflow:"hidden"}}>
+      <button onClick={onToggle} style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",padding:"14px 16px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left",font:"inherit",color:"inherit"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0}}>
+          <span style={{fontSize:20,flexShrink:0}}>{icon}</span>
+          <div style={{minWidth:0}}>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:1,color:"#F0EDE8"}}>{title}</div>
+            {meta && <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{meta}</div>}
+          </div>
+        </div>
+        <span style={{color:"rgba(240,237,232,0.45)",fontSize:18,flexShrink:0,marginLeft:8,transition:"transform 0.2s ease",display:"inline-block",transform:open?"rotate(90deg)":"rotate(0deg)"}}>›</span>
+      </button>
+      <div style={{maxHeight:open?2000:0,overflow:"hidden",transition:"max-height 0.3s ease"}}>
+        <div style={{padding:"0 16px 16px"}}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
 function PerfTab({userId, refreshKey, onActivityChange}) {
   const [results, setResults] = useState([]);
   const [allTrainings, setAllTrainings] = useState([]);
@@ -5055,6 +5094,12 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
   const [activeDisc, setActiveDisc] = useState("course");
   const [progDisc, setProgDisc] = useState("points");
   const [progFormat, setProgFormat] = useState("all");
+  // Sections dépliables : permet de désempiler la page Stats. Par défaut
+  // fermées pour mettre en avant le Hero (meilleure perf) + les KPIs.
+  // Le user clique pour creuser ; les 3 sections sont indépendantes.
+  const [showRecords, setShowRecords] = useState(false);
+  const [showPredictions, setShowPredictions] = useState(false);
+  const [showProgression, setShowProgression] = useState(false);
   const season = CY;
 
   const swimTrainings = useMemo(
@@ -5174,10 +5219,48 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
           </div>
         ) : (
           <>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8"}}>🏆 Records personnels</div>
-              <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>All-time</div>
+            {/* ── HERO : Meilleure perf de la saison ─────────────────────
+               Refonte Stats : avant la page empilait records → predictions
+               → progression → KPIs → best perf en bas. L'user devait scroller
+               ~800px avant de voir son "trophée du moment". On bascule le
+               best perf en hero gold tout en haut, en très gros. */}
+            {bestPerf && (
+              <div onClick={()=>setEditResult(bestPerf)} style={{background:"linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,215,0,0.02))",border:"1px solid rgba(255,215,0,0.3)",borderRadius:18,padding:"18px 16px",marginBottom:18,textAlign:"center",cursor:"pointer"}}>
+                <div style={{fontSize:10,color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>🏆 Meilleure perf saison {season}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:44,color:"#FFD700",letterSpacing:2,lineHeight:1,marginBottom:6}}>{fmtRaceTime(bestPerf.time)}</div>
+                <div style={{fontFamily:"'Bebas Neue'",fontSize:16,color:"rgba(240,237,232,0.85)",letterSpacing:1.5,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                  {(DISCIPLINES[bestPerf.discipline]?.label||bestPerf.discipline).toUpperCase()}{bestPerf.race?` · ${bestPerf.race.toUpperCase()}`:""}
+                </div>
+                {bestPerf.race_date && <div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginTop:6}}>{fmtFrShortDate(bestPerf.race_date)}</div>}
+              </div>
+            )}
+
+            {/* ── KPIs Saison : 4 cards en grille 2×2, simplifiés ────────
+               Avant : embarqués dans une carte rouge "Saison en chiffres"
+               en bas de page. Maintenant juste après le Hero, en grid pur. */}
+            <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8"}}>📊 Saison {season}</div>
+              <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>vs {season-1}</div>
             </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:22}}>
+              <KPICard label="Courses" value={courseCount} delta={courseDelta} year={season-1}/>
+              <KPICard label="Volume km" value={`${Math.round(totalKm)} km`} delta={Math.round(totalKm-totalKmLast)} year={season-1} suffix=" km"/>
+              <KPICard label="Dénivelé+" value={`${totalElev} m`} delta={totalElev-totalElevLast} year={season-1} suffix=" m"/>
+              <KPICard label="Total points" value={totalPts} delta={totalPts-totalPtsLast} year={season-1} suffix=" pts"/>
+            </div>
+
+            {/* ── Sections dépliables : Records / Prédictions / Progression
+               L'user déplie ce qui l'intéresse, le contenu intérieur reste
+               identique à avant (juste wrappé dans ExpandableStatsSection). */}
+            <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",margin:"0 0 10px 4px"}}>Voir plus</div>
+
+            <ExpandableStatsSection
+              icon="🏆"
+              title="Mes records"
+              meta={`All-time · ${Object.keys(bestByDisc).length} discipline${Object.keys(bestByDisc).length>1?"s":""}`}
+              open={showRecords}
+              onToggle={()=>setShowRecords(!showRecords)}
+            >
             <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:14}}>
               {PR_DISCIPLINES.map(d => (
                 <button key={d.key} onClick={()=>setActiveDisc(d.key)} style={{padding:"6px 11px",borderRadius:14,border:"none",cursor:"pointer",background:activeDisc===d.key?"#E63946":"rgba(255,255,255,0.06)",color:activeDisc===d.key?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:11,whiteSpace:"nowrap",letterSpacing:0.2}}>
@@ -5239,17 +5322,19 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
                 );
               })}
             </div>
+            </ExpandableStatsSection>
 
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8"}}>🔮 Prédictions de course</div>
-              <div style={{fontSize:10,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>
-                {racePred.sampleCount > 0 ? `${racePred.sampleCount} run${racePred.sampleCount>1?"s":""} · ${PREDICT_WINDOW_DAYS}j` : `${PREDICT_WINDOW_DAYS} derniers jours`}
-              </div>
-            </div>
-            <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:10,lineHeight:1.5}}>
+            <ExpandableStatsSection
+              icon="🔮"
+              title="Prédictions de course"
+              meta={racePred.sampleCount > 0 ? `${racePred.sampleCount} run${racePred.sampleCount>1?"s":""} récents · Riegel` : "Pas assez de données"}
+              open={showPredictions}
+              onToggle={()=>setShowPredictions(!showPredictions)}
+            >
+            <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginBottom:10,lineHeight:1.5,marginTop:4}}>
               Estimations basées sur tes entraînements <span style={{color:"#F0EDE8",fontWeight:700}}>Run</span> récents (Riegel, exposant {racePred.exponent.toFixed(2)} · volume {Math.round(racePred.weeklyKm)} km/sem).
             </div>
-            <div style={{marginBottom:24}}>
+            <div style={{marginBottom:0}}>
               {racePred.sampleCount === 0 ? (
                 <div style={{padding:"18px 14px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(255,255,255,0.08)",borderRadius:14,textAlign:"center",fontFamily:"'Barlow',sans-serif",fontSize:12,color:"rgba(240,237,232,0.45)"}}>
                   Pas assez d'entraînements Run récents (≥ {PREDICT_MIN_DIST_KM} km) pour estimer.
@@ -5299,9 +5384,16 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
                 );
               })}
             </div>
+            </ExpandableStatsSection>
 
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>📈 Progression</div>
-            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,padding:14,marginBottom:24}}>
+            <ExpandableStatsSection
+              icon="📈"
+              title="Progression"
+              meta={bestMonth ? `Pic en ${bestMonth.label||"meilleur mois"} · ${bestMonth.value} pts` : "12 derniers mois"}
+              open={showProgression}
+              onToggle={()=>setShowProgression(!showProgression)}
+            >
+            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:14,padding:14,marginTop:4}}>
               <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
                 {DISCIPLINE_TABS.map(t => (
                   <button key={t.key} onClick={()=>onSelectProgDisc(t.key)} style={{padding:"6px 11px",borderRadius:14,border:"none",cursor:"pointer",background:progDisc===t.key?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:progDisc===t.key?"#E63946":"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:11,letterSpacing:0.2,whiteSpace:"nowrap"}}>
@@ -5321,31 +5413,7 @@ function PerfTab({userId, refreshKey, onActivityChange}) {
                 ? <PointsProgressionChart monthlyData={monthlyData} last12Total={last12Total} yoyDelta={yoyDelta} bestMonth={bestMonth}/>
                 : <DisciplineProgressionChart progDisc={progDisc} progFormat={progFormat} races={progRaces}/>}
             </div>
-
-            <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"#F0EDE8",marginBottom:12}}>📊 Saison en chiffres</div>
-            <div style={{background:"linear-gradient(135deg, rgba(230,57,70,0.08), rgba(230,57,70,0.02))",border:"1px solid rgba(230,57,70,0.15)",borderRadius:16,padding:16,marginBottom:14}}>
-              <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:14}}>
-                <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:2,color:"#F0EDE8"}}>SAISON {season}</div>
-                <div style={{fontSize:11,color:"rgba(240,237,232,0.45)",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>vs {season-1}</div>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-                <KPICard label="Courses" value={courseCount} delta={courseDelta} year={season-1}/>
-                <KPICard label="Volume km" value={`${Math.round(totalKm)} km`} delta={Math.round(totalKm-totalKmLast)} year={season-1} suffix=" km"/>
-                <KPICard label="Dénivelé+" value={`${totalElev} m`} delta={totalElev-totalElevLast} year={season-1} suffix=" m"/>
-                <KPICard label="Total points" value={totalPts} delta={totalPts-totalPtsLast} year={season-1} suffix=" pts"/>
-              </div>
-              {bestPerf && (
-                <div onClick={()=>setEditResult(bestPerf)} style={{background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.2)",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
-                  <div style={{fontSize:22}}>🏆</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:9,color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",marginBottom:2}}>MEILLEURE PERF</div>
-                    <div style={{fontFamily:"'Bebas Neue'",fontSize:15,color:"#FFD700",letterSpacing:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                      {(DISCIPLINES[bestPerf.discipline]?.label||bestPerf.discipline).toUpperCase()} · {fmtRaceTime(bestPerf.time)}{bestPerf.race?` · ${bestPerf.race.toUpperCase()}`:""}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            </ExpandableStatsSection>
           </>
         )}
       </PullToRefresh>
