@@ -2107,6 +2107,20 @@ function EditProfileModal({profile,onSave,onClose}){
   const onPick=e=>{
     const f=e.target.files?.[0];
     if(!f)return;
+    setError("");
+    // Garde-fous upfront avant l'upload : on capture les erreurs ici, sinon
+    // Supabase remonte des messages cryptiques type "Payload too large" ou
+    // "Bad Request" qui n'aident pas l'user à comprendre quoi corriger.
+    const MAX_BYTES=8*1024*1024; // 8 Mo (limite du bucket avatars)
+    if(f.size>MAX_BYTES){
+      setError(`Photo trop lourde (${(f.size/1024/1024).toFixed(1)} Mo). Max : 8 Mo. Compresse la photo ou choisis-en une plus petite.`);
+      return;
+    }
+    const okTypes=["image/jpeg","image/jpg","image/png","image/webp","image/heic","image/heif"];
+    if(f.type&&!okTypes.includes(f.type.toLowerCase())){
+      setError(`Format non supporté (${f.type}). Utilise JPG, PNG, WebP ou HEIC.`);
+      return;
+    }
     setAvFile(f);
     const reader=new FileReader();
     reader.onload=ev=>setAvPreview(ev.target.result);
@@ -2117,21 +2131,33 @@ function EditProfileModal({profile,onSave,onClose}){
     setLoading(true);setError("");
     let avatar_url=profile.avatar;
     if(avFile){
-      const ext=(avFile.name.split(".").pop()||"jpg").toLowerCase();
-      const path=`${profile.id}.${ext}`;
+      // Path en sous-dossier {user_id}/avatar.{ext} pour matcher la policy
+      // "Users can upload avatar" qui vérifie storage.foldername(name)[1].
+      // Sans le sous-dossier, seule la policy "avatars_auth_insert" passe :
+      // ça marche pour les users normaux mais pas pour ceux qui auraient
+      // un secret JWT custom. On sécurise.
+      const rawExt=(avFile.name?.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");
+      const ext=rawExt&&rawExt.length<=5?rawExt:"jpg";
+      const path=`${profile.id}/avatar.${ext}`;
       const{error:upErr}=await supabase.storage.from("avatars").upload(path,avFile,{upsert:true,contentType:avFile.type||"image/jpeg"});
-      if(upErr){setError("Upload échoué : "+(upErr.message||"")); setLoading(false); return;}
+      if(upErr){
+        console.error("[EditProfile] Upload avatar failed",upErr);
+        setError("Upload échoué : "+(upErr.message||"erreur inconnue")); setLoading(false); return;
+      }
       const{data}=supabase.storage.from("avatars").getPublicUrl(path);
       avatar_url=data.publicUrl+"?t="+Date.now();
     }
     const{error:updErr}=await supabase.from("profiles").update({name,city,birth_year:birthYear?parseInt(birthYear):null,gender,nationality:nat,avatar:avatar_url,celebrations_enabled:celebOn}).eq("id",profile.id);
     setLoading(false);
-    if(updErr){setError("Sauvegarde échouée : "+updErr.message);return;}
+    if(updErr){
+      console.error("[EditProfile] Update profile failed",updErr);
+      setError("Sauvegarde échouée : "+updErr.message);return;
+    }
     setCelebrationsEnabledLocal(celebOn);
     onSave();
   };
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} fullScreen={true}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:"#F0EDE8",letterSpacing:1,marginBottom:20}}>Modifier le profil</div>
       <Lbl c="Photo de profil"/>
       <label style={{display:"flex",alignItems:"center",gap:12,marginBottom:8,cursor:"pointer"}}>
@@ -2140,7 +2166,10 @@ function EditProfileModal({profile,onSave,onClose}){
         <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{position:"absolute",width:1,height:1,padding:0,margin:-1,overflow:"hidden",clip:"rect(0,0,0,0)",whiteSpace:"nowrap",border:0}}/>
       </label>
       {avFile&&<div style={{fontSize:11,color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",marginBottom:16,paddingLeft:2}}>📎 {avFile.name} · {(avFile.size/1024/1024).toFixed(2)} Mo</div>}
-      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
+      {/* Erreur upfront (taille/format) : reste au-dessus du picker pour
+          contextualiser le rejet du fichier. L'erreur de sauvegarde est
+          dupliquée juste au-dessus du bouton Sauvegarder en bas. */}
+      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif",padding:"10px 12px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:10}}>{error}</div>}
       <Lbl c="Nom complet"/><Inp value={name} onChange={setName} placeholder="Ton nom"/>
       <Lbl c="Ville"/><Inp value={city} onChange={setCity} placeholder="Ta ville"/>
       <Lbl c="Année de naissance"/>
@@ -2167,6 +2196,10 @@ function EditProfileModal({profile,onSave,onClose}){
           <div style={{position:"absolute",top:2,left:celebOn?20:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
         </div>
       </div>
+      {/* Duplique l'erreur juste au-dessus du bouton Sauvegarder : si l'user
+          a scrollé en bas pour cliquer Save et que ça échoue, il ne voit pas
+          l'erreur affichée 800px plus haut. */}
+      {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:12,fontFamily:"'Barlow',sans-serif",padding:"10px 12px",background:"rgba(230,57,70,0.08)",border:"1px solid rgba(230,57,70,0.25)",borderRadius:10}}>{error}</div>}
       <Btn onClick={handleSave} mb={8}>{loading?"Enregistrement...":"Sauvegarder"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
     </Modal>
@@ -3541,7 +3574,7 @@ function SportPickerModal({current, onSelect, onClose}){
 function RankFilterPickerModal({current, onSelect, onClose}){
   const FILTERS=[
     {k:"general",   l:"Général",        icon:"🌍"},
-    {k:"crews",     l:"Crews",          icon:"🏠"},
+    {k:"crews",     l:"Crew",           icon:"🏠"},
     {k:"discipline",l:"Discipline",     icon:"🏅"},
     {k:"age_cat",   l:"Catégorie d'âge",icon:"📅"},
     {k:"gender",    l:"Sexe",           icon:"⚧"},
@@ -4348,7 +4381,7 @@ function RankingTab({myProfile}){
     }
   };
 
-  const FILTERS=[{k:"general",l:"🌍 Général"},{k:"crews",l:"🏠 Crews"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
+  const FILTERS=[{k:"general",l:"🌍 Général"},{k:"crews",l:"🏠 Crew"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
