@@ -7074,13 +7074,6 @@ function ActuTab({myProfile,onNotifsChange}){
     await supabase.rpc("remove_friend",{p_friend_id:friendId});
     loadFriends();loadNotifs();onNotifsChange&&onNotifsChange();
   };
-  const Placeholder = ({title, hint}) => (
-    <div style={{textAlign:"center",padding:"60px 24px",color:"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif"}}>
-      <div style={{fontSize:34,marginBottom:14,opacity:0.55}}>{title.split(" ")[0]}</div>
-      <div style={{fontFamily:"'Bebas Neue'",fontSize:20,letterSpacing:1.5,color:"#F0EDE8",marginBottom:8}}>BIENTÔT</div>
-      <div style={{fontSize:13,lineHeight:1.5}}>{hint}</div>
-    </div>
-  );
 
   return (
     <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -7088,8 +7081,11 @@ function ActuTab({myProfile,onNotifsChange}){
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Club</div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",paddingBottom:"calc(100px + env(safe-area-inset-bottom))",WebkitOverflowScrolling:"touch",boxSizing:"border-box"}}>
+      {/* Sub-tabs Club : retrait de DÉFIS le 19/05/2026 (placeholder
+          "BIENTÔT" qui prenait 25% de la largeur pour rien). À réintégrer
+          quand la feature défis sera livrée. */}
       <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["fil","FIL"],["pronos","PRONOS"],["amis","AMIS"],["defis","DÉFIS"]].map(([k,l])=>(
+        {[["fil","FIL"],["pronos","PRONOS"],["amis","AMIS"]].map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} style={{flex:1,height:36,borderRadius:18,border:"none",cursor:"pointer",background:tab===k?"#ED2A37":"rgba(255,255,255,0.06)",color:tab===k?"#fff":"rgba(240,237,232,0.55)",fontFamily:"'Bebas Neue'",fontWeight:400,fontSize:14,letterSpacing:1.5,display:"flex",alignItems:"center",justifyContent:"center"}}>
             {l}
           </button>
@@ -7097,7 +7093,6 @@ function ActuTab({myProfile,onNotifsChange}){
       </div>
       {tab==="fil"    && <FilPanel myProfile={myProfile}/>}
       {tab==="pronos" && <PronosTab myProfile={myProfile}/>}
-      {tab==="defis"  && <Placeholder title="⚔️" hint="Bientôt — défis entre amis"/>}
       {tab==="amis"&&<div>
         {/* 1. Recherche */}
         <Inp value={search} onChange={handleSearch} placeholder="Recherche par nom…"/>
@@ -8140,7 +8135,7 @@ function NavBar({tab,onChange,notifCount=0}){
             {k==="actu"&&notifCount>0&&(
               <span style={{position:"absolute",top:-4,right:-8,background:"#E63946",borderRadius:"50%",minWidth:14,height:14,padding:"0 3px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",fontFamily:"'Bebas Neue'",fontWeight:700,lineHeight:1}}>{notifCount>9?"9+":notifCount}</span>
             )}
-            {/* TODO: petit point rouge "nouveau contenu non vu" pour FIL/PRONOS/DÉFIS quand le sub-tab AMIS n'est pas concerné par le badge */}
+            {/* TODO: petit point rouge "nouveau contenu non vu" pour FIL/PRONOS quand le sub-tab AMIS n'est pas concerné par le badge */}
           </span>
           <span style={{fontSize:"clamp(7px, 1.8vw, 10px)",letterSpacing:0.3,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,color:tab===k?"#E63946":"rgba(240,237,232,0.3)",transition:"color 0.2s"}}>{label}</span>
         </button>
