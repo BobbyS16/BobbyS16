@@ -4396,8 +4396,20 @@ function RankingTab({myProfile}){
 
   const FILTERS=[{k:"general",l:"🌍 Général"},{k:"crews",l:"🏠 Crew"},{k:"discipline",l:"🏅 Discipline"},{k:"age_cat",l:"📅 Catégorie"},{k:"gender",l:"⚧ Sexe"},{k:"city",l:"🏙️ Ville"}];
 
+  // ── Sticky "Ma position" : si je suis loin dans le classement (rang > 6
+  // ou liste > 12), une carte fixe en bas montre mon rang+points et me
+  // permet de scroller direct vers ma ligne en tappant dessus. Exclut le
+  // mode crews (pas de "moi" individuel) et les listes courtes.
+  const myIndex = filter !== "crews" ? players.findIndex(p => p.id === myProfile?.id) : -1;
+  const showStickyMe = myIndex > 5 && players.length > 12;
+  const me = myIndex >= 0 ? players[myIndex] : null;
+  const scrollToMe = () => {
+    const el = document.querySelector('[data-rank-row-me="true"]');
+    if (el) el.scrollIntoView({behavior:"smooth", block:"center"});
+  };
+
   return (
-    <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
       <div style={{padding:"0 16px",flexShrink:0}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:2,color:"#F0EDE8",paddingTop:20,paddingBottom:12}}>Rank</div>
       </div>
@@ -4447,7 +4459,7 @@ function RankingTab({myProfile}){
           </div>
         ))
         : players.map((p,i)=>{const lv=getSeasonLevel(p.pts);const isMe=p.id===myProfile?.id;return(
-        <div key={p.id} onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,cursor:"pointer"}}>
+        <div key={p.id} data-rank-row-me={isMe?"true":undefined} onClick={()=>setOpenFriend(p)} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderRadius:14,marginBottom:8,background:`${lv.color}0d`,border:`1px solid ${lv.color}${isMe?"66":"33"}`,cursor:"pointer"}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:i<3?"#FFD700":"#444",width:22,textAlign:"center",flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":""}</div>
           <Avatar profile={p} size={36} onFire={playersOnFireSet.has(p.id)?"feed":false}/>
           <div style={{flex:1,minWidth:0}}>
@@ -4464,6 +4476,27 @@ function RankingTab({myProfile}){
         </div>
       );})}
       </PullToRefresh>
+      {/* Sticky "Ma position" : flotte au-dessus de la NavBar quand l'user
+          est loin dans le classement. Tap → scroll vers sa ligne. zIndex 95
+          pour passer sous le bouton + flottant (zIndex 99) et la NavBar
+          (zIndex 100), mais au-dessus du contenu scrollable. */}
+      {showStickyMe && me && (() => {
+        const lv = getSeasonLevel(me.pts);
+        return (
+          <div onClick={scrollToMe} style={{position:"fixed",bottom:"calc(env(safe-area-inset-bottom) + 70px)",left:16,right:16,maxWidth:480,margin:"0 auto",background:"rgba(20, 20, 20, 0.96)",backdropFilter:"blur(20px)",border:`1px solid ${lv.color}77`,borderRadius:14,padding:"9px 12px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",boxShadow:"0 4px 20px rgba(0,0,0,0.5)",zIndex:95}}>
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:11,color:"rgba(240,237,232,0.4)",letterSpacing:1.5,flexShrink:0}}>MOI</div>
+            <Avatar profile={me} size={30} onFire={playersOnFireSet.has(me.id)?"feed":false}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:13,color:"#F0EDE8",letterSpacing:0.5,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{shortName(me.name||"Moi")}</div>
+              <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:1}}>Tap pour me voir dans la liste</div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <div style={{fontSize:11,color:"#F0EDE8",fontFamily:"'Barlow',sans-serif",fontWeight:700,letterSpacing:0.5}}>{myIndex+1}/{players.length}</div>
+              <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:lv.color,letterSpacing:1,lineHeight:1}}>{me.pts}</div>
+            </div>
+          </div>
+        );
+      })()}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myProfile?.id} onClose={()=>setOpenFriend(null)}/>}
       {openCrew&&<GroupDetailModal group={openCrew} userId={myProfile?.id} onClose={()=>setOpenCrew(null)} onSelect={()=>{}} onUpdated={()=>{setOpenCrew(null);loadPlayers();}} onDeleted={()=>{setOpenCrew(null);loadPlayers();}} onLeft={()=>{setOpenCrew(null);loadPlayers();}}/>}
       {showSeasonPicker&&<SeasonPickerModal seasons={SEASONS} currentSeason={season} onSelect={setSeason} onClose={()=>setShowSeasonPicker(false)}/>}
