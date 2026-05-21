@@ -1181,21 +1181,49 @@ function SwipeRow({children,onEdit,onDelete,actions,radius=12,mb=6}){
   const startX=useRef(null);
   const dragging=useRef(false);
   const W=btns.length===1?100:btns.length*60;
-  const onTouchStart=e=>{startX.current=e.touches[0].clientX;dragging.current=true;};
+  // Suit le delta horizontal pour distinguer un swipe (horizontal dominant)
+  // d'un scroll vertical. Sur iOS dans un parent avec WebkitOverflowScrolling
+  // touch (modales notamment), le geste horizontal peut être absorbé par le
+  // scroll natif → on ne mémorise dragging que si le mouvement est clairement
+  // horizontal (dx absolu > dy absolu après quelques px).
+  const startY=useRef(null);
+  const direction=useRef(null); // null | "h" | "v"
+  const onTouchStart=e=>{
+    startX.current=e.touches[0].clientX;
+    startY.current=e.touches[0].clientY;
+    direction.current=null;
+    dragging.current=true;
+  };
   const onTouchMove=e=>{
     if(!dragging.current)return;
     const dx=e.touches[0].clientX-startX.current;
+    const dy=e.touches[0].clientY-startY.current;
+    // Premier mouvement significatif : on lock la direction. Si l'user
+    // bouge plus verticalement qu'horizontalement → c'est un scroll, on
+    // arrête d'écouter (sinon on bloque le scroll).
+    if(direction.current===null && (Math.abs(dx)>5||Math.abs(dy)>5)){
+      direction.current=Math.abs(dx)>Math.abs(dy)?"h":"v";
+    }
+    if(direction.current!=="h")return; // c'est un scroll vertical, on laisse faire
     if(dx<0)setOffset(Math.max(dx,-W));
     else setOffset(Math.min(dx+offset,0));
   };
-  const onTouchEnd=()=>{dragging.current=false;setOffset(o=>o<-W/2?-W:0);};
+  const onTouchEnd=()=>{
+    dragging.current=false;
+    if(direction.current==="h") setOffset(o=>o<-W/2?-W:0);
+    direction.current=null;
+  };
   const close=()=>setOffset(0);
   const tr=dragging.current?"none":"transform 0.25s ease";
   return(
     <div style={{overflow:"hidden",borderRadius:radius,marginBottom:mb}}>
       <div style={{position:"relative"}}>
+        {/* touchAction: pan-y → la browser garde le scroll vertical natif,
+            mais nous laisse les events horizontaux pour le swipe. Sans ça,
+            sur iOS dans une modale (-webkit-overflow-scrolling:touch), le
+            geste horizontal pouvait être absorbé silencieusement. */}
         <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-          style={{transform:`translateX(${offset}px)`,transition:tr}}>
+          style={{transform:`translateX(${offset}px)`,transition:tr,touchAction:"pan-y"}}>
           {children}
         </div>
         <div style={{position:"absolute",top:0,bottom:0,right:0,width:W,display:"flex",
@@ -1878,9 +1906,27 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><DatePicker value={raceDate} onChange={setDate}/></div>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Btn onClick={handleSave} mb={6}>{loading?"Enregistrement...":"Valider"}</Btn>
-      <Btn onClick={onClose} variant="secondary" mb={linkedTraining?6:0}>Annuler</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={(linkedTraining||existing)?6:0}>Annuler</Btn>
       {linkedTraining && (
-        <button onClick={reclassifyAsTraining} disabled={loading} style={{width:"100%",background:"transparent",border:"1px solid rgba(240,237,232,0.15)",borderRadius:14,padding:"9px 0",color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3,opacity:loading?0.5:1}}>↩ Reclasser en entraînement</button>
+        <button onClick={reclassifyAsTraining} disabled={loading} style={{width:"100%",background:"transparent",border:"1px solid rgba(240,237,232,0.15)",borderRadius:14,padding:"9px 0",color:"rgba(240,237,232,0.6)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",letterSpacing:0.3,opacity:loading?0.5:1,marginBottom:existing?6:0}}>↩ Reclasser en entraînement</button>
+      )}
+      {/* Bouton supprimer : seulement en mode édition (existing). Pour les
+          courses pures (sans entraînement lié), c'était la seule manière
+          d'effacer une course depuis la modale d'édition (le swipe-left
+          sur la liste pouvait être manqué selon le device). */}
+      {existing && !linkedTraining && (
+        <button
+          onClick={async()=>{
+            if(!window.confirm("Supprimer définitivement cette course ?")) return;
+            setLoading(true);
+            const{error:delErr}=await supabase.from("results").delete().eq("id",existing.id);
+            setLoading(false);
+            if(delErr){setError("Suppression échouée : "+delErr.message);return;}
+            onSave();
+          }}
+          disabled={loading}
+          style={{width:"100%",background:"rgba(230,57,70,0.12)",border:"1px solid rgba(230,57,70,0.35)",borderRadius:14,padding:"10px 0",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:loading?"wait":"pointer",letterSpacing:0.3,opacity:loading?0.5:1}}
+        >🗑️ Supprimer cette course</button>
       )}
     </Modal>
   );
@@ -3125,7 +3171,7 @@ function intervalToHHMMSS(iv) {
   return "";
 }
 
-function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
+function UpcomingRaceModal({ userId, race, onSaved, onClose, onDeleted }) {
   const isEdit = !!race?.id;
   const todayISO = new Date().toISOString().slice(0, 10);
   const [name, setName] = useState(race?.race_name || "");
@@ -3260,7 +3306,28 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose }) {
       {error && <div style={{color:"#ED2A37",fontSize:12,fontFamily:"'Barlow',sans-serif",marginBottom:10,textAlign:"center"}}>{error}</div>}
 
       <Btn onClick={submit} disabled={loading}>{loading ? "Enregistrement…" : (isEdit ? "Enregistrer" : "Déclarer")}</Btn>
-      <Btn onClick={onClose} variant="secondary" mb={0}>Annuler</Btn>
+      <Btn onClick={onClose} variant="secondary" mb={isEdit?6:0}>Annuler</Btn>
+      {/* Bouton supprimer pour les courses à venir existantes uniquement.
+          Pas de pronos liés à cette course = on peut supprimer. Si des
+          pronos existent, ils seront orphelins (FK on delete cascade géré
+          côté DB sur upcoming_races). */}
+      {isEdit && (
+        <button
+          onClick={async()=>{
+            if(!window.confirm("Supprimer cette course à venir ? Les pronos associés seront aussi effacés.")) return;
+            setLoading(true);
+            const{error:delErr}=await supabase.from("upcoming_races").delete().eq("id",race.id);
+            setLoading(false);
+            if(delErr){setError("Suppression échouée : "+delErr.message);return;}
+            // Si le parent a passé onDeleted (UpcomingRaceDetailModal), on
+            // l'appelle pour que la modale détail puisse aussi se fermer.
+            // Sinon, onSaved() suffit (ferme la modale d'édition + refresh).
+            if (onDeleted) onDeleted(); else onSaved();
+          }}
+          disabled={loading}
+          style={{width:"100%",background:"rgba(230,57,70,0.12)",border:"1px solid rgba(230,57,70,0.35)",borderRadius:14,padding:"10px 0",color:"#E63946",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,cursor:loading?"wait":"pointer",letterSpacing:0.3,opacity:loading?0.5:1}}
+        >🗑️ Supprimer cette course</button>
+      )}
     </Modal>
   );
 }
@@ -6734,6 +6801,15 @@ function UpcomingRaceDetailModal({ race: initialRace, myProfile, onClose, onChan
               onChanged?.(merged);
             }
           }}
+          onDeleted={()=>{
+            // Course supprimée : on ferme la modale d'édition ET la modale
+            // détail (la course n'existe plus, l'afficher serait incohérent).
+            // onChanged(null) signale au parent (FilPanel) de retirer la
+            // race de sa liste.
+            setShowEdit(false);
+            onChanged?.(null);
+            onClose();
+          }}
           onClose={()=>setShowEdit(false)}
         />
       )}
@@ -7010,6 +7086,14 @@ function FilPanel({ myProfile }) {
           myProfile={myProfile}
           onClose={()=>setSelectedUpcoming(null)}
           onChanged={(updated)=>{
+            // onChanged(null) = la course a été supprimée → on la retire
+            // du feed (filter par id !== selectedUpcoming.id).
+            if (updated === null) {
+              const deletedId = selectedUpcoming.id;
+              setUpcomingRaces(prev => prev.filter(r => r.id !== deletedId));
+              setSelectedUpcoming(null);
+              return;
+            }
             setUpcomingRaces(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r));
             setSelectedUpcoming(prev => prev && prev.id === updated.id ? { ...prev, ...updated } : prev);
           }}
