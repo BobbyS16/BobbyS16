@@ -3381,7 +3381,10 @@ const UPCOMING_DISCIPLINES = [
 // "Autre" qui ouvre la saisie libre. Valeurs en km, label affiché à
 // côté de la valeur quand utile (semi/marathon/IM/etc.).
 const UPCOMING_DISTANCES = {
-  course: [
+  // Clé "run" pour matcher UPCOMING_DISCIPLINES.k="run" et les valeurs
+  // stockées en DB. Avant : clé "course" → mismatch → liste vide quand
+  // l'user cliquait "Course" dans le picker.
+  run: [
     { v: 5,       label: "5 km" },
     { v: 10,      label: "10 km" },
     { v: 21.0975, label: "21,1 km — Semi" },
@@ -3437,11 +3440,11 @@ function UpcomingRaceModal({ userId, race, onSaved, onClose, onDeleted }) {
   const todayISO = new Date().toISOString().slice(0, 10);
   const [name, setName] = useState(race?.race_name || "");
   const [date, setDate] = useState(race?.race_date || todayISO);
-  const [discipline, setDiscipline] = useState(race?.discipline || "course");
+  const [discipline, setDiscipline] = useState(race?.discipline || "run");
   // Distance: si la valeur préchargée correspond à un preset de la discipline
   // active on l'aligne dessus (auto-détection edit), sinon mode "custom".
   const initialDistance = race?.distance_km != null ? Number(race.distance_km) : null;
-  const initialPresetMatch = (UPCOMING_DISTANCES[race?.discipline || "course"] || []).find(o => Math.abs(o.v - (initialDistance ?? -1)) < 0.001);
+  const initialPresetMatch = (UPCOMING_DISTANCES[race?.discipline || "run"] || []).find(o => Math.abs(o.v - (initialDistance ?? -1)) < 0.001);
   const [distancePreset, setDistancePreset] = useState(
     initialDistance == null ? "" : (initialPresetMatch ? String(initialPresetMatch.v) : "custom")
   );
