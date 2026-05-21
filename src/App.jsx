@@ -7862,12 +7862,13 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   const [groupsCreated,setGroupsCreated]=useState(0);
   const [showPhoto,setShowPhoto]=useState(false);
   const [season,setSeason]=useState(CY);
+  const [showSeasonPicker,setShowSeasonPicker]=useState(false);
+  const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
   const [panel,setPanel]=useState("races");
   const [friendsList,setFriendsList]=useState([]);
   const [openFriend,setOpenFriend]=useState(null);
   const [racesSearch,setRacesSearch]=useState("");
   const [racesDiscFilter,setRacesDiscFilter]=useState("Toutes");
-  const [racesYearFilter,setRacesYearFilter]=useState("Toutes");
   const [editResult,setEditResult]=useState(null);
   const handleDeleteResult=async id=>{
     await supabase.from("results").delete().eq("id",id);
@@ -7997,7 +7998,6 @@ function ProfileModal({profile,results,onRefresh,onClose}){
     }catch(e){setStravaMsg(e.message||"Import échoué");}
     finally{setStravaBusy(false);}
   };
-  const seasonsRef=useRef(null);
   const badges=computeBadges({results,trainings,profile,friendCount,groupsCreated});
   const seasonResults=results.filter(r=>rYear(r)===season);
   const seasonTrainings=trainings.filter(t=>new Date(t.date).getFullYear()===season);
@@ -8039,7 +8039,6 @@ function ProfileModal({profile,results,onRefresh,onClose}){
     supabase.from("point_bonuses").select("bonus_type,points,metadata,created_at").eq("user_id",profile.id)
       .then(({data})=>setBonuses(data||[]));
   },[profile.id]);
-  useEffect(()=>{setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);},[]);
 
   return (
     <Modal onClose={onClose}>
@@ -8140,13 +8139,15 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           <div style={{fontSize:10,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400}}>Badges</div>
         </div>
       </div>
-      <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
-        {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
-          <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            {y}
-            {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
-          </button>
-        ))}
+      {/* Picker saison unifié avec Rank/Stats : bouton "SAISON 2026 ▾" qui
+         ouvre SeasonPickerModal. Remplace l'ancienne rangée de chips
+         horizontaux (CY-5 → CY) qui faisaient doublon avec les chips
+         d'année dans le panneau Courses ci-dessous. */}
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>
+        <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:22,padding:"8px 16px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap",lineHeight:1}}>
+          SAISON {season}
+          <span style={{fontSize:10,opacity:0.85}}>▾</span>
+        </button>
       </div>
       </div>
       <div style={{paddingTop:8}}>
@@ -8178,7 +8179,6 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           {k:"Triathlon",cat:"triathlon"},
           {k:"Hyrox",cat:"hyrox"},
         ];
-        const years=[...new Set(results.map(r=>rYear(r)))].sort((a,b)=>b-a);
         const prByDisc=results.reduce((acc,r)=>{if(!acc[r.discipline]||r.time<acc[r.discipline].time)acc[r.discipline]=r;return acc;},{});
         const q=racesSearch.trim().toLowerCase();
         const filtered=[...results].filter(r=>{
@@ -8187,7 +8187,9 @@ function ProfileModal({profile,results,onRefresh,onClose}){
             if(cat&&DISCIPLINES[r.discipline]?.category!==cat)return false;
             if(!cat)return false;
           }
-          if(racesYearFilter!=="Toutes"&&String(rYear(r))!==String(racesYearFilter))return false;
+          // Filtre par saison driven par le picker global au top du profil
+          // (avant : doublon chip "année" en bas + chips saison en haut).
+          if(String(rYear(r))!==String(season))return false;
           if(q){
             const hay=`${r.race||""} ${DISCIPLINES[r.discipline]?.label||""}`.toLowerCase();
             if(!hay.includes(q))return false;
@@ -8201,14 +8203,12 @@ function ProfileModal({profile,results,onRefresh,onClose}){
               <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:14,color:"rgba(240,237,232,0.4)",pointerEvents:"none"}}>🔍</span>
               <input value={racesSearch} onChange={e=>setRacesSearch(e.target.value)} placeholder="Rechercher une course…" style={{width:"100%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,padding:"10px 12px 10px 36px",color:"#F0EDE8",fontSize:16,fontFamily:"'Barlow',sans-serif",outline:"none",boxSizing:"border-box"}}/>
             </div>
-            <div style={{display:"flex",gap:5,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginBottom:8,paddingBottom:2}}>
+            {/* Chips de discipline pour filtrer les courses listées
+               ci-dessous. Les anciens chips d'année ont été retirés
+               (doublon avec le picker SAISON global en haut du profil). */}
+            <div style={{display:"flex",gap:5,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginBottom:14,paddingBottom:2}}>
               {DISC_CHIPS.map(({k})=>(
                 <button key={k} onClick={()=>setRacesDiscFilter(k)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:racesDiscFilter===k?"#E63946":"rgba(255,255,255,0.06)",color:racesDiscFilter===k?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{k}</button>
-              ))}
-            </div>
-            <div style={{display:"flex",gap:5,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",marginBottom:14,paddingBottom:2}}>
-              {["Toutes",...years].map(y=>(
-                <button key={y} onClick={()=>setRacesYearFilter(y)} style={{flexShrink:0,padding:"5px 12px",borderRadius:20,border:"none",cursor:"pointer",background:String(racesYearFilter)===String(y)?"#E63946":"rgba(255,255,255,0.06)",color:String(racesYearFilter)===String(y)?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{y}</button>
               ))}
             </div>
             {results.length===0?(
@@ -8287,6 +8287,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       <PoweredByStrava/>
       </div>
       </div>
+      {showSeasonPicker&&<SeasonPickerModal seasons={SEASONS} currentSeason={season} onSelect={setSeason} onClose={()=>setShowSeasonPicker(false)}/>}
       {showEdit&&<EditProfileModal profile={profile} onSave={()=>{setShowEdit(false);onRefresh();}} onClose={()=>setShowEdit(false)}/>}
       {showPhoto&&profile?.avatar&&<PhotoViewer src={profile.avatar} onClose={()=>setShowPhoto(false)}/>}
       {showDelAcc&&<DeleteAccountModal onClose={()=>setDelAcc(false)}/>}
