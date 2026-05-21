@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacerank — Où apparaît le bouton Partager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0a;
+    color: #F0EDE8;
+    font-family: 'Barlow', sans-serif;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-size: 32px; letter-spacing: 2px; text-align: center; margin-bottom: 8px; }
+  .sub { text-align: center; color: rgba(240,237,232,0.55); font-size: 13px; margin-bottom: 36px; }
+
+  .section { margin-bottom: 56px; }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1.5px;
+    color: #E63946;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid rgba(230, 57, 70, 0.3);
+  }
+  .section-desc { color: rgba(240,237,232,0.6); font-size: 13px; margin-bottom: 20px; line-height: 1.5; max-width: 800px; }
+
+  .row { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; align-items: flex-start;}
+
+  /* iPhone frame */
+  .phone {
+    background: #161616;
+    border-radius: 36px;
+    padding: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    width: 100%;
+    max-width: 360px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .screen {
+    background: #0F0F0F;
+    border-radius: 24px;
+    min-height: 600px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .statusbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 18px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(240,237,232,0.7);
+  }
+  .tab-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: #F0EDE8;
+    padding: 4px 16px 12px;
+  }
+
+  /* Modal overlay (celebration) */
+  .modal-bg {
+    background: rgba(0,0,0,0.92);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-content {
+    background: #161616;
+    border-radius: 22px;
+    padding: 28px 22px;
+    text-align: center;
+    width: 100%;
+    border: 1px solid rgba(255,215,0,0.3);
+  }
+  .modal-icon { font-size: 48px; margin-bottom: 12px; }
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: #FFD700;
+    margin-bottom: 8px;
+  }
+  .modal-sub {
+    font-size: 13px;
+    color: rgba(240,237,232,0.6);
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+  .modal-time {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 56px;
+    color: #FFD700;
+    line-height: 1;
+    margin-bottom: 6px;
+    letter-spacing: 2px;
+  }
+  .modal-discinfo { color: rgba(240,237,232,0.8); font-size: 13px; margin-bottom: 22px; letter-spacing: 1px; }
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 13px 0;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .btn.primary { background: #E63946; color: #fff; border: none; }
+  /* Bouton Partager dans la modale : icône seule discrète au top-right.
+     Pas un CTA full-width — c'est secondaire à "Continuer". */
+  .modal-share-corner {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.06);
+    border: none;
+    border-radius: 50%;
+    color: rgba(240,237,232,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .modal-share-corner:hover { color: #E63946; background: rgba(230,57,70,0.12); }
+  .modal-content { position: relative; }
+  .btn.secondary { background: rgba(255,255,255,0.07); color: rgba(240,237,232,0.7); border: none; }
+
+  /* Notification card */
+  .notif {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 14px;
+    margin: 0 16px 10px;
+    display: flex;
+    gap: 12px;
+  }
+  .notif.highlight { background: rgba(255,215,0,0.04); border-color: rgba(255,215,0,0.25); }
+  .notif-icon {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: rgba(255,215,0,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .notif-content { flex: 1; min-width: 0; }
+  .notif-title { font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:0.5px;color:#FFD700;margin-bottom:2px;}
+  .notif-text {font-size:12px;color:rgba(240,237,232,0.7);line-height:1.4;margin-bottom:8px;}
+  .notif-time {font-size:10px;color:rgba(240,237,232,0.4);letter-spacing:0.5px;}
+  /* Notif structure : content gauche (titre+texte+time), share button bas-droite.
+     Le notif-content prend l'espace, le bouton est en absolute bottom-right. */
+  .notif { position: relative; padding-right: 50px; }
+  .notif-share-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    color: rgba(240,237,232,0.55);
+    padding: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+  }
+  .notif-share-btn:hover { color: #E63946; }
+
+  /* Fil card (style identique au composant FeedCard de l'app) */
+  .fil-card {
+    background: linear-gradient(180deg, rgba(74,222,128,0.06) 0%, rgba(74,222,128,0.03) 100%), #0E0E0E;
+    border: 1px solid rgba(74,222,128,0.33);
+    border-radius: 20px;
+    margin: 0 16px 12px;
+    overflow: hidden;
+  }
+  .fil-card.race { background: linear-gradient(180deg, rgba(230,57,70,0.06) 0%, rgba(230,57,70,0.03) 100%), #0E0E0E; border-color:rgba(230,57,70,0.33);}
+  .fil-card.trail { background: linear-gradient(180deg, rgba(192,128,80,0.06) 0%, rgba(192,128,80,0.03) 100%), #0E0E0E; border-color:rgba(192,128,80,0.33);}
+
+  .fil-header { display:flex;align-items:center;gap:10px;padding:14px 14px 10px;position:relative;}
+  .fil-avatar {width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:13px;background:#666;}
+  .fil-info {flex:1;min-width:0;padding-right:64px;}
+  .fil-name {font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:0.6px;color:#F0EDE8;}
+  .fil-act {font-size:11px;color:rgba(240,237,232,0.45);margin-top:2px;}
+  .fil-badge {position:absolute;top:14px;right:14px;padding:4px 10px;border-radius:99px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.4);color:#4ADE80;font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;}
+
+  .fil-stats {display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid rgba(74,222,128,0.2);}
+  .fil-stat-cell{text-align:center;padding:10px 4px;}
+  .fil-stat-val{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#F0EDE8;letter-spacing:0.5px;line-height:1;}
+  .fil-stat-val.green{color:#4ADE80;}
+  .fil-stat-lbl{font-size:9px;color:rgba(240,237,232,0.45);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-top:4px;}
+
+  /* Nouvelle barre d'engagement : 3 zones — pyro (gauche) | comments (centre) | share (droite) */
+  .fil-engage {
+    display:flex;
+    align-items:center;
+    padding:8px 14px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .fil-engage > * { flex: 1; display: flex; align-items: center; gap: 6px; }
+  .fil-engage .center { justify-content: center; }
+  .fil-engage .right { justify-content: flex-end; }
+
+  .pyro-btn {
+    background: transparent;
+    border: none;
+    color: rgba(240,237,232,0.55);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px;
+  }
+  .pyro-btn.active { color: #FF6B35; }
+  .pyro-btn .emoji { font-size: 16px; }
+
+  .cmt-btn {
+    background: transparent;
+    border: none;
+    color: rgba(240,237,232,0.55);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px;
+  }
+  .cmt-btn .emoji { font-size: 14px; }
+
+  .share-btn {
+    background: transparent;
+    border: none;
+    color: rgba(240,237,232,0.55);
+    padding: 6px 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  /* Annotation */
+  .annot {
+    display: inline-block;
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.4);
+    color: #4ADE80;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-top: 8px;
+  }
+
+  /* Sub-tabs Club */
+  .subtabs { display: flex; gap: 6px; padding: 0 16px; margin-bottom: 14px; }
+  .subtab {
+    flex: 1;
+    height: 32px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(240,237,232,0.55);
+  }
+  .subtab.active { background: #ED2A37; color: #fff; }
+
+  .label-context {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    color: #4ADE80;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .legend {
+    max-width: 900px;
+    margin: 30px auto 0;
+    background: rgba(74, 222, 128, 0.06);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: rgba(240, 237, 232, 0.8);
+  }
+  .legend b { color: #4ADE80; }
+  .legend ul { margin: 4px 0 0 18px; }
+</style>
+</head>
+<body>
+
+<h1>Où apparaît le bouton "Partager"</h1>
+<div class="sub">3 contextes : animation · notification · fil Club</div>
+<div style="text-align:center;color:rgba(74,222,128,0.85);font-size:13px;margin-bottom:32px;max-width:760px;margin-left:auto;margin-right:auto;line-height:1.55;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:10px;padding:10px 18px;">
+  💡 Au tap → s'ouvre la <b>share sheet native iOS/Android</b><br>
+  (Instagram · WhatsApp · Messages · AirDrop · Twitter · Save · …)
+</div>
+
+<!-- ═══════════ CONTEXTE 1 : ANIMATION ═══════════ -->
+<div class="section">
+  <div class="section-title">1. Pendant l'animation de célébration</div>
+  <div class="section-desc">
+    Quand tu fais un PR / une montée de ligue / un milestone de points → la modale d'animation s'ouvre.
+    Sous le bouton primaire, on ajoute un <b>bouton "Partager sur Insta"</b> avec les couleurs Instagram (gradient violet→rose→orange).
+  </div>
+  <div class="row">
+    <div>
+      <div class="label-context">📍 PR Celebration Modal</div>
+      <div class="phone"><div class="screen">
+        <div class="modal-bg">
+          <div class="modal-content">
+            <button class="modal-share-corner" aria-label="Partager"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+            <div class="modal-icon">🏆</div>
+            <div class="modal-title">NOUVEAU PR !</div>
+            <div class="modal-sub">Tu as battu ton record sur 10 km</div>
+            <div class="modal-time">42:18</div>
+            <div class="modal-discinfo">↓ 42 SEC SOUS TON ANCIEN PR</div>
+            <button class="btn secondary">Continuer</button>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <div>
+      <div class="label-context">📍 League Promotion Modal</div>
+      <div class="phone"><div class="screen">
+        <div class="modal-bg">
+          <div class="modal-content" style="border-color:rgba(74,144,217,0.3);">
+            <button class="modal-share-corner" aria-label="Partager"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+            <div class="modal-icon">🚀</div>
+            <div class="modal-title" style="color:#4A90D9;">PROMOTION</div>
+            <div class="modal-sub">Tu montes en Ligue Or !</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#FFD700;letter-spacing:2px;margin:14px 0 16px;">🥇 LIGUE OR</div>
+            <button class="btn primary" style="background:#4A90D9;">Voir le classement</button>
+            <button class="btn secondary">Continuer</button>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ CONTEXTE 2 : NOTIFICATIONS ═══════════ -->
+<div class="section">
+  <div class="section-title">2. Dans le panneau Notifications</div>
+  <div class="section-desc">
+    Quand l'utilisateur ouvre ses notifs et qu'il y a une "perf récente" (PR, prono réussi, weekly recap, promotion ligue),
+    un <b>petit bouton "Partager" intégré</b> dans la card de notif permet de partager même après coup
+    (si on a raté la modale d'animation initiale).
+  </div>
+  <div class="row">
+    <div>
+      <div class="label-context">📍 NotificationsModal</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+        <div class="tab-title">Notifications</div>
+        <div class="notif highlight">
+          <div class="notif-icon">🏆</div>
+          <div class="notif-content">
+            <div class="notif-title">NOUVEAU RECORD SUR 10 KM</div>
+            <div class="notif-text">42:18 aux Foulées de Lyon — tu as battu ton ancien PR de 42 sec.</div>
+            <div class="notif-time">il y a 2 min</div>
+            <button class="notif-share-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+          </div>
+        </div>
+        <div class="notif">
+          <div class="notif-icon" style="background:rgba(167,139,250,0.15);">🔮</div>
+          <div class="notif-content">
+            <div class="notif-title" style="color:#A78BFA;">PRONO RÉUSSI</div>
+            <div class="notif-text">+100 pts gagnés sur le 20km de Marc L. — à 8 sec du temps réel.</div>
+            <div class="notif-time">il y a 1 h</div>
+            <button class="notif-share-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+          </div>
+        </div>
+        <div class="notif">
+          <div class="notif-icon" style="background:rgba(74,144,217,0.15);">📊</div>
+          <div class="notif-content">
+            <div class="notif-title" style="color:#4A90D9;">BILAN DE LA SEMAINE</div>
+            <div class="notif-text">4 séances · 42 km · 540 pts · 1er de tes potes</div>
+            <div class="notif-time">il y a 3 h</div>
+            <button class="notif-share-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+          </div>
+        </div>
+        <div class="notif">
+          <div class="notif-icon" style="background:rgba(74,222,128,0.15);">👥</div>
+          <div class="notif-content">
+            <div class="notif-title" style="color:#4ADE80;">NOUVEL AMI</div>
+            <div class="notif-text">Julie M. a accepté ta demande d'ami</div>
+            <div class="notif-time">hier</div>
+            <!-- Pas de bouton partager sur les notifs sociales -->
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ CONTEXTE 3 : FIL CLUB ═══════════ -->
+<div class="section">
+  <div class="section-title">3. Sur tes propres cards dans le Fil Club</div>
+  <div class="section-desc">
+    Dans <b>Club → Fil</b>, la barre engagement de la card est réorganisée en <b>3 zones</b> :
+    <br>🔥 <b>Pyro à gauche</b> · 💬 <b>Commentaires au centre</b> · 📤 <b>Partager à droite</b>
+    <br>Le bouton Partager n'apparaît QUE sur tes propres cards (entraînement + course officielle). Les cards des amis gardent la même structure mais sans bouton à droite.
+  </div>
+  <div class="row">
+    <div>
+      <div class="label-context">📍 Club → Fil</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+        <div class="tab-title">Club</div>
+        <div class="subtabs">
+          <div class="subtab active">FIL</div>
+          <div class="subtab">AMIS</div>
+          <div class="subtab">PRONOS</div>
+        </div>
+        <!-- Ma carte entraînement (avec bouton partager) -->
+        <div class="fil-card">
+          <div class="fil-header">
+            <div class="fil-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
+            <div class="fil-info">
+              <div class="fil-name">PHILIPPE S.</div>
+              <div class="fil-act">Sortie Run · à l'instant</div>
+            </div>
+            <div class="fil-badge">RUN</div>
+          </div>
+          <div class="fil-stats">
+            <div class="fil-stat-cell"><div class="fil-stat-val">10.2</div><div class="fil-stat-lbl">km</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val">50:32</div><div class="fil-stat-lbl">Durée</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val">4:57</div><div class="fil-stat-lbl">/km</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val green">+320</div><div class="fil-stat-lbl">Pts</div></div>
+          </div>
+          <div class="fil-engage">
+            <div><button class="pyro-btn"><span class="emoji">🔥</span>0</button></div>
+            <div class="center"><button class="cmt-btn"><span class="emoji">💬</span>0</button></div>
+            <div class="right"><button class="share-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button></div>
+          </div>
+        </div>
+
+        <!-- Ma carte course officielle (avec bouton partager) -->
+        <div class="fil-card race">
+          <div class="fil-header">
+            <div class="fil-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
+            <div class="fil-info">
+              <div class="fil-name">PHILIPPE S.</div>
+              <div class="fil-act">Foulées de Lyon · 10 km · hier</div>
+            </div>
+            <div class="fil-badge" style="background:rgba(230,57,70,0.1);border-color:rgba(230,57,70,0.4);color:#E63946;">COURSE</div>
+          </div>
+          <div class="fil-stats" style="border-top:1px solid rgba(230,57,70,0.2);">
+            <div class="fil-stat-cell"><div class="fil-stat-val">10.0</div><div class="fil-stat-lbl">km</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val" style="color:#FFD700;">42:18</div><div class="fil-stat-lbl">Chrono</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val">12<sup style="font-size:9px;">e</sup></div><div class="fil-stat-lbl">/180</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val green">+440</div><div class="fil-stat-lbl">Pts</div></div>
+          </div>
+          <div class="fil-engage">
+            <div><button class="pyro-btn active"><span class="emoji">🔥</span>5</button></div>
+            <div class="center"><button class="cmt-btn"><span class="emoji">💬</span>3</button></div>
+            <div class="right"><button class="share-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button></div>
+          </div>
+        </div>
+
+        <!-- Carte d'un ami (PAS de bouton partager) -->
+        <div class="fil-card trail">
+          <div class="fil-header">
+            <div class="fil-avatar" style="background:linear-gradient(135deg,#4A90D9,#4ADE80);">JM</div>
+            <div class="fil-info">
+              <div class="fil-name">JULIE M.</div>
+              <div class="fil-act">Trail des Vignes · 21 km · il y a 2 h</div>
+            </div>
+            <div class="fil-badge" style="background:rgba(192,128,80,0.1);border-color:rgba(192,128,80,0.4);color:#C08050;">TRAIL</div>
+          </div>
+          <div class="fil-stats" style="border-top:1px solid rgba(192,128,80,0.2);">
+            <div class="fil-stat-cell"><div class="fil-stat-val">21.0</div><div class="fil-stat-lbl">km</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val">1h47</div><div class="fil-stat-lbl">Durée</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val">850</div><div class="fil-stat-lbl">D+ (m)</div></div>
+            <div class="fil-stat-cell"><div class="fil-stat-val green">+580</div><div class="fil-stat-lbl">Pts</div></div>
+          </div>
+          <!-- Pour les cards d'amis : pas de bouton Partager.
+               Engagement bar : pyro à gauche, commentaires au centre, RIEN à droite -->
+          <div class="fil-engage">
+            <div><button class="pyro-btn"><span class="emoji">🔥</span>2</button></div>
+            <div class="center"><button class="cmt-btn"><span class="emoji">💬</span>1</button></div>
+            <div class="right"></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <b>Récap des points d'entrée du partage :</b>
+  <ul>
+    <li>🎉 <b>Modales de célébration</b> : bouton "Partager sur Insta" sous le bouton primaire de chaque modal (PR, Promotion ligue, Milestone points, Overtake)</li>
+    <li>🔔 <b>Notifications</b> : bouton intégré sur les notifs "perf" (PR, prono, weekly recap, promotion) — pas sur les notifs sociales (ami accepté)</li>
+    <li>📰 <b>Club → Fil</b> : barre engagement en 3 zones — 🔥 pyro gauche · 💬 comments centre · 📤 partager droite (TES cards uniquement pour le partager)</li>
+    <li>🎨 <b>Style cohérent</b> : rouge Pacerank avec icône 📤 — le bouton ouvre la share sheet native (pas juste Insta)</li>
+  </ul>
+</div>
+
+<div style="text-align:center;color:rgba(240,237,232,0.4);font-size:12px;margin-top:30px;">
+  Mockup généré le 19/05/2026 · pacerank/docs/share-button-placement-preview.html
+</div>
+
+</body>
+</html>

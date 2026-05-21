@@ -6,6 +6,7 @@ import { usePushSubscription } from "./hooks/usePushSubscription.js";
 // Singleton Supabase importé depuis src/supabase.js — un seul GoTrueClient
 // par browser context, sinon warning "Multiple GoTrueClient instances detected".
 import { supabase } from "./supabase";
+import { generateStoryImage, shareCard } from "./shareImage";
 
 // Capture Strava OAuth callback synchronously at module load, before Supabase
 // can consume the URL params. Persist via sessionStorage so a re-render or
@@ -610,14 +611,50 @@ function fireSeasonLevelCelebration(levelId) {
 
 function LeaguePromotionModal({ leagueId, onClose, onViewRanking }) {
   const league = LEAGUES.find(l => l.id === leagueId) || LEAGUES[0];
+  const [sharing, setSharing] = useState(false);
   useEffect(() => {
     if (!celebrationsEnabled()) return;
     fireLeagueCelebration(leagueId);
     try { navigator.vibrate?.([50,30,50,30,100]); } catch {}
   }, [leagueId]);
+  // Partage : fetch profile inline (l'occasion est ponctuelle, pas de perf
+  // problem). On ne connaît pas la ligue précédente côté UI → on tente une
+  // lookup dans user_leagues, sinon fallback générique.
+  const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase.from("profiles").select("id,name,avatar").eq("id",user.id).single();
+      const blob = await generateStoryImage({
+        type: "promo",
+        profile,
+        data: {
+          toLeague: league.label,
+          toEmoji: league.icon,
+          fromLeague: "",
+          fromEmoji: "🥉",
+        },
+      });
+      await shareCard(blob, "pacerank-promo.png", "Je viens de monter en ligue sur Pacerank !");
+    } catch (e) {
+      console.error("[LeaguePromotionModal] share failed", e);
+    } finally {
+      setSharing(false);
+    }
+  };
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.94)",backdropFilter:"blur(20px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:24}}>
-      <div onClick={e=>e.stopPropagation()} style={{textAlign:"center",maxWidth:420,width:"100%"}}>
+      <div onClick={e=>e.stopPropagation()} style={{position:"relative",textAlign:"center",maxWidth:420,width:"100%"}}>
+        <button
+          onClick={handleShare}
+          aria-label="Partager"
+          disabled={sharing}
+          style={{position:"absolute",top:0,right:0,width:40,height:40,background:"rgba(255,255,255,0.08)",border:"none",borderRadius:"50%",color:"rgba(240,237,232,0.7)",cursor:sharing?"wait":"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}
+        >
+          <ShareIcon size={18}/>
+        </button>
         <div style={{display:"inline-block",animation:"celeb-bounce 0.9s cubic-bezier(.34,1.56,.64,1)"}}>
           <div style={{width:120,height:120,borderRadius:"50%",background:league.bg,border:`4px solid ${league.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:64,marginBottom:18,boxShadow:`0 0 40px ${league.color}66`}}>
             {league.icon}
@@ -2669,15 +2706,65 @@ function NotificationsModal({onClose,onNotifsChange,onNavigateLeague,onNavigateP
   const [loading,setLoading]=useState(true);
   const [openFriend,setOpenFriend]=useState(null);
   const [myId,setMyId]=useState(null);
+  const [myProfile,setMyProfile]=useState(null);
   const [recapNotif,setRecapNotif]=useState(null);
+  const [shareToast,setShareToast]=useState("");
   const load=async()=>{
     setLoading(true);
     const{data:{user}}=await supabase.auth.getUser();
     if(!user){setLoading(false);return;}
     setMyId(user.id);
+    // On charge aussi mon profil pour le partage (avatar + name dans la story)
+    const{data:profile}=await supabase.from("profiles").select("id,name,avatar").eq("id",user.id).single();
+    setMyProfile(profile);
     // Historique chronologique complet (lues + non-lues)
     const{data}=await supabase.from("notifications").select("*, from_user:profiles!notifications_from_user_id_fkey(id,name,avatar,city,birth_year)").eq("user_id",user.id).order("created_at",{ascending:false}).limit(100);
     setNotifs(data||[]);setLoading(false);
+  };
+  // Détermine si une notif est partageable (perf perso uniquement) et
+  // retourne les données pour generateStoryImage, ou null sinon.
+  const buildShareDataFromNotif = (n) => {
+    if (n.type === "weekly_recap") {
+      const p = n.payload || {};
+      return {
+        type: "weekly",
+        data: {
+          weekLabel: p.week_start ? `Semaine du ${fmtFrShortDate(p.week_start)}` : "Cette semaine",
+          sessions: p.sessions_count || 0,
+          km: Math.round(p.total_km || 0),
+          elevation: Math.round(p.elevation || 0),
+          points: p.points_gained || 0,
+          friendsRank: p.friends_rank,
+        },
+      };
+    }
+    if (n.type === "league_promotion") {
+      const p = n.payload || {};
+      const fromL = LEAGUES.find(l=>l.id===p.from_league) || LEAGUES[0];
+      const toL = LEAGUES.find(l=>l.id===p.to_league) || LEAGUES[0];
+      return {
+        type: "promo",
+        data: {
+          fromLeague: fromL.label, fromEmoji: fromL.icon,
+          toLeague: toL.label, toEmoji: toL.icon,
+          position: p.position, total: p.league_size,
+        },
+      };
+    }
+    return null;
+  };
+  const handleShareNotif = async (n) => {
+    const cfg = buildShareDataFromNotif(n);
+    if (!cfg) return;
+    try {
+      const blob = await generateStoryImage({ type: cfg.type, profile: myProfile, data: cfg.data });
+      const result = await shareCard(blob, `pacerank-${cfg.type}.png`, "Ma perf sur Pacerank");
+      if (result === "downloaded") setShareToast("Image téléchargée 🎉");
+      else if (result === "shared") setShareToast("Partagé !");
+      if (result === "downloaded" || result === "shared") setTimeout(()=>setShareToast(""), 3000);
+    } catch (e) {
+      console.error("[NotificationsModal] share failed", e);
+    }
   };
   useEffect(()=>{ load(); },[]);
   const markRead=async id=>{
@@ -2715,8 +2802,9 @@ function NotificationsModal({onClose,onNotifsChange,onNavigateLeague,onNavigateP
               const hasActor = NOTIF_HAS_ACTOR[n.type] !== false;
               const icon = NOTIF_ICON[n.type] || "🔔";
               const muted = n.read;
+              const shareable = !!buildShareDataFromNotif(n);
               return (
-                <div key={n.id} onClick={()=>handleClick(n)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:muted?"rgba(255,255,255,0.025)":"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:`1px solid ${muted?"rgba(255,255,255,0.06)":"rgba(230,57,70,0.2)"}`,opacity:muted?0.6:1,cursor:"pointer"}}>
+                <div key={n.id} onClick={()=>handleClick(n)} style={{position:"relative",display:"flex",alignItems:"center",gap:12,padding:"10px 14px",paddingRight:shareable?44:14,background:muted?"rgba(255,255,255,0.025)":"rgba(230,57,70,0.08)",borderRadius:14,marginBottom:7,border:`1px solid ${muted?"rgba(255,255,255,0.06)":"rgba(230,57,70,0.2)"}`,opacity:muted?0.6:1,cursor:"pointer"}}>
                   {hasActor && n.from_user
                     ? <Avatar profile={n.from_user} size={36}/>
                     : <div style={{width:36,height:36,borderRadius:"50%",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{icon}</div>}
@@ -2728,11 +2816,25 @@ function NotificationsModal({onClose,onNotifsChange,onNavigateLeague,onNavigateP
                     <div style={{fontSize:10,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{new Date(n.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
                   </div>
                   {!muted && <span aria-hidden="true" style={{width:8,height:8,borderRadius:"50%",background:"#E63946",flexShrink:0,boxShadow:"0 0 6px rgba(230,57,70,0.6)"}}/>}
+                  {shareable && (
+                    <button
+                      onClick={(ev)=>{ev.stopPropagation();handleShareNotif(n);}}
+                      aria-label="Partager"
+                      style={{position:"absolute",bottom:8,right:10,background:"transparent",border:"none",color:"rgba(240,237,232,0.55)",cursor:"pointer",padding:4,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}
+                    >
+                      <ShareIcon size={16}/>
+                    </button>
+                  )}
                 </div>
               );
             })}
       {openFriend&&<FriendProfileModal friend={openFriend} myId={myId} onClose={()=>setOpenFriend(null)}/>}
       {recapNotif&&<WeeklyRecapModal notif={recapNotif} onClose={()=>setRecapNotif(null)}/>}
+      {shareToast && (
+        <div style={{position:"fixed",bottom:"calc(env(safe-area-inset-bottom) + 110px)",left:"50%",transform:"translateX(-50%)",background:"rgba(20,20,20,0.95)",border:"1px solid rgba(74,222,128,0.4)",color:"#4ADE80",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,padding:"10px 18px",borderRadius:12,zIndex:700,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",maxWidth:"calc(100% - 32px)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+          {shareToast}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -5895,6 +5997,20 @@ function buildPyroPreview(pyroters, myId) {
 }
 
 // Bouton flamme animé. Optimistic toggle géré par le parent.
+// SVG inline reproduisant l'icône iOS "Share" (carré + flèche vers le haut).
+// Hérite de la color via currentColor, donc on contrôle la couleur depuis le
+// parent. Préférable à 📤 (emoji "outbox") car emoji s'affiche différemment
+// selon l'OS et ne hérite pas des couleurs.
+function ShareIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{display:"block"}}>
+      <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/>
+      <polyline points="16 6 12 2 8 6"/>
+      <line x1="12" y1="2" x2="12" y2="15"/>
+    </svg>
+  );
+}
+
 function PyroButton({ count, active, onToggle, bare=false }) {
   const flameRef = useRef(null);
   const handle = (ev) => {
@@ -5923,7 +6039,7 @@ function PyroButton({ count, active, onToggle, bare=false }) {
   );
 }
 
-function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyroters = [], myId, commentCount = 0, ownerOnFire = false, onTogglePyro, onOpenSheet, onTap }) {
+function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyroters = [], myId, commentCount = 0, ownerOnFire = false, onTogglePyro, onOpenSheet, onTap, onShare }) {
   const e = entry.data;
   const fam = activityFamily(entry);
   const badgeColor = ACTIVITY_BADGE_COLORS[fam.family] || ACTIVITY_BADGE_COLORS.run;
@@ -5940,7 +6056,9 @@ function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyr
   const cardBg = `linear-gradient(180deg, ${badgeColor}10 0%, ${badgeColor}06 100%), #0E0E0E`;
   const cardBorder = `1px solid ${badgeColor}55`;
   const innerSeparator = `1px solid ${badgeColor}30`;
-  const preview = buildPyroPreview(pyroters, myId);
+  // Refonte 2026-05-19 : retiré le preview "Toi + X autres" qui occupait la
+  // zone droite de la barre engagement. L'info reste accessible via le tap
+  // sur la card → modale détail. La zone droite est désormais le bouton share.
   return (
     <div onClick={onTap} style={{background:cardBg,border:cardBorder,borderRadius:20,marginBottom:12,overflow:"hidden",cursor:onTap?"pointer":"default"}}>
       {/* Header */}
@@ -5969,24 +6087,35 @@ function FeedCard({ entry, firstComment, pyroCount = 0, pyrotedByMe = false, pyr
         <StatCell label="Pts"             value={stats.points} valueColor="#4ADE80"/>
       </div>
 
-      {/* Barre engagement : pyro + commentaires + preview "Toi + X autres" */}
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",borderTop:innerSeparator}}>
-        <PyroButton count={pyroCount} active={pyrotedByMe} onToggle={onTogglePyro} bare/>
-        <button
-          onClick={(e2)=>{e2.stopPropagation();onOpenSheet?.();}}
-          style={{display:"flex",alignItems:"center",gap:6,padding:"6px 4px",background:"transparent",border:"none",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
-        >
-          <span style={{fontSize:14,lineHeight:1}}>💬</span>
-          <span>{commentCount}</span>
-        </button>
-        {preview && (
+      {/* Barre engagement : 3 zones égales — pyro left · comments center · share right
+         Pour les cards user, le bouton share s'affiche à droite. Pour les cards
+         d'amis, la zone droite reste vide (cohérence visuelle).
+         Le preview "Toi + X autres" est retiré (info accessible via tap sur la
+         card → modale détail engagement). */}
+      <div style={{display:"flex",alignItems:"center",padding:"8px 14px",borderTop:innerSeparator}}>
+        <div style={{flex:1,display:"flex",alignItems:"center"}}>
+          <PyroButton count={pyroCount} active={pyrotedByMe} onToggle={onTogglePyro} bare/>
+        </div>
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
           <button
             onClick={(e2)=>{e2.stopPropagation();onOpenSheet?.();}}
-            style={{marginLeft:"auto",fontFamily:"'Barlow',sans-serif",fontSize:11,color:"rgba(240,237,232,0.45)",background:"transparent",border:"none",cursor:"pointer",padding:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:140}}
+            style={{display:"flex",alignItems:"center",gap:6,padding:"6px 4px",background:"transparent",border:"none",color:"rgba(240,237,232,0.7)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12}}
           >
-            {preview}
+            <span style={{fontSize:14,lineHeight:1}}>💬</span>
+            <span>{commentCount}</span>
           </button>
-        )}
+        </div>
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"flex-end"}}>
+          {onShare && entry.user?.id === myId && (
+            <button
+              onClick={(e2)=>{e2.stopPropagation();onShare();}}
+              aria-label="Partager"
+              style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"6px 4px",background:"transparent",border:"none",color:"rgba(240,237,232,0.55)",cursor:"pointer",lineHeight:1}}
+            >
+              <ShareIcon size={18}/>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 1er commentaire inline */}
@@ -6627,6 +6756,53 @@ function FilPanel({ myProfile }) {
   const [editResult, setEditResult] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [shareToast, setShareToast] = useState("");
+
+  // Génère + déclenche la share sheet native pour une entrée du fil
+  // (entraînement ou course officielle de l'user). Utilise le module
+  // shareImage.js qui produit un PNG 1080×1920 prêt pour Instagram Stories.
+  const handleShareEntry = async (entry) => {
+    try {
+      let type, data;
+      if (entry.kind === "training") {
+        const t = entry.data;
+        type = "training";
+        data = {
+          emoji: t.sport==="Vélo"?"🚴":t.sport==="Natation"?"🏊":t.sport==="Trail"?"⛰️":"🏃",
+          discLabel: t.is_official_race ? (t.official_race_name||"Course") : (t.title || `Sortie ${t.sport||""}`).trim(),
+          km: t.distance ? Number(t.distance).toFixed(1) : "—",
+          duration: t.duration ? fmtTime(parseInt(t.duration)) : "—",
+          pace: (t.distance>0 && t.duration>0) ? fmtTime(Math.round(parseInt(t.duration)/Number(t.distance))) : "—",
+          thirdLabel: "/KM",
+          elevation: t.elevation_gain_m || 0,
+          points: t.points || 0,
+        };
+      } else {
+        // result (course officielle)
+        const r = entry.data;
+        type = "race";
+        data = {
+          race: r.race || "Course",
+          date: r.race_date ? fmtFrShortDate(r.race_date) : (r.year || ""),
+          discLabel: (DISCIPLINES[r.discipline]?.label || r.discipline) + " EN",
+          time: fmtRaceTime(r.time),
+          position: r.position,
+          total: r.total_finishers,
+          points: r.points,
+        };
+      }
+      const blob = await generateStoryImage({ type, profile: myProfile, data });
+      const result = await shareCard(blob, `pacerank-${type}.png`, "Ma perf sur Pacerank");
+      if (result === "downloaded") setShareToast("Image téléchargée — partage-la depuis ta galerie 🎉");
+      else if (result === "shared") setShareToast("Partagé !");
+      else if (result === "failed") setShareToast("Échec du partage. Réessaie.");
+      if (result === "downloaded" || result === "shared") setTimeout(()=>setShareToast(""), 3000);
+    } catch (e) {
+      console.error("[FilPanel] handleShareEntry failed", e);
+      setShareToast("Erreur lors de la génération.");
+      setTimeout(()=>setShareToast(""), 3000);
+    }
+  };
 
   // Toggle pyro : insert/delete sur public.pyros. Optimistic update côté
   // client (compteur + pyroters), rollback si erreur.
@@ -6899,6 +7075,7 @@ function FilPanel({ myProfile }) {
                 if (e.kind === "training") setEditTraining(e.data);
                 else setEditResult(e.data);
               } : undefined}
+              onShare={e.user?.id === myProfile?.id ? () => handleShareEntry(e) : undefined}
             />
           );
         })
@@ -6918,6 +7095,11 @@ function FilPanel({ myProfile }) {
           onSave={()=>{ setEditResult(null); setReloadKey(k=>k+1); }}
           onClose={()=>setEditResult(null)}
         />
+      )}
+      {shareToast && (
+        <div style={{position:"fixed",bottom:"calc(env(safe-area-inset-bottom) + 110px)",left:"50%",transform:"translateX(-50%)",background:"rgba(20,20,20,0.95)",border:"1px solid rgba(74,222,128,0.4)",color:"#4ADE80",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:13,padding:"10px 18px",borderRadius:12,zIndex:600,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",maxWidth:"calc(100% - 32px)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+          {shareToast}
+        </div>
       )}
     </div>
   );

@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacerank — Cartes Instagram Stories</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0a;
+    color: #F0EDE8;
+    font-family: 'Barlow', sans-serif;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 2px; text-align: center; margin-bottom: 8px; }
+  .sub { text-align: center; color: rgba(240,237,232,0.55); font-size: 13px; margin-bottom: 28px; }
+  .specs { text-align:center;color:rgba(240,237,232,0.4);font-size:11px;margin-bottom:36px;letter-spacing:0.5px;}
+  .specs code{background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;font-family:'Courier',monospace;color:#FFD700;}
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 340px));
+    gap: 24px;
+    justify-content: center;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .card-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 17px;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+    color: #E63946;
+    text-align: center;
+  }
+
+  /* Story card 1080×1920 → scaled to ~320×569 */
+  .story {
+    width: 320px;
+    height: 569px;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.5);
+    border: 2px solid rgba(255,255,255,0.06);
+  }
+
+  /* Common watermark */
+  .watermark {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 10;
+  }
+  .watermark-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 4px;
+    color: #fff;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+  }
+  .watermark-url {
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  /* Header common — user info */
+  .user-header {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 5;
+  }
+  .user-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.8);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+  }
+  .user-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 1px;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* ─── CARD 1 : NOUVEAU PR ─────────────────────────── */
+  .pr {
+    background: radial-gradient(ellipse at top, #2a1810 0%, #0a0a0a 60%);
+    color: #F0EDE8;
+    position: relative;
+  }
+  .pr::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 8px;
+    background: linear-gradient(90deg, transparent, #FFD700, transparent);
+    z-index: 1;
+  }
+  .pr-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 24px;
+    text-align: center;
+  }
+  .pr-tag {
+    background: rgba(255,215,0,0.15);
+    border: 1px solid rgba(255,215,0,0.4);
+    color: #FFD700;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-family: 'Bebas Neue',sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+  .pr-trophy { font-size: 56px; margin-bottom: 12px; filter: drop-shadow(0 4px 14px rgba(255,215,0,0.4)); }
+  .pr-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 4px;
+  }
+  .pr-time {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 92px;
+    line-height: 1;
+    color: #FFD700;
+    letter-spacing: 4px;
+    text-shadow: 0 4px 20px rgba(255,215,0,0.3);
+    margin-bottom: 16px;
+  }
+  .pr-disc {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .pr-race {
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 28px;
+  }
+  .pr-improvement {
+    background: rgba(74,222,128,0.12);
+    border: 1px solid rgba(74,222,128,0.4);
+    color: #4ADE80;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  /* ─── CARD 2 : RÉSULTAT DE COURSE ─────────────────── */
+  .race {
+    background: linear-gradient(160deg, #1a0a0a 0%, #0a0a0a 60%);
+    position: relative;
+  }
+  /* Drapeau à damier en haut, en bandeau décoratif (CSS pur, pas
+     d'image externe nécessaire). Le checkered pattern est généré
+     avec 2 linear-gradients croisés à 45°. */
+  .race-flag-band {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 28px;
+    background:
+      repeating-conic-gradient(
+        #fff 0% 25%,
+        #000 0% 50%
+      ) 50% / 14px 14px;
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+    z-index: 1;
+    pointer-events: none;
+  }
+  .race-flag-band-bottom {
+    position: absolute;
+    bottom: 80px; left: 0; right: 0;
+    height: 14px;
+    background:
+      repeating-conic-gradient(
+        #fff 0% 25%,
+        #000 0% 50%
+      ) 50% / 8px 8px;
+    opacity: 0.7;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .race-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 24px; text-align:center; }
+  .race-tag {
+    background: rgba(230,57,70,0.15);
+    border: 1px solid rgba(230,57,70,0.5);
+    color: #E63946;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-family: 'Bebas Neue',sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+  }
+  .race-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 2px;
+    color: #fff;
+    margin-bottom: 8px;
+    line-height: 1.05;
+  }
+  .race-date {
+    font-size: 11px;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 30px;
+  }
+  .race-time-container {
+    background: linear-gradient(135deg, rgba(230,57,70,0.15), rgba(230,57,70,0.04));
+    border: 1px solid rgba(230,57,70,0.35);
+    border-radius: 18px;
+    padding: 20px 32px;
+    margin-bottom: 22px;
+  }
+  .race-time-label { font-size:10px;color:#E63946;font-weight:700;letter-spacing:2px;margin-bottom:4px;}
+  .race-time {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 64px;
+    color: #fff;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  .race-stats { display:flex; gap:24px; }
+  .race-stat-val {font-family:'Bebas Neue',sans-serif;font-size:24px;color:#fff;letter-spacing:1px;}
+  .race-stat-lbl {font-size:9px;color:rgba(255,255,255,0.5);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-top:2px;}
+
+  /* ─── CARD 3 : ENTRAÎNEMENT ──────────────────────── */
+  .train {
+    background: linear-gradient(165deg, #0a1f0e 0%, #0a0a0a 70%);
+  }
+  .train-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 24px; text-align:center; }
+  .train-tag {
+    background: rgba(74,222,128,0.15);
+    border: 1px solid rgba(74,222,128,0.4);
+    color: #4ADE80;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-family: 'Bebas Neue',sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 36px;
+  }
+  .train-icon { font-size:54px; margin-bottom:14px; }
+  .train-disc {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: #fff;
+    margin-bottom: 28px;
+  }
+  .train-grid {display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;max-width:240px;margin-bottom:22px;}
+  .train-cell {background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 8px;text-align:center;}
+  .train-cell-val{font-family:'Bebas Neue',sans-serif;font-size:30px;color:#fff;letter-spacing:1px;line-height:1;}
+  .train-cell-lbl{font-size:9px;color:rgba(255,255,255,0.5);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;}
+  .train-pts {
+    background: rgba(74,222,128,0.12);
+    border: 1px solid rgba(74,222,128,0.4);
+    border-radius: 999px;
+    padding: 8px 18px;
+    color: #4ADE80;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+  }
+
+  /* ─── CARD 4 : PRONO RÉUSSI ──────────────────────── */
+  .prono {
+    background: radial-gradient(ellipse at top right, #1f0a2a 0%, #0a0a0a 70%);
+  }
+  .prono::before {
+    content: "🔮";
+    position: absolute;
+    top: 60px;
+    right: -30px;
+    font-size: 200px;
+    opacity: 0.06;
+    transform: rotate(15deg);
+    pointer-events: none;
+  }
+  .prono-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 24px; text-align:center; }
+  .prono-tag {
+    background: rgba(167,139,250,0.15);
+    border: 1px solid rgba(167,139,250,0.5);
+    color: #A78BFA;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-family: 'Bebas Neue',sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+  }
+  .prono-emoji { font-size:60px; margin-bottom:14px; filter: drop-shadow(0 4px 16px rgba(167,139,250,0.4));}
+  .prono-headline { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:2px; color:#fff; margin-bottom:8px; }
+  .prono-friend {
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 28px;
+  }
+  .prono-points-circle {
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(167,139,250,0.3), rgba(167,139,250,0.1));
+    border: 3px solid rgba(167,139,250,0.6);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    margin-bottom: 22px;
+  }
+  .prono-pts-val{font-family:'Bebas Neue',sans-serif;font-size:48px;line-height:1;color:#A78BFA;letter-spacing:1px;}
+  .prono-pts-lbl{font-size:10px;color:#A78BFA;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+  .prono-precision {font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:1px;}
+
+  /* ─── CARD 5 : PROMO LIGUE ──────────────────────── */
+  .promo {
+    background: linear-gradient(160deg, #1a1208 0%, #0a0a0a 70%);
+  }
+  .promo-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 24px; text-align:center; }
+  .promo-tag {
+    background: rgba(74,144,217,0.15);
+    border: 1px solid rgba(74,144,217,0.5);
+    color: #4A90D9;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-family: 'Bebas Neue',sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 32px;
+  }
+  .promo-rocket { font-size:50px; margin-bottom:14px;}
+  .promo-headline { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:2.5px; color:#fff; margin-bottom:30px;}
+  .promo-leagues {display:flex; align-items:center; gap:14px; margin-bottom:24px;}
+  .league-pill {
+    padding: 14px 18px;
+    border-radius: 16px;
+    text-align:center;
+    min-width: 96px;
+  }
+  .league-from { background:rgba(205,127,50,0.08); border:1px solid rgba(205,127,50,0.3);}
+  .league-to { background:rgba(255,215,0,0.12); border:1px solid rgba(255,215,0,0.5); transform: scale(1.1);}
+  .league-emoji {font-size: 22px; margin-bottom: 2px;}
+  .league-name {font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1.5px;color:#fff;}
+  .league-from .league-name { opacity:0.6; }
+  .league-arrow {color:#FFD700;font-size:24px;}
+  .promo-position {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 10px 18px;
+    color: rgba(255,255,255,0.85);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 1.5px;
+  }
+
+  /* ─── CARD 6 : WEEKLY RECAP ─────────────────────── */
+  .weekly {
+    background: linear-gradient(165deg, #0a1825 0%, #0a0a0a 70%);
+  }
+  .weekly-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 24px; text-align:center;}
+  .weekly-tag {
+    background: rgba(74,144,217,0.15);
+    border: 1px solid rgba(74,144,217,0.5);
+    color: #4A90D9;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-family: 'Bebas Neue',sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+  .weekly-week {font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:rgba(255,255,255,0.65);margin-bottom:22px;}
+  .weekly-stats {display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:250px; margin-bottom:20px;}
+  .weekly-cell {background:rgba(74,144,217,0.06);border:1px solid rgba(74,144,217,0.2);border-radius:14px;padding:12px 8px;text-align:center;}
+  .weekly-cell-val{font-family:'Bebas Neue',sans-serif;font-size:30px;color:#fff;letter-spacing:1px;line-height:1;}
+  .weekly-cell-lbl{font-size:9px;color:rgba(255,255,255,0.5);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;}
+  .weekly-rank {
+    background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.04));
+    border: 1px solid rgba(255,215,0,0.4);
+    border-radius: 16px;
+    padding: 14px 24px;
+    color: #FFD700;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+  }
+  .weekly-rank-emoji {margin-right:8px;}
+
+  /* Notes section */
+  .notes {
+    max-width: 900px;
+    margin: 40px auto 0;
+    background: rgba(74, 222, 128, 0.06);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    border-radius: 12px;
+    padding: 18px 22px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: rgba(240, 237, 232, 0.8);
+  }
+  .notes b { color: #4ADE80; }
+  .notes ul { margin: 6px 0 0 18px; }
+  .notes li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Pacerank — Cartes Instagram Stories</h1>
+<div class="sub">Format 1080×1920 (story Insta) · affiché à l'échelle ~30%</div>
+<div class="specs">
+  Fond <code>dark</code> · police <code>Bebas Neue</code> · branding bottom · viral driver
+</div>
+
+<div class="grid">
+
+  <!-- 1. NOUVEAU PR -->
+  <div class="card-wrap">
+    <div class="card-title">🏆 Nouveau record perso</div>
+    <div class="story pr">
+      <div class="user-header">
+        <div class="user-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
+        <div class="user-name">Philippe S.</div>
+      </div>
+      <div class="pr-body">
+        <div class="pr-tag">NOUVEAU PR</div>
+        <div class="pr-trophy">🏆</div>
+        <div class="pr-label">10 KM</div>
+        <div class="pr-time">42:18</div>
+        <div class="pr-disc">FOULÉES LYON</div>
+        <div class="pr-race">12 MARS 2026</div>
+        <div class="pr-improvement">↓ 42 SEC SOUS MON PR PRÉCÉDENT</div>
+      </div>
+      <div class="watermark">
+        <div class="watermark-logo">PACERANK</div>
+        <div class="watermark-url">PACERANK.VERCEL.APP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. RÉSULTAT COURSE -->
+  <div class="card-wrap">
+    <div class="card-title">🏅 Résultat de course</div>
+    <div class="story race">
+      <div class="race-flag-band"></div>
+      <div class="race-flag-band-bottom"></div>
+      <div class="user-header" style="top:48px;">
+        <div class="user-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
+        <div class="user-name">Philippe S.</div>
+      </div>
+      <div class="race-body">
+        <div class="race-tag">COURSE TERMINÉE</div>
+        <div class="race-name">FOULÉES<br>DE LYON</div>
+        <div class="race-date">12 MARS 2026</div>
+        <div class="race-time-container">
+          <div class="race-time-label">10 KM EN</div>
+          <div class="race-time">42:18</div>
+        </div>
+        <div class="race-stats">
+          <div style="text-align:center;">
+            <div class="race-stat-val">12<sup style="font-size:14px;">e</sup></div>
+            <div class="race-stat-lbl">SUR 180</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="race-stat-val">+440</div>
+            <div class="race-stat-lbl">PTS GAGNÉS</div>
+          </div>
+        </div>
+      </div>
+      <div class="watermark">
+        <div class="watermark-logo">PACERANK</div>
+        <div class="watermark-url">PACERANK.VERCEL.APP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. ENTRAÎNEMENT -->
+  <div class="card-wrap">
+    <div class="card-title">🏃 Entraînement</div>
+    <div class="story train">
+      <div class="user-header">
+        <div class="user-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
+        <div class="user-name">Philippe S.</div>
+      </div>
+      <div class="train-body">
+        <div class="train-tag">ENTRAÎNEMENT</div>
+        <div class="train-icon">🏃</div>
+        <div class="train-disc">SORTIE RUN</div>
+        <div class="train-grid">
+          <div class="train-cell">
+            <div class="train-cell-val">10.2</div>
+            <div class="train-cell-lbl">km</div>
+          </div>
+          <div class="train-cell">
+            <div class="train-cell-val">50:32</div>
+            <div class="train-cell-lbl">Temps</div>
+          </div>
+          <div class="train-cell">
+            <div class="train-cell-val">4:57</div>
+            <div class="train-cell-lbl">/km</div>
+          </div>
+          <div class="train-cell">
+            <div class="train-cell-val">230</div>
+            <div class="train-cell-lbl">D+ (m)</div>
+          </div>
+        </div>
+        <div class="train-pts">+ 320 PTS</div>
+      </div>
+      <div class="watermark">
+        <div class="watermark-logo">PACERANK</div>
+        <div class="watermark-url">PACERANK.VERCEL.APP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. PRONO RÉUSSI -->
+  <div class="card-wrap">
+    <div class="card-title">🔮 Prono réussi</div>
+    <div class="story prono">
+      <div class="user-header">
+        <div class="user-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
+        <div class="user-name">Philippe S.</div>
+      </div>
+      <div class="prono-body">
+        <div class="prono-tag">PRONO RÉUSSI</div>
+        <div class="prono-emoji">🔮</div>
+        <div class="prono-headline">J'AVAIS PRÉDIT JUSTE</div>
+        <div class="prono-friend">SUR LE 20KM DE MARC L.</div>
+        <div class="prono-points-circle">
+          <div class="prono-pts-val">+100</div>
+          <div class="prono-pts-lbl">POINTS</div>
+        </div>
+        <div class="prono-precision">À 8 SECONDES DU TEMPS RÉEL ⚡</div>
+      </div>
+      <div class="watermark">
+        <div class="watermark-logo">PACERANK</div>
+        <div class="watermark-url">PACERANK.VERCEL.APP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. PROMO LIGUE -->
+  <div class="card-wrap">
+    <div class="card-title">🚀 Promotion en ligue</div>
+    <div class="story promo">
+      <div class="user-header">
+        <div class="user-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
+        <div class="user-name">Philippe S.</div>
+      </div>
+      <div class="promo-body">
+        <div class="promo-tag">PROMOTION</div>
+        <div class="promo-rocket">🚀</div>
+        <div class="promo-headline">PROMU EN LIGUE OR</div>
+        <div class="promo-leagues">
+          <div class="league-pill league-from">
+            <div class="league-emoji">🥉</div>
+            <div class="league-name">BRONZE</div>
+          </div>
+          <div class="league-arrow">→</div>
+          <div class="league-pill league-to">
+            <div class="league-emoji">🥇</div>
+            <div class="league-name">OR</div>
+          </div>
+        </div>
+        <div class="promo-position">3<sup style="font-size:10px;">e</sup> SUR 30 CETTE SEMAINE</div>
+      </div>
+      <div class="watermark">
+        <div class="watermark-logo">PACERANK</div>
+        <div class="watermark-url">PACERANK.VERCEL.APP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. WEEKLY RECAP -->
+  <div class="card-wrap">
+    <div class="card-title">📊 Bilan de la semaine</div>
+    <div class="story weekly">
+      <div class="user-header">
+        <div class="user-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
+        <div class="user-name">Philippe S.</div>
+      </div>
+      <div class="weekly-body">
+        <div class="weekly-tag">MA SEMAINE</div>
+        <div class="weekly-week">SEMAINE 20 · MAI 2026</div>
+        <div class="weekly-stats">
+          <div class="weekly-cell"><div class="weekly-cell-val">4</div><div class="weekly-cell-lbl">Séances</div></div>
+          <div class="weekly-cell"><div class="weekly-cell-val">42</div><div class="weekly-cell-lbl">km</div></div>
+          <div class="weekly-cell"><div class="weekly-cell-val">820</div><div class="weekly-cell-lbl">D+ (m)</div></div>
+          <div class="weekly-cell"><div class="weekly-cell-val">540</div><div class="weekly-cell-lbl">Points</div></div>
+        </div>
+        <div class="weekly-rank"><span class="weekly-rank-emoji">🥇</span>1<sup style="font-size:10px;">er</sup> DE MES POTES</div>
+      </div>
+      <div class="watermark">
+        <div class="watermark-logo">PACERANK</div>
+        <div class="watermark-url">PACERANK.VERCEL.APP</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="notes">
+  <b>Design system des cartes :</b>
+  <ul>
+    <li>📐 Format <b>1080×1920</b> (story Insta · 9:16 vertical)</li>
+    <li>🎨 Background <b>dark</b> avec un accent coloré par type (gold/red/green/purple/blue)</li>
+    <li>👤 <b>Avatar + nom</b> de l'user en haut à gauche (identité)</li>
+    <li>🎯 <b>1 KPI dominant</b> en très grand au centre (Bebas Neue 90px) — accroche l'œil</li>
+    <li>🔖 <b>Tag de catégorie</b> en haut ("NOUVEAU PR", "PRONO RÉUSSI"...) — context immédiat</li>
+    <li>📍 <b>Watermark Pacerank + URL</b> en bas — viral driver (les viewers tap pour découvrir l'app)</li>
+  </ul>
+  <br>
+  <b>Implémentation technique :</b>
+  <ul>
+    <li>Génération de l'image en <b>HTML Canvas</b> côté client (pas de serveur, pas de coût)</li>
+    <li>Lib <code>html2canvas</code> ou code Canvas natif (~10 KB minifié)</li>
+    <li>Bouton "Partager" → <b>navigator.share()</b> avec le file → ouvre la sheet de partage iOS/Android</li>
+    <li>Fallback : download direct dans la galerie photo</li>
+    <li>L'user choisit ensuite Instagram Story dans la sheet → image arrive comme background</li>
+  </ul>
+</div>
+
+<div style="text-align:center;color:rgba(240,237,232,0.4);font-size:12px;margin-top:30px;">
+  Mockup généré le 19/05/2026 · pacerank/docs/share-instagram-cards-preview.html
+</div>
+
+</body>
+</html>
