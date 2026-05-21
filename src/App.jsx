@@ -438,6 +438,7 @@ async function isNewPR(userId, discipline, time) {
 }
 
 function OvertakeCelebrationModal({ overtakes, profiles, onClose }) {
+  const [sharing, setSharing] = useState(false);
   useEffect(() => {
     fireCelebration(2500);
     try { navigator.vibrate?.(50); } catch {}
@@ -453,28 +454,78 @@ function OvertakeCelebrationModal({ overtakes, profiles, onClose }) {
     : friendNames.length === 2
       ? `${friendNames[0]} et ${friendNames[1]}`
       : `${friendNames.slice(0,-1).join(", ")} et ${friendNames[friendNames.length-1]}`;
+  // Avatars sans la flèche ↘️ (était rendue comme un bouton bleu/blanc
+  // sur iOS, confuse). On utilise un badge rouge "−" propre à la place
+  // pour signifier "ce friend a perdu sa position".
+  const firstFriend = profiles.find(p => p.id === overtakes[0]?.friendId);
+
+  const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: myProfile } = await supabase.from("profiles").select("id,name,avatar").eq("id",user.id).single();
+      const blob = await generateStoryImage({
+        type: "overtake",
+        profile: myProfile,
+        data: {
+          friendNames: friendList,
+          friendAvatar: firstFriend?.avatar || null,
+          gap: totalGap,
+        },
+      });
+      await shareCard(blob, "pacerank-overtake.png", "J'ai dépassé un pote sur Pacerank !");
+    } catch (e) {
+      console.error("[OvertakeCelebrationModal] share failed", e);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",backdropFilter:"blur(20px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600,padding:24}}>
-      <div onClick={e=>e.stopPropagation()} style={{textAlign:"center",maxWidth:420,width:"100%"}}>
-        <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:18}}>
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",backdropFilter:"blur(20px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-start",zIndex:600,padding:"calc(env(safe-area-inset-top, 0px) + 80px) 24px 40px"}}>
+      {/* Bouton share top-right */}
+      <button
+        onClick={(e)=>{e.stopPropagation();handleShare();}}
+        aria-label="Partager"
+        disabled={sharing}
+        style={{position:"absolute",top:"calc(env(safe-area-inset-top, 0px) + 14px)",right:18,width:40,height:40,background:"rgba(255,255,255,0.08)",border:"none",borderRadius:"50%",color:"rgba(240,237,232,0.7)",cursor:sharing?"wait":"pointer",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}
+      >
+        <ShareIcon size={18}/>
+      </button>
+
+      <div onClick={e=>e.stopPropagation()} style={{textAlign:"center",maxWidth:420,width:"100%",display:"flex",flexDirection:"column",alignItems:"center"}}>
+        {/* Avatars des friends dépassés (plus gros + badge propre) */}
+        <div style={{display:"flex",justifyContent:"center",gap:14,marginBottom:30,animation:"celeb-bounce 0.9s cubic-bezier(.34,1.56,.64,1)"}}>
           {overtakes.slice(0,4).map(o => {
             const p = profiles.find(pp => pp.id === o.friendId);
             return (
               <div key={o.friendId} style={{position:"relative"}}>
-                <Avatar profile={p} size={42}/>
-                <div style={{position:"absolute",bottom:-6,right:-6,fontSize:18}}>↘️</div>
+                <Avatar profile={p} size={88}/>
+                {/* Badge rouge "↓" pour signifier "il a perdu sa position".
+                   Pas d'emoji système (rendu inconsistant) — pur CSS. */}
+                <div style={{position:"absolute",bottom:-4,right:-4,width:30,height:30,borderRadius:"50%",background:"#E63946",border:"3px solid #0a0a0a",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue',sans-serif",fontSize:18,lineHeight:1}}>↓</div>
               </div>
             );
           })}
         </div>
-        <div style={{fontSize:74,marginBottom:6,animation:"celeb-bounce 0.9s cubic-bezier(.34,1.56,.64,1)"}}>🔥</div>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:28,letterSpacing:1.5,color:"#F0EDE8",lineHeight:1.05,marginBottom:10,padding:"0 8px"}}>
-          TU AS DÉPASSÉ {friendList.toUpperCase()} !
+
+        {/* Flamme */}
+        <div style={{fontSize:90,marginBottom:18,lineHeight:1}}>🔥</div>
+
+        {/* Title */}
+        <div style={{fontFamily:"'Bebas Neue'",fontSize:32,letterSpacing:1.5,color:"#F0EDE8",lineHeight:1.1,marginBottom:14,padding:"0 8px"}}>
+          TU AS DÉPASSÉ<br/>{friendList.toUpperCase()} !
         </div>
-        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:13,color:"rgba(240,237,232,0.7)",marginBottom:26}}>
+
+        {/* Subtitle */}
+        <div style={{fontFamily:"'Barlow',sans-serif",fontSize:15,color:"rgba(240,237,232,0.7)",marginBottom:40}}>
           +{totalGap} pts d'avance désormais
         </div>
-        <button onClick={onClose} style={{background:"#E63946",border:"none",borderRadius:14,padding:"13px 28px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:15,cursor:"pointer",letterSpacing:0.5}}>
+
+        {/* Primary CTA */}
+        <button onClick={onClose} style={{background:"#E63946",border:"none",borderRadius:14,padding:"14px 36px",color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:16,cursor:"pointer",letterSpacing:0.5,minWidth:200}}>
           On continue 🔥
         </button>
       </div>

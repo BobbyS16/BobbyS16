@@ -446,6 +446,43 @@ async function renderWeekly(ctx, data, profile) {
   drawWatermark(ctx);
 }
 
+async function renderOvertake(ctx, data, profile) {
+  // Background dark red/orange — vibe "fire emoji"
+  const grad = ctx.createRadialGradient(W/2, H*0.3, 0, W/2, H*0.3, H);
+  grad.addColorStop(0, "#2a0a0a");
+  grad.addColorStop(0.6, "#0a0a0a");
+  grad.addColorStop(1, "#000");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  await drawUserHeader(ctx, profile);
+
+  const cy = H / 2 - 80;
+  drawTag(ctx, "TU AS DÉPASSÉ", W/2, cy - 380, "#FF6B35");
+
+  // Avatar du friend dépassé + badge ↓ rouge
+  const friendStub = { name: data.friendNames || "Un pote", avatar: data.friendAvatar };
+  await drawAvatar(ctx, friendStub, W/2, cy - 220, 200);
+  // Badge "↓" sur le coin bas-droite de l'avatar
+  drawCircle(ctx, W/2 + 80, cy - 145, 36, "#E63946", "#0a0a0a", 8);
+  drawText(ctx, "↓", W/2 + 80, cy - 130, { size: 52, color: "#fff" });
+
+  // Flamme
+  drawText(ctx, "🔥", W/2, cy - 20, { size: 140, font: "Barlow" });
+
+  // Nom du friend
+  drawText(ctx, (data.friendNames || "").toUpperCase(), W/2, cy + 100, { size: 60, color: COLORS.white, letterSpacing: 3 });
+
+  // Gap
+  ctx.font = `36px "Bebas Neue", sans-serif`;
+  const gapTxt = `+${data.gap || 0} PTS D'AVANCE`;
+  const gapW = ctx.measureText(gapTxt).width + 80;
+  drawRoundRect(ctx, W/2 - gapW/2, cy + 170, gapW, 80, 40, "rgba(255,107,53,0.12)", "rgba(255,107,53,0.5)", 3);
+  drawText(ctx, gapTxt, W/2, cy + 222, { size: 36, color: "#FF6B35", letterSpacing: 3 });
+
+  drawWatermark(ctx);
+}
+
 // ───── Entry point ───────────────────────────────────────────────────────────
 
 export async function generateStoryImage({ type, profile, data }) {
@@ -469,6 +506,7 @@ export async function generateStoryImage({ type, profile, data }) {
     case "prono":    await renderProno(ctx, data, profile); break;
     case "promo":    await renderPromo(ctx, data, profile); break;
     case "weekly":   await renderWeekly(ctx, data, profile); break;
+    case "overtake": await renderOvertake(ctx, data, profile); break;
     default: throw new Error(`Unknown share type: ${type}`);
   }
 
