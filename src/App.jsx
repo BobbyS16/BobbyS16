@@ -1377,7 +1377,7 @@ function ActivitySourceBadge({source}){
   return null;
 }
 
-function Modal({onClose,children,fullScreen=false}) {
+function Modal({onClose,children,fullScreen=false,header=null}) {
   const [dy,setDy]=useState(0);
   const startY=useRef(null);
   const dragging=useRef(false);
@@ -1448,6 +1448,12 @@ function Modal({onClose,children,fullScreen=false}) {
           <div style={{width:48,height:5,background:"rgba(255,255,255,0.3)",borderRadius:3,margin:"0 auto"}}/>
           {fullScreen&&<button onClick={onClose} aria-label="Fermer" style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.7)",fontSize:16,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
         </div>
+        {/* header optionnel : rendu HORS du scroll container donc toujours
+           visible au top, jamais traversé par le scroll. Utilisé par
+           ProfileModal pour son bandeau "Mon Profil + Éditer/Visible". */}
+        {header && (
+          <div style={{flexShrink:0,padding:"0 20px",background:"#161616"}}>{header}</div>
+        )}
         <div ref={scrollRef} style={{overflowY:"auto",padding:"0 20px",paddingBottom:vvBottomOffset>0?20:"calc(44px + env(safe-area-inset-bottom))",flex:1,WebkitOverflowScrolling:"touch"}}>
           {children}
         </div>
@@ -8040,36 +8046,37 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       .then(({data})=>setBonuses(data||[]));
   },[profile.id]);
 
-  return (
-    <Modal onClose={onClose}>
-      {/* Wrapper conservé pour la cohérence DOM (les `</div>` de fermeture
-         tout en bas comptent dessus). Pas de sticky ici — l'ancien sticky
-         englobait tout le contenu donc inopérant. */}
-      <div style={{margin:"0 -20px",padding:"0 20px"}}>
-      {/* Bandeau "Mon Profil" + boutons en sticky top : reste visible quand
-         l'user scrolle records, courses, panneaux. Margin/padding négatifs
-         pour étendre le fond noir jusqu'aux bords de la modale et masquer
-         le contenu qui scrolle dessous. */}
-      <div style={{position:"sticky",top:0,zIndex:5,background:"#161616",margin:"0 -20px",padding:"6px 20px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:2,color:"#F0EDE8"}}>Mon Profil</div>
-        <div style={{display:"flex",gap:6}}>
-          <button onClick={()=>setShowEdit(true)} style={{padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>✏️ Éditer</button>
-          <button onClick={async()=>{
-            const newVal=!hidden;
-            console.log("[hide-toggle] basculement vers",newVal);
-            setHidden(newVal);
-            const{error:err}=await supabase.from("profiles").update({ranking_hidden:newVal}).eq("id",profile.id);
-            if(err){
-              console.error("[hide-toggle] échec update",err);
-              setHidden(!newVal);
-              alert("Impossible de modifier la visibilité : "+(err.message||"erreur inconnue")+"\n\nAs-tu bien exécuté le SQL dans Supabase ? (alter table profiles add column ranking_hidden boolean default false;)");
-              return;
-            }
-            console.log("[hide-toggle] OK");
-            onRefresh();
-          }} title={hidden?"Caché : me ré-afficher dans les classements":"Visible : me retirer des classements"} style={{padding:"7px 12px",borderRadius:10,background:hidden?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:hidden?"1px solid rgba(230,57,70,0.4)":"none",color:hidden?"#E63946":"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>{hidden?"🙈 Caché":"👁️ Visible"}</button>
-        </div>
+  // Bandeau "Mon Profil + Éditer + Visible" extrait dans une variable
+  // pour pouvoir le passer au Modal via le prop `header`. Rendu hors du
+  // scroll container → toujours visible au top, jamais traversé par le
+  // contenu qui scrolle dessous. Remplace l'ancien position:sticky qui
+  // laissait passer le content au-dessus pendant le scroll iOS bouncy.
+  const profileHeader = (
+    <div style={{padding:"6px 0 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:2,color:"#F0EDE8"}}>Mon Profil</div>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={()=>setShowEdit(true)} style={{padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>✏️ Éditer</button>
+        <button onClick={async()=>{
+          const newVal=!hidden;
+          console.log("[hide-toggle] basculement vers",newVal);
+          setHidden(newVal);
+          const{error:err}=await supabase.from("profiles").update({ranking_hidden:newVal}).eq("id",profile.id);
+          if(err){
+            console.error("[hide-toggle] échec update",err);
+            setHidden(!newVal);
+            alert("Impossible de modifier la visibilité : "+(err.message||"erreur inconnue")+"\n\nAs-tu bien exécuté le SQL dans Supabase ? (alter table profiles add column ranking_hidden boolean default false;)");
+            return;
+          }
+          console.log("[hide-toggle] OK");
+          onRefresh();
+        }} title={hidden?"Caché : me ré-afficher dans les classements":"Visible : me retirer des classements"} style={{padding:"7px 12px",borderRadius:10,background:hidden?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:hidden?"1px solid rgba(230,57,70,0.4)":"none",color:hidden?"#E63946":"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>{hidden?"🙈 Caché":"👁️ Visible"}</button>
       </div>
+    </div>
+  );
+
+  return (
+    <Modal onClose={onClose} header={profileHeader}>
+      <div style={{margin:"0 -20px",padding:"0 20px"}}>
       {/* Bulle identité (avatar+nom+pts) — scroll normalement avec le
          contenu. Seul le bandeau "Mon Profil" au-dessus est sticky. */}
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16,marginTop:onFire?18:14}}>
