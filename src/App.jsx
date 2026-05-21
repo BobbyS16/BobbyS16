@@ -4608,7 +4608,12 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
                   </button>
                 );
               })}
-              <button onClick={()=>setShowCreateGroup(true)} title="Créer / rejoindre" style={{flexShrink:0,minWidth:42,padding:"10px 12px",borderRadius:14,border:"1px dashed rgba(255,255,255,0.15)",background:"transparent",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:18,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>+</button>
+              {/* Avant : un seul "+" qui ne faisait QUE Créer (alors que
+                  le tooltip promettait "Créer / rejoindre"). On split en
+                  2 boutons distincts pour permettre de rejoindre un crew
+                  via code quand l'user en a déjà. */}
+              <button onClick={()=>setShowCreateGroup(true)} title="Créer un crew" style={{flexShrink:0,minWidth:42,padding:"10px 12px",borderRadius:14,border:"1px dashed rgba(255,255,255,0.15)",background:"transparent",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:18,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>+</button>
+              <button onClick={()=>setShowJoinGroup(true)} title="Rejoindre avec un code" style={{flexShrink:0,minWidth:42,padding:"10px 12px",borderRadius:14,border:"1px dashed rgba(255,255,255,0.15)",background:"transparent",color:"rgba(240,237,232,0.5)",cursor:"pointer",fontSize:18,fontFamily:"'Barlow',sans-serif",fontWeight:700}}>🔑</button>
             </div>
       )}
 
