@@ -341,7 +341,10 @@ function fireCelebration(durationMs=2500) {
 
 const OVERTAKE_CACHE_KEY = (uid) => `overtake_state_${uid}`;
 const OVERTAKE_NOTIF_KEY = (uid, fid, dir) => `overtake_notif_${uid}_${fid}_${dir}`;
-const OVERTAKE_THROTTLE_MS = 24 * 3600 * 1000;
+// Throttle entre 2 animations d'overtake pour le même ami dans la même
+// direction. À 24h c'était trop, le user pouvait dépasser un ami plusieurs
+// fois dans la journée sans voir d'anim. Passé à 12h le 2026-05-20.
+const OVERTAKE_THROTTLE_MS = 12 * 3600 * 1000;
 const OVERTAKE_INACTIVE_DAYS = 30;
 
 async function fetchProfilesByIds(ids) {
