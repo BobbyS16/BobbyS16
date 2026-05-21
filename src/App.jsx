@@ -8035,7 +8035,11 @@ function ProfileModal({profile,results,onRefresh,onClose}){
 
   return (
     <Modal onClose={onClose}>
-      <div style={{position:"sticky",top:0,zIndex:5,background:"#161616",margin:"0 -20px",padding:"0 20px"}}>
+      {/* Wrapper conservé pour la cohérence DOM (les `</div>` de fermeture
+         tout en bas comptent dessus). Mais on retire position:sticky qui
+         englobait TOUT le contenu — donc inefficace. Le sticky est placé
+         directement sur la bulle plus bas. */}
+      <div style={{margin:"0 -20px",padding:"0 20px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:2,color:"#F0EDE8"}}>Mon Profil</div>
         <div style={{display:"flex",gap:6}}>
@@ -8056,7 +8060,11 @@ function ProfileModal({profile,results,onRefresh,onClose}){
           }} title={hidden?"Caché : me ré-afficher dans les classements":"Visible : me retirer des classements"} style={{padding:"7px 12px",borderRadius:10,background:hidden?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.07)",border:hidden?"1px solid rgba(230,57,70,0.4)":"none",color:hidden?"#E63946":"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>{hidden?"🙈 Caché":"👁️ Visible"}</button>
         </div>
       </div>
-      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16,marginTop:onFire?18:0}}>
+      {/* Bulle identité (avatar+nom+pts) en sticky : reste visible au top
+         quand l'user scrolle records / courses / panneaux. Le margin/padding
+         négatif étend le fond #161616 jusqu'aux bords de la modale pour
+         masquer proprement le contenu qui scrolle dessous. */}
+      <div style={{position:"sticky",top:0,zIndex:5,background:"#161616",margin:"0 -20px 14px",padding:"0 20px 14px",borderBottom:"1px solid rgba(255,255,255,0.08)",display:"flex",gap:14,alignItems:"center",marginTop:onFire?4:0}}>
         <div onClick={()=>profile?.avatar&&setShowPhoto(true)} style={{cursor:profile?.avatar?"pointer":"default"}}><Avatar profile={profile} size={64} highlight={lv.color} onFire={onFire?"profile-strong":false}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.name||"Athlète"}</div>
