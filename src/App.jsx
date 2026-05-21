@@ -6761,6 +6761,22 @@ function FilPanel({ myProfile }) {
   // Génère + déclenche la share sheet native pour une entrée du fil
   // (entraînement ou course officielle de l'user). Utilise le module
   // shareImage.js qui produit un PNG 1080×1920 prêt pour Instagram Stories.
+  // Supprime un entry du fil (entraînement ou course officielle). Réservé à
+  // l'user lui-même via SwipeRow (geste swipe-left → bouton Supprimer rouge).
+  // Confirm dialog systématique car action destructive — pas d'undo après.
+  const handleDeleteEntry = async (entry) => {
+    const what = entry.kind === "training" ? "cet entraînement" : "cette course";
+    if (!window.confirm(`Supprimer ${what} ? Cette action est définitive.`)) return;
+    const table = entry.kind === "training" ? "trainings" : "results";
+    const { error } = await supabase.from(table).delete().eq("id", entry.data.id);
+    if (error) {
+      console.error("[FilPanel] delete failed", error);
+      alert("Suppression échouée : " + (error.message || "erreur inconnue"));
+      return;
+    }
+    setReloadKey(k => k + 1);
+  };
+
   const handleShareEntry = async (entry) => {
     try {
       let type, data;
@@ -7058,9 +7074,9 @@ function FilPanel({ myProfile }) {
           const c = commentsByActivity[key];
           const py = pyrosByActivity[key] || { count: 0, pyrotedByMe: false, pyroters: [] };
           const cc = commentCountByActivity[key] || 0;
-          return (
+          const isMine = e.user?.id === myProfile?.id;
+          const card = (
             <FeedCard
-              key={e.id}
               entry={e}
               firstComment={c}
               pyroCount={py.count}
@@ -7071,12 +7087,23 @@ function FilPanel({ myProfile }) {
               ownerOnFire={onFireUserIds.has(e.user?.id)}
               onTogglePyro={()=>togglePyro(akind, e.activityId, py.pyrotedByMe)}
               onOpenSheet={()=>setOpenSheet({ kind: akind, activityId: e.activityId, user: e.user, title: e.kind === "training" ? (e.data.is_official_race ? (e.data.official_race_name||"Course officielle") : (e.data.title||`Sortie ${e.data.sport||""}`.trim())) : (DISCIPLINES[e.data.discipline]?.label || e.data.discipline) })}
-              onTap={e.user?.id === myProfile?.id ? () => {
+              onTap={isMine ? () => {
                 if (e.kind === "training") setEditTraining(e.data);
                 else setEditResult(e.data);
               } : undefined}
-              onShare={e.user?.id === myProfile?.id ? () => handleShareEntry(e) : undefined}
+              onShare={isMine ? () => handleShareEntry(e) : undefined}
             />
+          );
+          // Pour les cards user : on enveloppe dans SwipeRow → swipe-left
+          // révèle un bouton "Supprimer" rouge (geste familier iOS/Android).
+          // radius=20 match le borderRadius de FeedCard ; mb=0 car FeedCard
+          // a déjà son propre marginBottom:12 inline.
+          return isMine ? (
+            <SwipeRow key={e.id} radius={20} mb={0} onDelete={()=>handleDeleteEntry(e)}>
+              {card}
+            </SwipeRow>
+          ) : (
+            <div key={e.id}>{card}</div>
           );
         })
       )}
