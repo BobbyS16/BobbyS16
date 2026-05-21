@@ -4453,7 +4453,7 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
 }
 
 // ── RANKING TAB ───────────────────────────────────────────────────────────────
-function RankingTab({myProfile}){
+function RankingTab({myProfile, refreshKey}){
   const [filter,setFilter]=useState("general");
   const [season,setSeason]=useState(CY);
   const [discFilter,setDisc]=useState("marathon");
@@ -4466,7 +4466,7 @@ function RankingTab({myProfile}){
   const [openCrew,setOpenCrew]=useState(null); // crew ouvert dans GroupDetailModal
   const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
 
-  useEffect(()=>{loadPlayers();},[filter,discFilter,season]);
+  useEffect(()=>{loadPlayers();},[filter,discFilter,season,refreshKey]);
 
   const loadPlayers=async()=>{
     setLoading(true);
@@ -4675,7 +4675,7 @@ function RankingTab({myProfile}){
 }
 
 // ── TRAINING TAB ──────────────────────────────────────────────────────────────
-function TrainingTab({userId, onActivityChange}){
+function TrainingTab({userId, refreshKey, onActivityChange}){
   const [trainings,setTrainings]=useState([]);
   const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
@@ -4684,7 +4684,9 @@ function TrainingTab({userId, onActivityChange}){
   const [planView,setPlanView]=useState(null);
   const [plan,setPlan]=useState(null);
 
-  useEffect(()=>{loadTrainings();},[]);
+  // refreshKey ajouté en dep : quand on supprime un entraînement depuis le
+  // Fil/Profile/Stats, le compteur global s'incrémente et on recharge ici.
+  useEffect(()=>{loadTrainings();},[refreshKey]);
   useEffect(()=>{
     if(!userId)return;
     try{const raw=localStorage.getItem(`trainingPlan_${userId}`);if(raw)setPlan(JSON.parse(raw));}catch{}
@@ -4694,7 +4696,12 @@ function TrainingTab({userId, onActivityChange}){
     const{data}=await supabase.from("trainings").select("*").eq("user_id",userId).order("date",{ascending:false});
     setTrainings(data||[]);
   };
-  const deleteTraining=async id=>{await supabase.from("trainings").delete().eq("id",id);loadTrainings();};
+  const deleteTraining=async id=>{
+    await supabase.from("trainings").delete().eq("id",id);
+    loadTrainings();
+    // Propage à toute l'app pour que le Fil/Stats/Profile retirent l'entry
+    onActivityChange?.();
+  };
 
   const filtered=trainings.filter(t=>!t.is_official_race&&(selSport==="All"||t.sport===selSport)&&new Date(t.date).getFullYear()===selYear);
   const monthlyDist=MONTHS_FR.map((label,i)=>({label,value:Math.round(filtered.filter(t=>new Date(t.date).getMonth()===i).reduce((s,t)=>s+(t.distance||0),0))}));
@@ -6817,7 +6824,7 @@ function UpcomingRaceDetailModal({ race: initialRace, myProfile, onClose, onChan
   );
 }
 
-function FilPanel({ myProfile }) {
+function FilPanel({ myProfile, refreshKey, onActivityChange }) {
   const [feed, setFeed] = useState([]);
   const [commentsByActivity, setCommentsByActivity] = useState({}); // 1er comment par activity (rendu inline)
   const [commentCountByActivity, setCommentCountByActivity] = useState({}); // total count par activity
@@ -6851,6 +6858,11 @@ function FilPanel({ myProfile }) {
       return;
     }
     setReloadKey(k => k + 1);
+    // Propage le changement à l'app globale → recharge tous les onglets
+    // (Home, Stats, Training, Ranking, ProfileModal) pour qu'ils retirent
+    // aussi l'entry supprimée. Sans ça, le user voit l'item disparaître du
+    // fil mais le retrouve "fantôme" ailleurs.
+    onActivityChange?.();
   };
 
   const handleShareEntry = async (entry) => {
@@ -7062,7 +7074,11 @@ function FilPanel({ myProfile }) {
     };
     load();
     return () => { cancel = true; };
-  }, [myProfile?.id, reloadKey]);
+    // refreshKey (vient du parent App via ActuTab) = trigger global quand une
+    // suppression/édition se passe ailleurs (PerfTab, TrainingTab, profile…).
+    // Sans cette dep, le fil afficherait des stale data après suppression
+    // dans un autre onglet.
+  }, [myProfile?.id, reloadKey, refreshKey]);
 
   return (
     <div>
@@ -7195,7 +7211,7 @@ function FilPanel({ myProfile }) {
         <TrainingModal
           existing={editTraining}
           userId={myProfile?.id}
-          onSave={()=>{ setEditTraining(null); setReloadKey(k=>k+1); }}
+          onSave={()=>{ setEditTraining(null); setReloadKey(k=>k+1); onActivityChange?.(); }}
           onClose={()=>setEditTraining(null)}
         />
       )}
@@ -7203,7 +7219,7 @@ function FilPanel({ myProfile }) {
         <ResultModal
           existing={editResult}
           userId={myProfile?.id}
-          onSave={()=>{ setEditResult(null); setReloadKey(k=>k+1); }}
+          onSave={()=>{ setEditResult(null); setReloadKey(k=>k+1); onActivityChange?.(); }}
           onClose={()=>setEditResult(null)}
         />
       )}
@@ -7227,7 +7243,7 @@ function SectionHeader({ label }) {
   );
 }
 
-function ActuTab({myProfile,onNotifsChange}){
+function ActuTab({myProfile,onNotifsChange,refreshKey,onActivityChange}){
   const [tab,setTab]=useState("fil");
   const [friends,setFriends]=useState([]);
   const [pendingIncoming,setPendingIncoming]=useState([]);
@@ -7384,7 +7400,7 @@ function ActuTab({myProfile,onNotifsChange}){
           </button>
         ))}
       </div>
-      {tab==="fil"    && <FilPanel myProfile={myProfile}/>}
+      {tab==="fil"    && <FilPanel myProfile={myProfile} refreshKey={refreshKey} onActivityChange={onActivityChange}/>}
       {tab==="pronos" && <PronosTab myProfile={myProfile}/>}
       {tab==="amis"&&<div>
         {/* 1. Recherche */}
@@ -9268,10 +9284,10 @@ export default function App(){
     <div style={{background:"#0e0e0e",height:"100vh",color:"#F0EDE8",maxWidth:480,margin:"0 auto",position:"relative",overflow:"hidden",paddingTop:"env(safe-area-inset-top)",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet"/>
       {tab==="home"    &&<HomeTab    profile={profile} userId={profile?.id} onAddTraining={()=>setAddMode("training")} onAddRace={()=>setAddMode("result")} onAddUpcoming={()=>setAddMode("upcoming")} refreshKey={resultsKey} onOpenProfile={()=>setShowProfile(true)} notifCount={notifCount} onNotifsChange={loadNotifCount} overtakenBanner={overtakenBanner} onDismissOvertakenBanner={()=>setOvertakenBanner(null)} onOpenOvertakenDetail={()=>setOvertakenDetail(true)} pushOptedIn={pushOptedIn} pushBannerDismissed={pushBannerDismissed} onEnablePush={enablePush} onDismissPushBanner={dismissPushBanner} onOpenLeague={()=>setTab("ranking")}/>}
-      {tab==="ranking" &&<RankingTab myProfile={profile}/>}
-      {tab==="training"&&<TrainingTab userId={profile?.id} onActivityChange={refresh}/>}
+      {tab==="ranking" &&<RankingTab myProfile={profile} refreshKey={resultsKey}/>}
+      {tab==="training"&&<TrainingTab userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
       {tab==="perf"    &&<PerfTab    userId={profile?.id} refreshKey={resultsKey} onActivityChange={refresh}/>}
-      {tab==="actu"    &&<ActuTab    myProfile={profile} onNotifsChange={loadNotifCount}/>}
+      {tab==="actu"    &&<ActuTab    myProfile={profile} refreshKey={resultsKey} onActivityChange={refresh} onNotifsChange={loadNotifCount}/>}
       <NavBar tab={tab} onChange={setTab} notifCount={notifCount}/>
       {addMode==="result"&&<ResultModal userId={profile?.id} initialDiscipline={pendingResultDisc} onSave={()=>{setAddMode(null);setPendingResultDisc(null);refresh();}} onClose={()=>{setAddMode(null);setPendingResultDisc(null);}}/>}
       {addMode==="training"&&<TrainingModal userId={profile?.id} onSave={()=>{setAddMode(null);refresh();}} onClose={()=>setAddMode(null)}/>}
