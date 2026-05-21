@@ -166,6 +166,25 @@ function drawCheckeredBand(ctx, y, height, cellSize = 28) {
   }
 }
 
+// Drapeau à damier dans un rectangle borné (pour usage décoratif compact,
+// pas full-width). Cellule par défaut adaptée à un petit drapeau visuel.
+function drawCheckeredRect(ctx, x, y, w, h, cellSize = 18) {
+  const cols = Math.ceil(w / cellSize);
+  const rows = Math.ceil(h / cellSize);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const black = (row + col) % 2 === 0;
+      ctx.fillStyle = black ? "#000" : "#fff";
+      ctx.fillRect(x + col * cellSize, y + row * cellSize, cellSize, cellSize);
+    }
+  }
+  ctx.restore();
+}
+
 // User header (avatar + nom) au top-left
 async function drawUserHeader(ctx, profile, topOffset = 56) {
   const avatarX = 110;
@@ -237,15 +256,25 @@ async function renderRace(ctx, data, profile) {
   grad.addColorStop(1, "#000");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
-  // Drapeau damier en haut
-  drawCheckeredBand(ctx, 0, 56, 28);
-  ctx.fillStyle = "rgba(255,255,255,0.25)";
-  ctx.fillRect(0, 56, W, 4);
 
-  await drawUserHeader(ctx, profile, 100);
+  await drawUserHeader(ctx, profile);
 
   // Body
   const cy = H / 2;
+
+  // Petit drapeau à damier centré au-dessus du tag "COURSE TERMINÉE".
+  // Rectangle compact (250×100) avec bordure blanche fine pour faire "sticker".
+  // Maj 2026-05-19 : remplace les anciennes bandes pleine largeur (top + bottom)
+  // qui étaient trop chargées visuellement.
+  const flagW = 250, flagH = 100;
+  const flagX = W/2 - flagW/2;
+  const flagY = cy - 560;
+  drawCheckeredRect(ctx, flagX, flagY, flagW, flagH, 20);
+  // Bordure blanche subtile autour du drapeau
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(flagX, flagY, flagW, flagH);
+
   drawTag(ctx, "COURSE TERMINÉE", W/2, cy - 420, COLORS.red);
   drawText(ctx, (data.race || "COURSE").toUpperCase(), W/2, cy - 280, { size: 80, color: COLORS.white, letterSpacing: 4 });
   if (data.date) {
@@ -267,8 +296,6 @@ async function renderRace(ctx, data, profile) {
     drawText(ctx, "PTS GAGNÉS", W/2 + 180, cy + 240, { size: 20, color: COLORS.whiteFaint, font: "Barlow", weight: "700", letterSpacing: 2.5 });
   }
 
-  // Damier bas (avant watermark)
-  drawCheckeredBand(ctx, H - 200, 28, 16);
   drawWatermark(ctx);
 }
 

@@ -192,34 +192,19 @@
     background: linear-gradient(160deg, #1a0a0a 0%, #0a0a0a 60%);
     position: relative;
   }
-  /* Drapeau à damier en haut, en bandeau décoratif (CSS pur, pas
-     d'image externe nécessaire). Le checkered pattern est généré
-     avec 2 linear-gradients croisés à 45°. */
-  .race-flag-band {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 28px;
+  /* Maj 2026-05-19 : suppression des bandes pleine largeur (top + bottom)
+     remplacées par un petit drapeau compact centré au-dessus du tag.
+     Drapeau compact = sticker visuel propre, pas chargé. */
+  .race-flag-sticker {
+    width: 60px;
+    height: 24px;
     background:
       repeating-conic-gradient(
         #fff 0% 25%,
         #000 0% 50%
-      ) 50% / 14px 14px;
-    border-bottom: 2px solid rgba(255,255,255,0.2);
-    z-index: 1;
-    pointer-events: none;
-  }
-  .race-flag-band-bottom {
-    position: absolute;
-    bottom: 80px; left: 0; right: 0;
-    height: 14px;
-    background:
-      repeating-conic-gradient(
-        #fff 0% 25%,
-        #000 0% 50%
-      ) 50% / 8px 8px;
-    opacity: 0.7;
-    z-index: 1;
-    pointer-events: none;
+      ) 50% / 12px 12px;
+    border: 2px solid rgba(255,255,255,0.6);
+    margin: 0 auto 14px;
   }
   .race-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 24px; text-align:center; }
   .race-tag {
@@ -485,13 +470,12 @@
   <div class="card-wrap">
     <div class="card-title">🏅 Résultat de course</div>
     <div class="story race">
-      <div class="race-flag-band"></div>
-      <div class="race-flag-band-bottom"></div>
-      <div class="user-header" style="top:48px;">
+      <div class="user-header">
         <div class="user-avatar" style="background:linear-gradient(135deg,#E63946,#FFD700);">PS</div>
         <div class="user-name">Philippe S.</div>
       </div>
       <div class="race-body">
+        <div class="race-flag-sticker"></div>
         <div class="race-tag">COURSE TERMINÉE</div>
         <div class="race-name">FOULÉES<br>DE LYON</div>
         <div class="race-date">12 MARS 2026</div>
