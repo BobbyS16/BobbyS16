@@ -448,6 +448,37 @@ async function isNewPR(userId, discipline, time) {
   } catch { return false; }
 }
 
+// Variante détaillée : renvoie aussi previousBest et improvement (en secondes)
+// pour pouvoir afficher "↓ 42 sec sous ton PR précédent" dans la modale de
+// célébration. isFirst = première course sur cette discipline (pas de
+// comparaison possible mais c'est un record par défaut).
+async function getPRInfo(userId, discipline, time) {
+  if (!userId || !discipline || !time) return { isPR: false };
+  try {
+    const {data} = await supabase.from("results").select("time").eq("user_id", userId).eq("discipline", discipline);
+    if (!data || data.length === 0) return { isPR: false };
+    const others = data.filter(r => r.time !== time).map(r => r.time);
+    if (others.length === 0) {
+      return { isPR: true, previousBest: null, improvement: 0, isFirst: true };
+    }
+    const previousBest = Math.min(...others);
+    const isPR = time <= previousBest;
+    return { isPR, previousBest, improvement: isPR ? Math.max(0, previousBest - time) : 0, isFirst: false };
+  } catch { return { isPR: false }; }
+}
+
+// Format compact pour afficher une amélioration de temps (PR).
+//   42 sec → "42 sec"
+//   75 sec → "1:15"
+//   1530 sec → "25:30"
+function fmtImprovement(secs) {
+  if (!secs || secs <= 0) return "";
+  if (secs < 60) return `${secs} sec`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}:${String(s).padStart(2,"0")}`;
+}
+
 function OvertakeCelebrationModal({ overtakes, profiles, onClose }) {
   const [sharing, setSharing] = useState(false);
   useEffect(() => {
@@ -1857,6 +1888,11 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
   const [linkedTraining,setLinkedTraining]=useState(null);
+  // PR celebration state : quand on détecte un PR au save, on bascule le
+  // contenu de la modale sur la vue célébration (au lieu de fermer direct).
+  // L'user voit son trophée + temps + amélioration, peut partager, puis ferme.
+  const [prCelebration,setPRCelebration]=useState(null);
+  const [sharing,setSharing]=useState(false);
   const cat=DISCIPLINES[discipline]?.category;
   const hasElevation=cat==="trail"||cat==="triathlon";
 
@@ -1937,8 +1973,10 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
     if(err){setError("Erreur : "+(err.message||err.details||JSON.stringify(err)));return;}
     if(existing&&(!data||data.length===0)){setError("Aucune ligne modifiée — RLS Supabase bloque peut-être l'UPDATE pour cet utilisateur");return;}
     if (!existing) {
-      const isPR = await isNewPR(userId, discipline, t);
-      if (isPR && celebrationsEnabled()) {
+      // Confetti pour TOUTE course officielle enregistrée (avant : que sur PR).
+      // Le user a explicitement demandé ce comportement — enregistrer une
+      // course = moment de fête, on célèbre.
+      if (celebrationsEnabled()) {
         fireCelebration(2200);
         try { navigator.vibrate?.([30,40,30]); } catch {}
       }
@@ -1950,9 +1988,105 @@ function ResultModal({existing,userId,onSave,onClose,initialDiscipline}){
           runScoreNotifsDetection({ userId, beforeTotal, afterTotal });
         } catch(e) { console.warn("[result-save] score-notifs failed", e); }
       }
+      // PR detection avec détail (improvement en secondes) pour la modale.
+      const prInfo = await getPRInfo(userId, discipline, t);
+      if (prInfo.isPR) {
+        // On bascule sur la vue célébration AU LIEU de fermer. L'user
+        // verra son trophée + le temps + l'amélioration + bouton partage.
+        // Le "On continue" final appellera onSave() pour finaliser.
+        setPRCelebration({
+          time: t,
+          discipline,
+          race: raceName || DISCIPLINES[discipline].label,
+          raceDate,
+          improvement: prInfo.improvement,
+          isFirst: prInfo.isFirst,
+        });
+        return; // pas de onSave() pour l'instant
+      }
     }
     onSave();
   };
+
+  // Partage du PR : génère l'image story et déclenche la share sheet native.
+  const handleSharePR = async () => {
+    if (!prCelebration || sharing) return;
+    setSharing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase.from("profiles").select("id,name,avatar").eq("id", user.id).single();
+      const improvementText = prCelebration.isFirst
+        ? "🏆 1er record sur cette discipline"
+        : prCelebration.improvement > 0
+          ? `↓ ${fmtImprovement(prCelebration.improvement)} sous mon PR précédent`
+          : "🏆 Tu égales ton PR !";
+      const blob = await generateStoryImage({
+        type: "pr",
+        profile,
+        data: {
+          discLabel: (DISCIPLINES[prCelebration.discipline]?.label || prCelebration.discipline).toUpperCase(),
+          time: fmtRaceTime(prCelebration.time),
+          race: prCelebration.race,
+          date: prCelebration.raceDate ? fmtFrShortDate(prCelebration.raceDate) : "",
+          improvement: improvementText.toUpperCase(),
+        },
+      });
+      await shareCard(blob, "pacerank-pr.png", "Nouveau record perso sur Pacerank !");
+    } catch (e) {
+      console.error("[ResultModal] PR share failed", e);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  // Vue célébration PR : remplace le formulaire quand un PR est détecté
+  // après save. L'user voit son trophée, son temps en grand, l'écart vs
+  // PR précédent, et peut partager. "On continue" finalise via onSave().
+  if (prCelebration) {
+    const improvementTxt = prCelebration.isFirst
+      ? "🏆 1er record sur cette discipline !"
+      : prCelebration.improvement > 0
+        ? `↓ ${fmtImprovement(prCelebration.improvement)} sous ton PR précédent`
+        : "🏆 Tu égales ton PR !";
+    const finish = () => { setPRCelebration(null); onSave(); };
+    return (
+      <Modal onClose={finish}>
+        <div style={{textAlign:"center",padding:"10px 0 4px"}}>
+          <div style={{fontSize:84,marginBottom:14,lineHeight:1,animation:"celeb-bounce 0.9s cubic-bezier(.34,1.56,.64,1)"}}>🏆</div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:34,letterSpacing:2,color:"#FFD700",lineHeight:1,marginBottom:6}}>NOUVEAU PR !</div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1.5,color:"rgba(240,237,232,0.65)",marginBottom:18}}>
+            {(DISCIPLINES[prCelebration.discipline]?.label || prCelebration.discipline).toUpperCase()}
+          </div>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:68,letterSpacing:3,color:"#FFD700",lineHeight:1,marginBottom:8}}>
+            {fmtRaceTime(prCelebration.time)}
+          </div>
+          {prCelebration.race && (
+            <div style={{fontFamily:"'Bebas Neue'",fontSize:15,letterSpacing:1,color:"#F0EDE8",marginBottom:18,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+              {prCelebration.race.toUpperCase()}
+            </div>
+          )}
+          <div style={{display:"inline-block",padding:"8px 14px",borderRadius:99,background:"rgba(74,222,128,0.12)",border:"1px solid rgba(74,222,128,0.5)",color:"#4ADE80",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:12,letterSpacing:0.8,marginBottom:24}}>
+            {improvementTxt}
+          </div>
+          <button
+            onClick={handleSharePR}
+            disabled={sharing}
+            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,width:"100%",padding:"13px 0",background:"rgba(255,215,0,0.12)",border:"1px solid rgba(255,215,0,0.5)",borderRadius:14,color:"#FFD700",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,cursor:sharing?"wait":"pointer",marginBottom:8,opacity:sharing?0.6:1}}
+          >
+            <ShareIcon size={16}/> {sharing?"Partage...":"Partager mon PR"}
+          </button>
+          <button
+            onClick={finish}
+            style={{width:"100%",padding:"13px 0",background:"#E63946",border:"none",borderRadius:14,color:"#fff",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",letterSpacing:0.5}}
+          >
+            On continue 🔥
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal onClose={onClose}>
       <div style={{fontFamily:"'Bebas Neue'",fontSize:18,color:"#F0EDE8",letterSpacing:1,marginBottom:8}}>{existing?"Modifier":"Ajouter"} un résultat</div>
