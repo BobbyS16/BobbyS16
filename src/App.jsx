@@ -8590,7 +8590,7 @@ function FriendProfileModal({friend,myId,onClose}){
 
   return (
     <Modal onClose={onClose} fullScreen>
-      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14,marginTop:onFire?18:0}}>
+      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14,marginTop:onFire?28:14}}>
         <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color} onFire={onFire?"profile-strong":false}/></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontFamily:"'Bebas Neue'",fontSize:22,letterSpacing:1,color:"#F0EDE8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fullProfile?.name||friend.name||"Athlète"}</div>
