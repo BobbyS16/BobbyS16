@@ -4165,14 +4165,17 @@ function HomeTab({profile,userId,onAddTraining,onAddRace,onAddUpcoming,refreshKe
 
   useEffect(()=>{loadMyGroups();},[userId]);
 
-  // Deeplink /join/{code} : capté au mount, ouvre le modal Rejoindre.
-  // TODO: si on adopte un vrai router plus tard, gérer ça plus propre.
+  // Deeplink /join/{code} : capté par App.jsx au démarrage et sauvegardé
+  // en sessionStorage (survit à AuthScreen + tab switches). HomeTab le
+  // récupère ici dès son mount pour ouvrir la modale Rejoindre.
+  // On clear sessionStorage avant d'ouvrir pour éviter de re-déclencher
+  // si l'user remonte HomeTab (re-render).
   useEffect(()=>{
     try{
-      const m = window.location.pathname.match(/^\/join\/([A-Za-z0-9_-]+)\/?$/);
-      if (m && m[1]) {
-        setShowJoinGroup({prefilledCode: m[1]});
-        window.history.replaceState({}, "", "/");
+      const pending = sessionStorage.getItem("pendingJoinCode");
+      if (pending) {
+        sessionStorage.removeItem("pendingJoinCode");
+        setShowJoinGroup({prefilledCode: pending});
       }
     }catch{}
   },[]);
@@ -9182,6 +9185,26 @@ function InstallPrompt(){
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App(){
+  // Deeplink crew /join/{CODE} : on PARSE l'URL au tout démarrage de l'app
+  // (avant l'auth, avant le routing tabs). On sauvegarde le code en
+  // sessionStorage et on nettoie l'URL pour qu'elle ne soit pas en
+  // double-traitement. HomeTab lira sessionStorage à son mount pour
+  // ouvrir la modale Rejoindre avec le code prérempli.
+  //
+  // Pourquoi App-level et pas HomeTab : si l'user n'est pas connecté
+  // (AuthScreen affiché), HomeTab n'est PAS monté → le useEffect
+  // précédent en HomeTab ne tournait jamais → code perdu. Maintenant on
+  // capture systématiquement à App-level, peu importe l'état d'auth.
+  useEffect(()=>{
+    try{
+      const m = window.location.pathname.match(/^\/join\/([A-Za-z0-9_-]+)\/?$/);
+      if (m && m[1]) {
+        sessionStorage.setItem("pendingJoinCode", m[1]);
+        window.history.replaceState({}, "", "/");
+      }
+    }catch{}
+  },[]);
+
   // iOS PWA standalone : quand le clavier se ferme après avoir été ouvert
   // dans un modal, iOS laisse parfois le viewport scrollé vers le haut,
   // ce qui révèle une bande sombre du bg root sous la NavBar fixée à
