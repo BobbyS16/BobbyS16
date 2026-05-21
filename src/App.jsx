@@ -3387,8 +3387,8 @@ const UPCOMING_DISTANCES = {
   run: [
     { v: 5,       label: "5 km" },
     { v: 10,      label: "10 km" },
-    { v: 21.0975, label: "21,1 km — Semi" },
-    { v: 42.195,  label: "42,195 km — Marathon" },
+    { v: 21.0975, label: "Semi" },
+    { v: 42.195,  label: "Marathon" },
   ],
   velo: [
     { v: 30,  label: "30 km" },
