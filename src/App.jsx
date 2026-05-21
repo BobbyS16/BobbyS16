@@ -1444,7 +1444,7 @@ function Modal({onClose,children,fullScreen=false}) {
       <div onClick={e=>e.stopPropagation()}
         style={{background:"#161616",border:fullScreen?"none":"1px solid rgba(255,255,255,0.09)",borderRadius:fullScreen?0:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:fullScreen?"100%":"92%",height:fullScreen?"100%":"auto",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease",paddingTop:fullScreen?"env(safe-area-inset-top)":0}}>
         <div onTouchStart={onHandleTouch} onTouchMove={onHandleMove} onTouchEnd={onHandleEnd}
-          style={{padding:"10px 20px 10px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none",position:"relative"}}>
+          style={{padding:"8px 20px 4px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none",position:"relative"}}>
           <div style={{width:48,height:5,background:"rgba(255,255,255,0.3)",borderRadius:3,margin:"0 auto"}}/>
           {fullScreen&&<button onClick={onClose} aria-label="Fermer" style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.7)",fontSize:16,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
         </div>
