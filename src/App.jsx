@@ -8050,7 +8050,7 @@ function ProfileModal({profile,results,onRefresh,onClose}){
          l'user scrolle records, courses, panneaux. Margin/padding négatifs
          pour étendre le fond noir jusqu'aux bords de la modale et masquer
          le contenu qui scrolle dessous. */}
-      <div style={{position:"sticky",top:0,zIndex:5,background:"#161616",margin:"0 -20px",padding:"14px 20px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{position:"sticky",top:0,zIndex:5,background:"#161616",margin:"0 -20px",padding:"0 20px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{fontFamily:"'Bebas Neue'",fontSize:24,letterSpacing:2,color:"#F0EDE8"}}>Mon Profil</div>
         <div style={{display:"flex",gap:6}}>
           <button onClick={()=>setShowEdit(true)} style={{padding:"7px 12px",borderRadius:10,background:"rgba(255,255,255,0.07)",border:"none",color:"rgba(240,237,232,0.6)",cursor:"pointer",fontFamily:"'Barlow',sans-serif",fontSize:12,fontWeight:600}}>✏️ Éditer</button>
