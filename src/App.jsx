@@ -408,7 +408,18 @@ async function detectOvertakes(userId, mode="afterSave") {
     for (const fid of friendIds) {
       const fPts = ptsMap[fid] || 0;
       const oldFPts = (typeof oldFriends[fid] === "number") ? oldFriends[fid] : fPts;
-      const condA = mode === "afterSave" && oldFPts > oldMyPts && fPts < myPts;
+      // afterSave : on a sauvé une activité, est-ce qu'on vient de croiser
+      // un ami vers le haut ?
+      //   Ancienne logique : oldFPts > oldMyPts && fPts < myPts
+      //     → comparait à un oldFPts STALE (cache local pas à jour si
+      //     l'ami a marqué des points entre deux ouvertures de l'app).
+      //     Si l'ami nous repassait puis on le re-dépassait, oldFPts
+      //     restait avec une valeur d'avant le 1er dépassement → la
+      //     condition était fausse → pas d'animation.
+      //   Nouvelle logique : oldMyPts < fPts && fPts < myPts
+      //     → on regarde si MES points ont croisé le niveau ACTUEL de
+      //     l'ami. Indépendant de la fraîcheur de oldFPts.
+      const condA = mode === "afterSave" && oldMyPts < fPts && fPts < myPts;
       const condB = mode === "onLoad" && oldFPts < oldMyPts && fPts > myPts;
       if (!condA && !condB) continue;
       const dir = condA ? "a" : "b";
