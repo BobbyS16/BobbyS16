@@ -4955,6 +4955,8 @@ function TrainingTab({userId, refreshKey, onActivityChange}){
   const [trainings,setTrainings]=useState([]);
   const [selSport,setSelSport]=useState("All");
   const [selYear,setSelYear]=useState(CY);
+  const [showSeasonPicker,setShowSeasonPicker]=useState(false);
+  const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
   const [editTraining,setEditTraining]=useState(null);
   const [convertTraining,setConvertTraining]=useState(null);
   const [planView,setPlanView]=useState(null);
@@ -5012,11 +5014,23 @@ function TrainingTab({userId, refreshKey, onActivityChange}){
           </div>
         );
       })()}
-      <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:8,marginBottom:12,scrollbarWidth:"none"}}>
-        {TRAINING_SPORTS.map(s=><button key={s} onClick={()=>setSelSport(s)} style={{flexShrink:0,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",background:selSport===s?"#E63946":"rgba(255,255,255,0.06)",color:selSport===s?"#fff":"rgba(240,237,232,0.5)",fontFamily:"'Barlow',sans-serif",fontWeight:600,fontSize:12}}>{s}</button>)}
-      </div>
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[CY-1,CY].map(y=><button key={y} onClick={()=>setSelYear(y)} style={{flex:1,padding:"7px 0",borderRadius:10,border:"none",cursor:"pointer",background:selYear===y?"rgba(230,57,70,0.15)":"rgba(255,255,255,0.04)",color:selYear===y?"#E63946":"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",fontWeight:700,fontSize:14}}>{y}</button>)}
+      {/* Filtres unifiés : SAISON style autres écrans (bouton picker) +
+         sport en menu déroulant (au lieu de chips horizontaux qui prenaient
+         trop de place et limitaient à la saison courante/N-1). */}
+      <div style={{display:"flex",gap:8,marginBottom:14,alignItems:"stretch"}}>
+        <select
+          value={selSport}
+          onChange={e=>setSelSport(e.target.value)}
+          style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",fontWeight:600,outline:"none",boxSizing:"border-box",appearance:"none",colorScheme:"dark"}}
+        >
+          {TRAINING_SPORTS.map(s=>(
+            <option key={s} value={s}>{s==="All"?"Tous les sports":s}</option>
+          ))}
+        </select>
+        <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:14,padding:"8px 16px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap",lineHeight:1,flexShrink:0}}>
+          SAISON {selYear}
+          <span style={{fontSize:10,opacity:0.85}}>▾</span>
+        </button>
       </div>
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
         {[
@@ -5057,6 +5071,7 @@ function TrainingTab({userId, refreshKey, onActivityChange}){
       {convertTraining&&<RaceClassificationModal pending={[convertTraining]} userId={userId} singleMode={true} onClose={()=>{setConvertTraining(null);loadTrainings();onActivityChange?.();}} onDone={()=>{setConvertTraining(null);loadTrainings();onActivityChange?.();}}/>}
       {planView==="detail"&&plan&&<TrainingPlanDetailModal plan={plan} onEdit={()=>setPlanView("setup")} onClose={()=>setPlanView(null)}/>}
       {planView==="setup"&&<TrainingPlanModal userId={userId} existing={plan} onSave={p=>{setPlan(p);setPlanView("detail");}} onDelete={()=>{setPlan(null);setPlanView(null);}} onClose={()=>setPlanView(plan?"detail":null)}/>}
+      {showSeasonPicker&&<SeasonPickerModal seasons={SEASONS} currentSeason={selYear} onSelect={setSelYear} onClose={()=>setShowSeasonPicker(false)}/>}
     </div>
   );
 }
