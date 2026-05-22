@@ -5014,22 +5014,25 @@ function TrainingTab({userId, refreshKey, onActivityChange}){
           </div>
         );
       })()}
-      {/* Filtres : roulette défilante pour le sport (DrumPicker — même
-         composant que TimePicker/DatePicker) + bouton SAISON style unifié.
-         Sport label "All" remplacé par "Tous" pour la roulette. */}
-      <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",justifyContent:"center"}}>
-        <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"4px 6px"}}>
+      {/* Ligne 1 : bouton SAISON aligné à droite (sous le plan d'entraînement)
+         — style unifié avec rank/stats/profil. */}
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+        <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:22,padding:"8px 16px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap",lineHeight:1}}>
+          SAISON {selYear}
+          <span style={{fontSize:10,opacity:0.85}}>▾</span>
+        </button>
+      </div>
+      {/* Ligne 2 : roulette défilante pleine largeur pour le sport
+         (DrumPicker — composant déjà utilisé par TimePicker/DatePicker). */}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
+        <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"4px 12px"}}>
           <DrumPicker
             values={TRAINING_SPORTS.map(s=>s==="All"?"Tous":s)}
             selectedIndex={Math.max(0,TRAINING_SPORTS.indexOf(selSport))}
             onChange={i=>setSelSport(TRAINING_SPORTS[i])}
-            width={130}
+            width={180}
           />
         </div>
-        <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:14,padding:"10px 16px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap",lineHeight:1,flexShrink:0}}>
-          SAISON {selYear}
-          <span style={{fontSize:10,opacity:0.85}}>▾</span>
-        </button>
       </div>
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
         {[
