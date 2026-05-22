@@ -1115,8 +1115,8 @@ function computeBadges(ctx={}) {
 }
 
 // ── DRUM PICKER ───────────────────────────────────────────────────────────────
-function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
-  const ref=useRef(null), IH=34;
+function DrumPicker({values,selectedIndex,onChange,width=80,loop=false,rowHeight=34,fontSize=22}) {
+  const ref=useRef(null), IH=rowHeight;
   const N=values.length;
   const COPIES=loop?21:1;
   const MIDDLE=Math.floor(COPIES/2);
@@ -1167,7 +1167,7 @@ function DrumPicker({values,selectedIndex,onChange,width=80,loop=false}) {
               }}
               style={{height:IH,display:"flex",alignItems:"center",justifyContent:"center",
                 scrollSnapAlign:"center",flexShrink:0,
-                fontFamily:"'Bebas Neue',sans-serif",fontSize:22,
+                fontFamily:"'Bebas Neue',sans-serif",fontSize,
                 color:i===selectedIndex?"#F0EDE8":"rgba(240,237,232,0.18)",
                 cursor:"pointer",userSelect:"none"}}>
               {v}
@@ -5022,17 +5022,17 @@ function TrainingTab({userId, refreshKey, onActivityChange}){
           <span style={{fontSize:10,opacity:0.85}}>▾</span>
         </button>
       </div>
-      {/* Ligne 2 : roulette défilante pleine largeur pour le sport
-         (DrumPicker — composant déjà utilisé par TimePicker/DatePicker). */}
-      <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
-        <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"4px 12px"}}>
-          <DrumPicker
-            values={TRAINING_SPORTS.map(s=>s==="All"?"Tous":s)}
-            selectedIndex={Math.max(0,TRAINING_SPORTS.indexOf(selSport))}
-            onChange={i=>setSelSport(TRAINING_SPORTS[i])}
-            width={180}
-          />
-        </div>
+      {/* Ligne 2 : roulette défilante PLEINE largeur + plus compacte
+         (rowHeight 28, fontSize 18) pour économiser de la hauteur. */}
+      <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"3px 0",marginBottom:14}}>
+        <DrumPicker
+          values={TRAINING_SPORTS.map(s=>s==="All"?"Tous":s)}
+          selectedIndex={Math.max(0,TRAINING_SPORTS.indexOf(selSport))}
+          onChange={i=>setSelSport(TRAINING_SPORTS[i])}
+          width="100%"
+          rowHeight={28}
+          fontSize={18}
+        />
       </div>
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
         {[
