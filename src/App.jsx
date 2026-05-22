@@ -5014,20 +5014,19 @@ function TrainingTab({userId, refreshKey, onActivityChange}){
           </div>
         );
       })()}
-      {/* Filtres unifiés : SAISON style autres écrans (bouton picker) +
-         sport en menu déroulant (au lieu de chips horizontaux qui prenaient
-         trop de place et limitaient à la saison courante/N-1). */}
-      <div style={{display:"flex",gap:8,marginBottom:14,alignItems:"stretch"}}>
-        <select
-          value={selSport}
-          onChange={e=>setSelSport(e.target.value)}
-          style={{flex:1,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"10px 14px",color:"#F0EDE8",fontSize:14,fontFamily:"'Barlow',sans-serif",fontWeight:600,outline:"none",boxSizing:"border-box",appearance:"none",colorScheme:"dark"}}
-        >
-          {TRAINING_SPORTS.map(s=>(
-            <option key={s} value={s}>{s==="All"?"Tous les sports":s}</option>
-          ))}
-        </select>
-        <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:14,padding:"8px 16px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap",lineHeight:1,flexShrink:0}}>
+      {/* Filtres : roulette défilante pour le sport (DrumPicker — même
+         composant que TimePicker/DatePicker) + bouton SAISON style unifié.
+         Sport label "All" remplacé par "Tous" pour la roulette. */}
+      <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",justifyContent:"center"}}>
+        <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"4px 6px"}}>
+          <DrumPicker
+            values={TRAINING_SPORTS.map(s=>s==="All"?"Tous":s)}
+            selectedIndex={Math.max(0,TRAINING_SPORTS.indexOf(selSport))}
+            onChange={i=>setSelSport(TRAINING_SPORTS[i])}
+            width={130}
+          />
+        </div>
+        <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:14,padding:"10px 16px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap",lineHeight:1,flexShrink:0}}>
           SAISON {selYear}
           <span style={{fontSize:10,opacity:0.85}}>▾</span>
         </button>
