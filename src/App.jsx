@@ -5033,7 +5033,7 @@ function TrainingTab({userId, refreshKey, onActivityChange}){
          (rowHeight 28, fontSize 18) pour économiser de la hauteur. */}
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:"3px 0",marginBottom:14}}>
         <DrumPicker
-          values={TRAINING_SPORTS.map(s=>s==="All"?"Tous":s)}
+          values={TRAINING_SPORTS.map(s=>s==="All"?"🏆 Tous":`${SPORT_EMOJI[s]||""} ${s}`.trim())}
           selectedIndex={Math.max(0,TRAINING_SPORTS.indexOf(selSport))}
           onChange={i=>setSelSport(TRAINING_SPORTS[i])}
           width="100%"
