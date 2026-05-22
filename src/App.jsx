@@ -1443,10 +1443,14 @@ function Modal({onClose,children,fullScreen=false,header=null}) {
     <div ref={overlayRef} onClick={onClose} style={{position:"fixed",top:0,left:0,right:0,bottom:vvBottomOffset,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:fullScreen?"stretch":"flex-end",justifyContent:"center",zIndex:300,transition:"bottom 0.18s ease"}}>
       <div onClick={e=>e.stopPropagation()}
         style={{background:"#161616",border:fullScreen?"none":"1px solid rgba(255,255,255,0.09)",borderRadius:fullScreen?0:"22px 22px 0 0",width:"100%",maxWidth:480,maxHeight:fullScreen?"100%":"92%",height:fullScreen?"100%":"auto",display:"flex",flexDirection:"column",transform:`translateY(${dy}px)`,transition:dragging.current?"none":"transform 0.25s ease",paddingTop:fullScreen?"env(safe-area-inset-top)":0}}>
+        {/* zIndex:2 indispensable pour que le bouton ✕ en fullScreen (top:12)
+           qui DÉPASSE en-dessous du drag handle (~11px de haut) reste
+           cliquable. Sinon il est masqué par le header/scroll qui suivent.
+           Padding-bottom 8 pour un peu plus de surface au glisser-fermer. */}
         <div onTouchStart={onHandleTouch} onTouchMove={onHandleMove} onTouchEnd={onHandleEnd}
-          style={{padding:"6px 20px 0",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none",position:"relative"}}>
+          style={{padding:"6px 20px 8px",flexShrink:0,cursor:"grab",touchAction:"none",userSelect:"none",position:"relative",zIndex:2}}>
           <div style={{width:48,height:5,background:"rgba(255,255,255,0.3)",borderRadius:3,margin:"0 auto"}}/>
-          {fullScreen&&<button onClick={onClose} aria-label="Fermer" style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.7)",fontSize:16,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
+          {fullScreen&&<button onClick={onClose} aria-label="Fermer" style={{position:"absolute",top:8,right:14,width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"none",color:"rgba(240,237,232,0.7)",fontSize:16,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",zIndex:3}}>✕</button>}
         </div>
         {/* header optionnel : rendu HORS du scroll container donc toujours
            visible au top, jamais traversé par le scroll. Utilisé par
