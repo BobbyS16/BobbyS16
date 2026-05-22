@@ -1149,8 +1149,15 @@ function DrumPicker({values,selectedIndex,onChange,width=80,loop=false,rowHeight
     }
   },[N,onChange,selectedIndex,loop,COPIES,MIDDLE,SAFE]);
 
+  // stopPropagation sur les touch events : sans ça, le swipe vertical
+  // sur la roulette propage au scroll parent (ex: dans TrainingTab,
+  // la page entière bougeait quand l'user faisait défiler les sports).
+  // overscroll-behavior:contain ne suffit pas sur iOS avec
+  // -webkit-overflow-scrolling:touch dans certains cas — la propagation
+  // au niveau JS reste, on la coupe ici.
+  const stopTouch = e => e.stopPropagation();
   return (
-    <div style={{position:"relative",width,height:IH*3,overflow:"hidden",flexShrink:0}}>
+    <div onTouchStart={stopTouch} onTouchMove={stopTouch} style={{position:"relative",width,height:IH*3,overflow:"hidden",flexShrink:0}}>
       <div style={{position:"absolute",inset:0,zIndex:2,pointerEvents:"none",background:"linear-gradient(to bottom,#161616 0%,transparent 30%,transparent 70%,#161616 100%)"}}/>
       <div style={{position:"absolute",top:"50%",left:4,right:4,transform:"translateY(-50%)",height:IH,background:"rgba(230,57,70,0.1)",border:"1px solid rgba(230,57,70,0.3)",borderRadius:10,zIndex:1,pointerEvents:"none"}}/>
       <div ref={ref} onScroll={onScroll} data-scroll="1"
