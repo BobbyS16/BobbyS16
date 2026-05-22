@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacerank — Profil ami allégé</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#0a0a0a;color:#F0EDE8;font-family:'Barlow',sans-serif;padding:24px;min-height:100vh;}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:2px;text-align:center;margin-bottom:8px;}
+  .sub{text-align:center;color:rgba(240,237,232,0.55);font-size:13px;margin-bottom:30px;}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;max-width:900px;margin:0 auto;}
+  .col-label{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1.5px;margin-bottom:12px;padding:6px 14px;border-radius:999px;display:inline-block;}
+  .col-label.avant{background:rgba(240,237,232,0.08);color:rgba(240,237,232,0.7);}
+  .col-label.apres{background:rgba(74,222,128,0.15);color:#4ADE80;}
+  .phone{background:#161616;border-radius:36px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,0.5);width:100%;max-width:380px;border:1px solid rgba(255,255,255,0.08);}
+  .screen{background:#0F0F0F;border-radius:24px;overflow:hidden;height:680px;position:relative;display:flex;flex-direction:column;padding:0 16px 16px;}
+  .drag{width:48px;height:5px;background:rgba(255,255,255,0.3);border-radius:3px;margin:8px auto 12px;}
+  .close{position:absolute;top:8px;right:14px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;color:rgba(240,237,232,0.7);font-size:14px;}
+
+  .header{display:flex;gap:12px;align-items:center;margin-bottom:14px;}
+  .avatar{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#4A90D9,#4ADE80);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue';font-size:20px;flex-shrink:0;}
+  .h-info{flex:1;min-width:0;}
+  .h-name{font-family:'Bebas Neue';font-size:20px;letter-spacing:0.8px;}
+  .h-meta{font-size:11px;color:rgba(240,237,232,0.4);margin-top:1px;}
+  .h-level{font-family:'Bebas Neue';font-size:15px;color:#A78BFA;margin-top:3px;}
+
+  .pts-card{background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.25);border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:baseline;justify-content:center;gap:10px;}
+  .pts-val{font-family:'Bebas Neue';font-size:30px;color:#A78BFA;line-height:1;}
+  .pts-lbl{font-size:9px;color:rgba(240,237,232,0.5);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;}
+
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tabs.compact{gap:6px;}
+  .tab{flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);text-align:center;}
+  .tab.compact{padding:7px;}
+  .tab.active{background:rgba(167,139,250,0.12);border-color:rgba(167,139,250,0.4);}
+  .t-num{font-family:'Bebas Neue';font-size:22px;}
+  .tab.compact .t-num{font-size:16px;}
+  .tab.active .t-num{color:#A78BFA;}
+  .t-lbl{font-size:9px;color:rgba(240,237,232,0.35);letter-spacing:1px;text-transform:uppercase;margin-top:1px;font-weight:600;}
+  .tab.active .t-lbl{color:#A78BFA;}
+
+  .saison-old{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;}
+  .s-chip{flex-shrink:0;padding:5px 10px;border-radius:14px;background:rgba(255,255,255,0.05);font-family:'Bebas Neue';font-size:13px;color:rgba(240,237,232,0.5);letter-spacing:0.5px;}
+  .s-chip.active{background:#E63946;color:#fff;}
+
+  .saison-new{display:flex;justify-content:flex-end;margin-bottom:14px;}
+  .s-btn{background:#1A1A1F;border:1px solid #2E2E36;border-radius:18px;padding:6px 12px;font-family:'Bebas Neue';font-size:12px;letter-spacing:1.2px;display:inline-flex;align-items:center;gap:5px;}
+
+  .subtabs{display:flex;gap:6px;margin-bottom:12px;}
+  .subtab{flex:1;height:30px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:11px;letter-spacing:0.8px;background:rgba(255,255,255,0.04);color:rgba(240,237,232,0.5);}
+  .subtab.active{background:#ED2A37;color:#fff;}
+
+  .race-row{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+  .race-info{font-size:11px;color:rgba(240,237,232,0.6);}
+  .race-time{font-family:'Bebas Neue';font-size:16px;}
+
+  .badge-out{background:rgba(230,57,70,0.15);border:1px solid rgba(230,57,70,0.4);color:#E63946;padding:1px 5px;border-radius:4px;font-size:8px;margin-left:4px;text-transform:uppercase;font-weight:700;letter-spacing:0.5px;}
+  .strikethrough{text-decoration:line-through;opacity:0.55;}
+
+  .legend{max-width:900px;margin:30px auto 0;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);border-radius:12px;padding:16px 20px;font-size:13px;line-height:1.7;color:rgba(240,237,232,0.8);}
+  .legend b{color:#4ADE80;}
+  .legend ul{margin:6px 0 0 18px;}
+  .legend li{margin-bottom:4px;}
+
+  .panel-placeholder{padding:18px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.08);border-radius:10px;text-align:center;color:rgba(240,237,232,0.35);font-size:11px;}
+</style>
+</head>
+<body>
+
+<h1>Pacerank — Profil ami allégé</h1>
+<div class="sub">Suppression du PointsBreakdown détaillé · picker SAISON unifié · tabs counters compacts</div>
+
+<div class="compare">
+  <!-- AVANT -->
+  <div>
+    <div class="col-label avant">AVANT</div>
+    <div class="phone"><div class="screen">
+      <div class="close">✕</div>
+      <div class="drag"></div>
+      <div class="header">
+        <div class="avatar">JM</div>
+        <div class="h-info">
+          <div class="h-name">Julie M.</div>
+          <div class="h-meta">Lyon · 30-34 · F · 🇫🇷</div>
+          <div class="h-level">PRO</div>
+        </div>
+      </div>
+
+      <div class="pts-card">
+        <span class="pts-val">2710</span>
+        <span class="pts-lbl">pts saison</span>
+        <span style="font-size:10px;">▼</span>
+      </div>
+
+      <div class="tabs">
+        <div class="tab"><div class="t-num">8</div><div class="t-lbl">Amis</div></div>
+        <div class="tab active"><div class="t-num">12</div><div class="t-lbl">Courses</div></div>
+        <div class="tab"><div class="t-num">14</div><div class="t-lbl">Badges</div></div>
+      </div>
+
+      <!-- Saison chips horizontaux -->
+      <div class="saison-old">
+        <span class="s-chip">2021</span>
+        <span class="s-chip">2022</span>
+        <span class="s-chip">2023</span>
+        <span class="s-chip">2024</span>
+        <span class="s-chip">2025</span>
+        <span class="s-chip active">2026</span>
+      </div>
+
+      <div class="subtabs">
+        <div class="subtab active">🏁 COURSES (12)</div>
+        <div class="subtab">🏋️ ENTRAÎNEMENTS (24)</div>
+      </div>
+
+      <div class="race-row">
+        <div>
+          <div style="font-size:9px;color:rgba(240,237,232,0.4);">🏃 10 KM · 12/03/2026</div>
+          <div class="race-info" style="margin-top:2px;">FOULÉES DE LYON</div>
+        </div>
+        <div class="race-time">38:42</div>
+      </div>
+      <div class="race-row">
+        <div>
+          <div style="font-size:9px;color:rgba(240,237,232,0.4);">⛰️ TRAIL 21K · 05/02/2026</div>
+          <div class="race-info" style="margin-top:2px;">TRAIL DES VIGNES</div>
+        </div>
+        <div class="race-time">1:38</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- APRÈS -->
+  <div>
+    <div class="col-label apres">APRÈS</div>
+    <div class="phone"><div class="screen">
+      <div class="close">✕</div>
+      <div class="drag"></div>
+      <div class="header">
+        <div class="avatar">JM</div>
+        <div class="h-info">
+          <div class="h-name">Julie M.</div>
+          <div class="h-meta">Lyon · 30-34 · F · 🇫🇷</div>
+          <div class="h-level">PRO</div>
+        </div>
+        <!-- Points compacts à droite du header au lieu d'une grosse pill -->
+        <div style="text-align:right;">
+          <div style="font-family:'Bebas Neue';font-size:26px;color:#A78BFA;line-height:1;">2710</div>
+          <div style="font-size:8px;color:rgba(240,237,232,0.5);letter-spacing:1px;text-transform:uppercase;margin-top:2px;">pts saison</div>
+        </div>
+      </div>
+
+      <!-- PointsBreakdown caché par défaut (on enlève la grosse card violette) -->
+
+      <!-- Tabs compacts -->
+      <div class="tabs compact">
+        <div class="tab compact"><div class="t-num">8</div><div class="t-lbl">Amis</div></div>
+        <div class="tab compact active"><div class="t-num">12</div><div class="t-lbl">Courses</div></div>
+        <div class="tab compact"><div class="t-num">14</div><div class="t-lbl">Badges</div></div>
+      </div>
+
+      <!-- Saison: bouton unifié style autres écrans -->
+      <div class="saison-new">
+        <div class="s-btn">SAISON 2026 ▾</div>
+      </div>
+
+      <div class="subtabs">
+        <div class="subtab active">🏁 COURSES (12)</div>
+        <div class="subtab">🏋️ ENTRAÎNEMENTS (24)</div>
+      </div>
+
+      <div class="race-row">
+        <div>
+          <div style="font-size:9px;color:rgba(240,237,232,0.4);">🏃 10 KM · 12/03/2026</div>
+          <div class="race-info" style="margin-top:2px;">FOULÉES DE LYON</div>
+        </div>
+        <div class="race-time">38:42</div>
+      </div>
+      <div class="race-row">
+        <div>
+          <div style="font-size:9px;color:rgba(240,237,232,0.4);">⛰️ TRAIL 21K · 05/02/2026</div>
+          <div class="race-info" style="margin-top:2px;">TRAIL DES VIGNES</div>
+        </div>
+        <div class="race-time">1:38</div>
+      </div>
+      <div class="race-row">
+        <div>
+          <div style="font-size:9px;color:rgba(240,237,232,0.4);">🏃 5 KM · 18/01/2026</div>
+          <div class="race-info" style="margin-top:2px;">URBAN RUN</div>
+        </div>
+        <div class="race-time">18:24</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="legend">
+  <b>Changements proposés :</b>
+  <ul>
+    <li>📊 <b>Points saison</b> : intégré dans le header (à droite de l'avatar) au lieu d'une grosse card violette ~50px de haut séparée. Gagne ~70px.</li>
+    <li>🗑️ <b>Retrait du PointsBreakdown détaillé</b> (le ▼ qui dépliait le détail des bonus). Info technique peu intéressante pour regarder le profil d'un AMI. <i>Optionnel — dis-moi si tu veux le garder.</i></li>
+    <li>📐 <b>Tabs counters compacts</b> (Amis/Courses/Badges) → padding réduit. Gagne ~10px.</li>
+    <li>🎯 <b>Saison : remplacement chips → bouton "SAISON 2026 ▾"</b> (identique au profil + rank + stats). Cohérence cross-écran. Gagne ~10px.</li>
+  </ul>
+  <br>
+  <b>Total :</b> ~90-100px gagnés → tu vois 1 course de plus sans scroller.
+</div>
+
+<div style="text-align:center;color:rgba(240,237,232,0.4);font-size:12px;margin-top:24px;">
+  Mockup généré le 22/05/2026 · pacerank/docs/friend-profile-lighter-preview.html
+</div>
+
+</body>
+</html>

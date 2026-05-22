@@ -8507,9 +8507,9 @@ function FriendProfileModal({friend,myId,onClose}){
   const [loading,setLoading]=useState(true);
   const [showPhoto,setShowPhoto]=useState(false);
   const [nestedFriend,setNestedFriend]=useState(null);
-  const [bonusExpanded,setBonusExpanded]=useState(false);
   const [onFire,setOnFire]=useState(false);
-  const seasonsRef=useRef(null);
+  const [showSeasonPicker,setShowSeasonPicker]=useState(false);
+  const SEASONS=Array.from({length:6},(_,i)=>CY-5+i);
 
   useEffect(()=>{loadAll();},[friend.id]);
   useEffect(()=>{
@@ -8530,7 +8530,6 @@ function FriendProfileModal({friend,myId,onClose}){
       setMyFriendIds(s=>{const n=new Set(s);n.delete(p.id);return n;});
     }
   };
-  useEffect(()=>{setTimeout(()=>{if(seasonsRef.current)seasonsRef.current.scrollLeft=seasonsRef.current.scrollWidth;},50);},[]);
 
   const loadAll=async()=>{
     setLoading(true);
@@ -8594,6 +8593,9 @@ function FriendProfileModal({friend,myId,onClose}){
 
   return (
     <Modal onClose={onClose} fullScreen>
+      {/* Header allégé : pts saison intégrés à droite de l'avatar (avant
+         dans une card violette séparée). PointsBreakdown détaillé retiré
+         — peu utile pour regarder un AMI. */}
       <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:14,marginTop:onFire?28:14}}>
         <div onClick={()=>fullProfile?.avatar&&setShowPhoto(true)} style={{cursor:fullProfile?.avatar?"pointer":"default"}}><Avatar profile={fullProfile} size={64} highlight={lv.color} onFire={onFire?"profile-strong":false}/></div>
         <div style={{flex:1,minWidth:0}}>
@@ -8601,43 +8603,36 @@ function FriendProfileModal({friend,myId,onClose}){
           <div style={{fontSize:12,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:2}}>{[fullProfile?.city,fullProfile?.birth_year&&<CategoryTooltip key="cat" birthYear={fullProfile.birth_year}/>,fullProfile?.gender,fullProfile?.nationality].filter(Boolean).map((el,i,arr)=><span key={i}>{el}{i<arr.length-1?" · ":""}</span>)}</div>
           <div style={{marginTop:4}}><span style={{fontFamily:"'Bebas Neue'",fontSize:17,color:lv.color,letterSpacing:1}}>{lv.label}</span></div>
         </div>
+        <div style={{textAlign:"right",flexShrink:0}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:28,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
+          <div style={{fontSize:9,color:"rgba(240,237,232,0.5)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700,marginTop:2}}>pts saison</div>
+        </div>
       </div>
 
-      <div onClick={()=>setBonusExpanded(v=>!v)} role="button" aria-expanded={bonusExpanded} style={{background:`${lv.color}10`,border:`1px solid ${lv.color}33`,borderRadius:14,padding:"12px 16px",marginBottom:14,display:"flex",alignItems:"baseline",justifyContent:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
-        <div style={{fontFamily:"'Bebas Neue'",fontSize:34,color:lv.color,letterSpacing:1,lineHeight:1}}>{seasonPts}</div>
-        <div style={{fontSize:10,color:"rgba(240,237,232,0.55)",letterSpacing:1.5,textTransform:"uppercase",fontFamily:"'Barlow',sans-serif",fontWeight:700}}>pts saison</div>
-        <span style={{fontSize:12,color:"rgba(240,237,232,0.55)",lineHeight:1,transform:bonusExpanded?"rotate(180deg)":"none",transition:"transform 0.25s",alignSelf:"center"}}>▼</span>
-      </div>
-      <PointsBreakdown
-        expanded={bonusExpanded}
-        trainPts={trainPtsBreakdown}
-        racePts={racePtsBreakdown}
-        bonusByType={bonusByType}
-      />
-
-      <div style={{display:"flex",gap:10,marginBottom:14}}>
-        <div onClick={()=>setPanel("amis")} style={{flex:1,background:panel==="amis"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="amis"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="amis"?"#E63946":"#F0EDE8"}}>{friendCount}</div>
-          <div style={{fontSize:10,color:panel==="amis"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="amis"?700:400}}>Amis</div>
+      {/* Tabs counters compacts (padding réduit) */}
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        <div onClick={()=>setPanel("amis")} style={{flex:1,background:panel==="amis"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:10,padding:"8px",textAlign:"center",border:`1px solid ${panel==="amis"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:panel==="amis"?"#E63946":"#F0EDE8",lineHeight:1}}>{friendCount}</div>
+          <div style={{fontSize:9,color:panel==="amis"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="amis"?700:400,marginTop:2}}>Amis</div>
         </div>
-        <div onClick={()=>setPanel("courses")} style={{flex:1,background:panel==="courses"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="courses"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="courses"?"#E63946":"#F0EDE8"}}>{results.length}</div>
-          <div style={{fontSize:10,color:panel==="courses"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="courses"?700:400}}>Courses</div>
+        <div onClick={()=>setPanel("courses")} style={{flex:1,background:panel==="courses"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:10,padding:"8px",textAlign:"center",border:`1px solid ${panel==="courses"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:panel==="courses"?"#E63946":"#F0EDE8",lineHeight:1}}>{results.length}</div>
+          <div style={{fontSize:9,color:panel==="courses"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="courses"?700:400,marginTop:2}}>Courses</div>
         </div>
-        <div onClick={()=>setPanel("badges")} style={{flex:1,background:panel==="badges"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:12,padding:"12px",textAlign:"center",border:`1px solid ${panel==="badges"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
-          <div style={{fontFamily:"'Bebas Neue'",fontSize:26,color:panel==="badges"?"#E63946":"#F0EDE8"}}>{badges.length}</div>
-          <div style={{fontSize:10,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400}}>Badges</div>
+        <div onClick={()=>setPanel("badges")} style={{flex:1,background:panel==="badges"?"rgba(230,57,70,0.12)":"rgba(255,255,255,0.04)",borderRadius:10,padding:"8px",textAlign:"center",border:`1px solid ${panel==="badges"?"rgba(230,57,70,0.4)":"rgba(255,255,255,0.06)"}`,cursor:"pointer"}}>
+          <div style={{fontFamily:"'Bebas Neue'",fontSize:20,color:panel==="badges"?"#E63946":"#F0EDE8",lineHeight:1}}>{badges.length}</div>
+          <div style={{fontSize:9,color:panel==="badges"?"#E63946":"rgba(240,237,232,0.35)",fontFamily:"'Barlow',sans-serif",letterSpacing:1,textTransform:"uppercase",fontWeight:panel==="badges"?700:400,marginTop:2}}>Badges</div>
         </div>
       </div>
 
       {panel==="courses"&&(<>
-        <div ref={seasonsRef} style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",paddingBottom:4}}>
-          {[CY-5,CY-4,CY-3,CY-2,CY-1,CY].map(y=>(
-            <button key={y} onClick={()=>setSeason(y)} style={{flex:"0 0 calc((100% - 24px) / 4)",padding:"7px 0",borderRadius:20,border:"none",cursor:"pointer",background:season===y?"#E63946":"rgba(255,255,255,0.06)",color:season===y?"#fff":"rgba(240,237,232,0.4)",fontFamily:"'Bebas Neue'",fontSize:18,letterSpacing:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-              {y}
-              {y===CY&&<span style={{width:6,height:6,borderRadius:"50%",background:season===y?"rgba(255,255,255,0.9)":"#27AE60",flexShrink:0}}/>}
-            </button>
-          ))}
+        {/* Picker saison unifié style Rank/Stats/Profil (au lieu des
+           chips horizontaux ancien style spécifique à FriendProfile). */}
+        <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>
+          <button onClick={()=>setShowSeasonPicker(true)} aria-label="Choisir la saison" style={{background:"#1A1A1F",border:"1px solid #2E2E36",borderRadius:22,padding:"8px 16px",color:"#F0EDE8",cursor:"pointer",fontFamily:"'Bebas Neue'",fontSize:14,letterSpacing:1.5,display:"inline-flex",alignItems:"center",gap:7,whiteSpace:"nowrap",lineHeight:1}}>
+            SAISON {season}
+            <span style={{fontSize:10,opacity:0.85}}>▾</span>
+          </button>
         </div>
         <div style={{display:"flex",gap:6,marginBottom:14}}>
           {[["races",`🏁 Courses (${seasonResults.length})`],["trainings",`🏋️ Entraînements (${seasonTrainings.length})`]].map(([k,l])=>(
@@ -8706,6 +8701,7 @@ function FriendProfileModal({friend,myId,onClose}){
           );
         })
       )}
+      {showSeasonPicker&&<SeasonPickerModal seasons={SEASONS} currentSeason={season} onSelect={setSeason} onClose={()=>setShowSeasonPicker(false)}/>}
       {nestedFriend&&<FriendProfileModal friend={nestedFriend} myId={myId} onClose={()=>setNestedFriend(null)}/>}
       {showPhoto&&fullProfile?.avatar&&<PhotoViewer src={fullProfile.avatar} onClose={()=>setShowPhoto(false)}/>}
     </Modal>
