@@ -2263,7 +2263,7 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
       <Lbl c="Charge d'entraînement (optionnel)"/>
       <Inp value={trainingLoad} onChange={setTrainingLoad} placeholder="Ex: 150" type="number"/>
       <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:-6,marginBottom:10,lineHeight:1.5}}>
-        Note d'effort affichée par ta montre Garmin / Polar / Apple Watch après la séance. Laisse vide si tu ne l'as pas.
+        Note d'effort affichée par ta montre Garmin / Polar / Apple Watch après la séance. La renseigner permet un calcul de points plus précis. Laisse vide si tu ne l'as pas.
       </div>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Btn onClick={handleSave} mb={6}>{loading?"Enregistrement...":"Valider"}</Btn>
