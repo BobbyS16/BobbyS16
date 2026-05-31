@@ -2176,6 +2176,11 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
   const [deniv,setDeniv]=useState(existing?.elevation_gain_m!=null?String(existing.elevation_gain_m):"");
   const [duration,setDur]=useState(existing?fmtTime(existing.duration||0):"00:00:00");
   const [date,setDate]=useState(existing?.date||"");
+  // Charge d'entraînement Garmin / Polar / Suunto / Apple Watch (TL).
+  // Si renseignée, prioritaire sur le calcul d'allure (formule TL * 0.4).
+  // Captures plus précisément l'effort réel (HR-based), notamment pour
+  // fractionné/VMA où l'allure moyenne sous-estime la charge.
+  const [trainingLoad,setTrainingLoad]=useState(existing?.training_load!=null?String(existing.training_load):"");
   const [loading,setLoading]=useState(false);
   const [error,setErr]=useState("");
   const [confirmDelete,setConfirmDelete]=useState(false);
@@ -2196,6 +2201,8 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
     const durationSec=parseDurStr(duration);
     const distanceKm=parseFloat(dist)||0;
     const elevationGainM=needsElevation?(parseInt(deniv)||0):null;
+    const tlParsed=trainingLoad.trim()===""?null:parseInt(trainingLoad);
+    const trainingLoadValid=tlParsed!=null&&!isNaN(tlParsed)&&tlParsed>0?tlParsed:null;
     const discipline=SPORT_TO_DISCIPLINE[sport];
     let pts=0;
     try{
@@ -2205,12 +2212,13 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
         distance_km:distanceKm,
         elevation_gain_m:elevationGainM,
         pace_or_speed:computePaceOrSpeed(discipline,distanceKm,durationSec),
+        training_load:trainingLoadValid,
       });
     }catch(e){
       setLoading(false);setErr(e.message||"Erreur de calcul des points");return;
     }
     const trimmedTitle = title.trim();
-    const payload={sport,title:trimmedTitle||null,distance:distanceKm,elevation_gain_m:elevationGainM,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts};
+    const payload={sport,title:trimmedTitle||null,distance:distanceKm,elevation_gain_m:elevationGainM,duration:durationSec,date:date||new Date().toISOString().split("T")[0],points:pts,training_load:trainingLoadValid};
     let err;
     if(existing){({error:err}=await supabase.from("trainings").update(payload).eq("id",existing.id));}
     else{
@@ -2252,6 +2260,11 @@ function TrainingModal({existing,userId,onSave,onClose,onConvertToRace}){
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><TimePicker value={duration} onChange={setDur}/></div>
       <Lbl c="Date"/>
       <div style={{background:"rgba(255,255,255,0.03)",borderRadius:12,padding:"6px",marginBottom:8}}><DatePicker value={date} onChange={setDate}/></div>
+      <Lbl c="Charge d'entraînement (optionnel)"/>
+      <Inp value={trainingLoad} onChange={setTrainingLoad} placeholder="Ex: 150 (TL Garmin/Polar/Apple Watch)" type="number"/>
+      <div style={{fontSize:11,color:"rgba(240,237,232,0.4)",fontFamily:"'Barlow',sans-serif",marginTop:-6,marginBottom:10,lineHeight:1.5}}>
+        Si renseignée, prioritaire sur le calcul d'allure. Idéal pour le fractionné où l'allure moyenne sous-estime l'effort réel.
+      </div>
       {error&&<div style={{color:"#E63946",fontSize:12,marginBottom:8,fontFamily:"'Barlow',sans-serif"}}>{error}</div>}
       <Btn onClick={handleSave} mb={6}>{loading?"Enregistrement...":"Valider"}</Btn>
       <Btn onClick={onClose} variant="secondary" mb={6}>Annuler</Btn>

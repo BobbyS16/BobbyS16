@@ -39,13 +39,30 @@ function intensityForSwimming(paceSecPer100m) {
   return 3;
 }
 
+// Facteur empirique de conversion Charge d'entraînement → points Pacerank.
+// Calibré sur les valeurs typiques Garmin :
+//   TL 75  (easy 1h)     → ~30 pts   (formule old : ~36 pts)
+//   TL 150 (quality 1h)  → ~60 pts   (formule old : ~63 pts)
+//   TL 250 (long 1h30)   → ~100 pts  (formule old : ~115 pts)
+//   TL 400 (marathon)    → ~160 pts  (formule old : ~187 pts)
+// 0.4 légèrement plus généreux que la formule pace-based pour récompenser
+// les efforts HR-élevés que l'allure moyenne sous-estime (fractionné…).
+export const TL_TO_POINTS_FACTOR = 0.4;
+
 export function calculateTrainingPoints({
   discipline,
   duration_min,
   distance_km,
   elevation_gain_m,
   pace_or_speed,
+  training_load,  // optionnel : si renseigné, court-circuite le calcul pace-based
 }) {
+  // Charge d'entraînement HR-based renseignée → calcul direct prioritaire.
+  // Couvre tous les sports uniformément (pas de coef discipline nécessaire
+  // car TL intègre déjà l'effort cardio via HR moyenne × durée × HR max).
+  if (training_load != null && training_load > 0) {
+    return Math.round(training_load * TL_TO_POINTS_FACTOR);
+  }
   let baseIntensity;
   if (discipline === "running" || discipline === "trail") {
     baseIntensity = intensityForRunning(pace_or_speed);
