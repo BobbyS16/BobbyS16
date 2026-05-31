@@ -7964,10 +7964,16 @@ function ProfileModal({profile,results,onRefresh,onClose}){
   useEffect(()=>{
     try{const raw=localStorage.getItem(`strava_${profile.id}`);if(raw)setStravaTokens(JSON.parse(raw));}catch{}
   },[profile.id]);
-  // Strava est désactivé tant que la demande de quota n'est pas validée.
-  // Garder cette constante en haut pour pouvoir la flipper à `true` quand
-  // Strava aura validé — le reste de l'UI reste au format Brand Guidelines.
-  const STRAVA_ENABLED=false;
+  // Strava : la demande de quota n'a pas (encore) été validée. Mais le
+  // dev account a droit à 1 athlète "test" par défaut (= le dev lui-même).
+  // → On enable l'intégration pour la whitelist des beta testers Strava
+  //   uniquement. Les autres voient toujours "bientôt".
+  // Pour ajouter un beta tester : récupérer son user_id depuis Supabase
+  // et l'ajouter au tableau ci-dessous, push, et c'est actif.
+  const STRAVA_BETA_USER_IDS = [
+    "c543c088-ef73-4c7d-9c71-75392b04d725", // Philippe Sallenave (dev account)
+  ];
+  const STRAVA_ENABLED = STRAVA_BETA_USER_IDS.includes(profile?.id);
   const connectStrava=()=>{
     if(!STRAVA_ENABLED){setShowStravaPending(true);return;}
     const url=`https://www.strava.com/oauth/authorize?client_id=230065&response_type=code&redirect_uri=${encodeURIComponent(window.location.origin)}&approval_prompt=auto&scope=read,activity:read&state=strava`;
