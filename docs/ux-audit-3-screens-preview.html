@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacerank — Audit UX 3 écrans</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0a;
+    color: #F0EDE8;
+    font-family: 'Barlow', sans-serif;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 2px; text-align: center; margin-bottom: 8px; }
+  .sub { text-align: center; color: rgba(240,237,232,0.55); font-size: 13px; margin-bottom: 36px; }
+  .section { margin-bottom: 60px; }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1.5px;
+    color: #E63946;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid rgba(230, 57, 70, 0.3);
+  }
+  .section-desc { color: rgba(240,237,232,0.55); font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .col-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    display: inline-block;
+  }
+  .col-label.avant { background: rgba(240,237,232,0.08); color: rgba(240,237,232,0.7); }
+  .col-label.apres { background: rgba(74, 222, 128, 0.15); color: #4ADE80; }
+
+  /* iPhone frame */
+  .phone {
+    background: #161616;
+    border-radius: 36px;
+    padding: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .screen {
+    background: #0F0F0F;
+    border-radius: 24px;
+    padding: 14px 0 0;
+    height: 720px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .statusbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 16px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(240,237,232,0.7);
+    flex-shrink: 0;
+  }
+  .tab-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: #F0EDE8;
+    padding: 6px 16px 12px;
+    flex-shrink: 0;
+  }
+  .scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 80px;
+  }
+  .scroll::-webkit-scrollbar { width: 0; }
+
+  /* Bottom nav */
+  .navbar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(20, 20, 20, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0 18px;
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    color: rgba(240,237,232,0.4);
+    letter-spacing: 1.2px;
+    font-weight: 700;
+  }
+  .nav-item.active { color: #E63946; }
+  .nav-icon { font-size: 18px; }
+
+  /* Sub-tabs (Club) */
+  .subtabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .subtab {
+    flex: 1;
+    height: 36px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(240,237,232,0.55);
+  }
+  .subtab.active { background: #ED2A37; color: #fff; }
+
+  /* Cards */
+  .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .card.gold {
+    background: linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,255,255,0.02));
+    border-color: rgba(255,215,0,0.2);
+  }
+  .card.blue {
+    background: linear-gradient(135deg, rgba(74,144,217,0.06), rgba(255,255,255,0.02));
+    border-color: rgba(74,144,217,0.2);
+  }
+  .card.red {
+    background: linear-gradient(135deg, rgba(230,57,70,0.08), rgba(230,57,70,0.02));
+    border-color: rgba(230,57,70,0.15);
+  }
+
+  /* Records row */
+  .record-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.04), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,215,0,0.2);
+    border-radius: 14px;
+    margin-bottom: 8px;
+  }
+  .record-icon {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: rgba(255,215,0,0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .record-info { flex: 1; min-width: 0; }
+  .record-label { font-family: 'Bebas Neue', sans-serif; font-size: 15px; color: #F0EDE8; letter-spacing: 0.5px; }
+  .record-sub { font-size: 11px; color: rgba(240,237,232,0.55); margin-top: 2px; }
+  .record-time { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: #FFD700; letter-spacing: 1px; }
+  .record-badge { font-size: 9px; color: #FFD700; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 3px; text-align: right; }
+
+  /* Discipline chip */
+  .chip {
+    padding: 6px 11px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(240,237,232,0.5);
+    font-weight: 600;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .chip.active { background: #E63946; color: #fff; }
+
+  /* KPI grid */
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .kpi {
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .kpi-label { font-size: 9px; color: rgba(240,237,232,0.4); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .kpi-value { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: #F0EDE8; letter-spacing: 1px; line-height: 1; }
+  .kpi-delta { font-size: 10px; font-weight: 700; margin-top: 6px; }
+  .kpi-delta.up { color: #4ADE80; }
+  .kpi-delta.flat { color: rgba(240,237,232,0.5); }
+
+  /* Section header */
+  .h-section {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 1.5px;
+    color: #F0EDE8;
+    margin-bottom: 12px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Hero best perf */
+  .hero {
+    background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,215,0,0.02));
+    border: 1px solid rgba(255,215,0,0.3);
+    border-radius: 18px;
+    padding: 18px 16px;
+    margin-bottom: 18px;
+    text-align: center;
+  }
+  .hero-label { font-size: 10px; color: #FFD700; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .hero-time { font-family: 'Bebas Neue', sans-serif; font-size: 44px; color: #FFD700; letter-spacing: 2px; line-height: 1; margin-bottom: 6px; }
+  .hero-disc { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: rgba(240,237,232,0.85); letter-spacing: 1.5px; }
+  .hero-sub { font-size: 11px; color: rgba(240,237,232,0.5); margin-top: 4px; }
+
+  /* Expandable section */
+  .expand {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  .expand-left { display: flex; align-items: center; gap: 10px; }
+  .expand-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: #F0EDE8; }
+  .expand-arrow { color: rgba(240,237,232,0.4); font-size: 18px; }
+  .expand-meta { font-size: 11px; color: rgba(240,237,232,0.4); }
+
+  /* AddPicker options */
+  .option {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 16px 18px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+  }
+  .option-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .option-text { flex: 1; min-width: 0; }
+  .option-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; }
+  .option-desc { font-size: 11px; color: rgba(240,237,232,0.55); margin-top: 2px; line-height: 1.4; }
+
+  /* Notes */
+  .notes {
+    background: rgba(74, 222, 128, 0.06);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-top: 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: rgba(240, 237, 232, 0.8);
+  }
+  .notes b { color: #4ADE80; }
+  .notes ul { margin: 4px 0 0 18px; }
+  .notes li { margin-bottom: 4px; }
+
+  .modal-header { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1.5px; color: #F0EDE8; margin-bottom: 6px; }
+  .modal-sub { font-size: 12px; color: rgba(240,237,232,0.5); margin-bottom: 18px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<h1>Pacerank — Audit UX</h1>
+<div class="sub">3 écrans à refondre · Avant / Après</div>
+
+<!-- =================== 1. STATS / PERF TAB =================== -->
+<div class="section">
+  <div class="section-title">1. STATS / PERF — trop dense, hiérarchie floue</div>
+  <div class="section-desc">
+    L'écran empile Records · Prédictions · Progression · KPIs saison · Best perf. Pas de focal point.
+    L'user qui ouvre Stats devrait voir <b>tout de suite ce qu'il a de mieux cette saison</b>, puis pouvoir creuser.
+  </div>
+  <div class="compare">
+    <!-- AVANT -->
+    <div>
+      <div class="col-label avant">AVANT</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>22:30</span><span>📶 🔋</span></div>
+        <div class="tab-title">Stats</div>
+        <div class="scroll">
+          <div class="h-section">🏆 Records</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px;">
+            <span class="chip active">🏃 Course</span>
+            <span class="chip">🚴 Vélo</span>
+            <span class="chip">🏊 Nat.</span>
+            <span class="chip">⛰️ Trail</span>
+            <span class="chip">🔱 Hyrox</span>
+          </div>
+          <div class="record-row">
+            <div class="record-icon">🏃</div>
+            <div class="record-info">
+              <div class="record-label">10 km</div>
+              <div class="record-sub">Foulées Lyon · 12/03/2026</div>
+            </div>
+            <div style="text-align:right;"><div class="record-time">42:18</div><div class="record-badge">RECORD</div></div>
+          </div>
+          <div class="record-row" style="opacity:.5;">
+            <div class="record-icon" style="background:rgba(255,255,255,0.04);color:rgba(240,237,232,0.3);">—</div>
+            <div class="record-info">
+              <div class="record-label" style="color:rgba(240,237,232,0.6);">Semi-marathon</div>
+              <div class="record-sub" style="color:rgba(240,237,232,0.3);">Pas encore couru</div>
+            </div>
+            <div style="font-family:'Bebas Neue';font-size:22px;color:rgba(240,237,232,0.25);">—</div>
+          </div>
+          <div style="margin-top:18px;" class="h-section">🔮 Prédictions de course <span style="font-size:9px;color:rgba(240,237,232,0.4);font-weight:700;">8 RUNS · 90J</span></div>
+          <div style="font-size:11px;color:rgba(240,237,232,0.4);margin-bottom:10px;line-height:1.5;">
+            Estimations basées sur tes entraînements <b>Run</b> récents (Riegel, exposant 1.08 · volume 42 km/sem).
+          </div>
+          <div class="record-row" style="background:linear-gradient(135deg, rgba(74,144,217,0.06), rgba(255,255,255,0.02));border-color:rgba(74,144,217,0.2);">
+            <div class="record-icon" style="background:rgba(74,144,217,0.12);">🏃</div>
+            <div class="record-info">
+              <div class="record-label">10 km</div>
+              <div class="record-sub">5.2 km en 22:14 · 14/05/2026</div>
+              <div style="font-size:10px;color:#4ADE80;font-weight:700;margin-top:3px;">↓ 0:42 sous PR (42:18)</div>
+            </div>
+            <div style="text-align:right;"><div class="record-time" style="color:#4A90D9;">41:36</div><div class="record-badge" style="color:#4A90D9;">PRÉDICTION</div></div>
+          </div>
+          <div style="margin-top:18px;" class="h-section">📈 Progression</div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:14px;margin-bottom:18px;">
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;">
+              <span style="padding:4px 10px;background:rgba(230,57,70,0.15);color:#E63946;border-radius:12px;font-size:10px;font-weight:700;">📊 Points</span>
+              <span style="padding:4px 10px;background:rgba(255,255,255,0.04);color:rgba(240,237,232,0.45);border-radius:12px;font-size:10px;font-weight:700;">🏃 Course</span>
+              <span style="padding:4px 10px;background:rgba(255,255,255,0.04);color:rgba(240,237,232,0.45);border-radius:12px;font-size:10px;font-weight:700;">🚴 Vélo</span>
+            </div>
+            <div style="height:90px;display:flex;align-items:flex-end;gap:3px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);">
+              <div style="flex:1;background:#E63946;height:30%;border-radius:2px;"></div>
+              <div style="flex:1;background:#E63946;height:55%;border-radius:2px;"></div>
+              <div style="flex:1;background:#E63946;height:42%;border-radius:2px;"></div>
+              <div style="flex:1;background:#E63946;height:78%;border-radius:2px;"></div>
+              <div style="flex:1;background:#E63946;height:62%;border-radius:2px;"></div>
+              <div style="flex:1;background:#E63946;height:90%;border-radius:2px;"></div>
+              <div style="flex:1;background:#E63946;height:70%;border-radius:2px;"></div>
+            </div>
+          </div>
+          <div class="h-section">📊 Saison en chiffres</div>
+          <div class="card red">
+            <div style="display:flex;justify-content:space-between;margin-bottom:14px;">
+              <span style="font-family:'Bebas Neue';font-size:18px;letter-spacing:2px;">SAISON 2026</span>
+              <span style="font-size:11px;color:rgba(240,237,232,0.45);font-weight:700;">vs 2025</span>
+            </div>
+            <div class="kpi-grid">
+              <div class="kpi"><div class="kpi-label">Courses</div><div class="kpi-value">4</div><div class="kpi-delta up">↗ +2 vs 2025</div></div>
+              <div class="kpi"><div class="kpi-label">Volume km</div><div class="kpi-value">62 km</div><div class="kpi-delta up">↗ +31 km vs 2025</div></div>
+              <div class="kpi"><div class="kpi-label">Dénivelé+</div><div class="kpi-value">540 m</div><div class="kpi-delta flat">vs 2025</div></div>
+              <div class="kpi"><div class="kpi-label">Total points</div><div class="kpi-value">1240</div><div class="kpi-delta up">↗ +480 vs 2025</div></div>
+            </div>
+            <div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.2);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
+              <div style="font-size:22px;">🏆</div>
+              <div style="flex:1;">
+                <div style="font-size:9px;color:#FFD700;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">MEILLEURE PERF</div>
+                <div style="font-family:'Bebas Neue';font-size:14px;color:#FFD700;letter-spacing:1px;">10 KM · 42:18 · FOULÉES LYON</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="navbar">
+          <div class="nav-item"><div class="nav-icon">🏠</div>HOME</div>
+          <div class="nav-item"><div class="nav-icon">👥</div>CLUB</div>
+          <div class="nav-item"><div class="nav-icon">🏆</div>RANK</div>
+          <div class="nav-item"><div class="nav-icon">🏋️</div>TRAINING</div>
+          <div class="nav-item active"><div class="nav-icon">📊</div>STATS</div>
+        </div>
+      </div></div>
+    </div>
+    <!-- APRÈS -->
+    <div>
+      <div class="col-label apres">APRÈS</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>22:30</span><span>📶 🔋</span></div>
+        <div class="tab-title">Stats</div>
+        <div class="scroll">
+          <!-- Hero -->
+          <div class="hero">
+            <div class="hero-label">🏆 Meilleure perf saison 2026</div>
+            <div class="hero-time">42:18</div>
+            <div class="hero-disc">10 KM · FOULÉES LYON</div>
+            <div class="hero-sub">12/03/2026 · 12e/180</div>
+          </div>
+          <!-- KPIs Saison -->
+          <div class="kpi-grid">
+            <div class="kpi"><div class="kpi-label">Courses</div><div class="kpi-value">4</div><div class="kpi-delta up">↗ +2</div></div>
+            <div class="kpi"><div class="kpi-label">Volume km</div><div class="kpi-value">62</div><div class="kpi-delta up">↗ +31</div></div>
+            <div class="kpi"><div class="kpi-label">Dénivelé+</div><div class="kpi-value">540 m</div><div class="kpi-delta flat">stable</div></div>
+            <div class="kpi"><div class="kpi-label">Points saison</div><div class="kpi-value">1240</div><div class="kpi-delta up">↗ +480</div></div>
+          </div>
+          <!-- Sections dépliables -->
+          <div style="margin-top:20px;font-size:10px;color:rgba(240,237,232,0.4);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:8px;">VOIR PLUS</div>
+          <div class="expand">
+            <div class="expand-left">
+              <span style="font-size:18px;">🏆</span>
+              <div>
+                <div class="expand-title">Mes records</div>
+                <div class="expand-meta">5 disciplines · 3 records détenus</div>
+              </div>
+            </div>
+            <div class="expand-arrow">›</div>
+          </div>
+          <div class="expand">
+            <div class="expand-left">
+              <span style="font-size:18px;">🔮</span>
+              <div>
+                <div class="expand-title">Prédictions de course</div>
+                <div class="expand-meta">Basées sur 8 runs récents · Riegel</div>
+              </div>
+            </div>
+            <div class="expand-arrow">›</div>
+          </div>
+          <div class="expand">
+            <div class="expand-left">
+              <span style="font-size:18px;">📈</span>
+              <div>
+                <div class="expand-title">Progression</div>
+                <div class="expand-meta">7 mois · pic en mai</div>
+              </div>
+            </div>
+            <div class="expand-arrow">›</div>
+          </div>
+        </div>
+        <div class="navbar">
+          <div class="nav-item"><div class="nav-icon">🏠</div>HOME</div>
+          <div class="nav-item"><div class="nav-icon">👥</div>CLUB</div>
+          <div class="nav-item"><div class="nav-icon">🏆</div>RANK</div>
+          <div class="nav-item"><div class="nav-icon">🏋️</div>TRAINING</div>
+          <div class="nav-item active"><div class="nav-icon">📊</div>STATS</div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+  <div class="notes">
+    <b>Changements :</b>
+    <ul>
+      <li>🥇 <b>Hero "Meilleure perf"</b> en haut, en très gros — le user voit son trophée du moment dès l'ouverture</li>
+      <li>📊 <b>KPIs saison</b> juste après (avant ils étaient noyés en bas)</li>
+      <li>🗂️ <b>Records / Prédictions / Progression</b> en sections dépliables → décharge l'écran, on creuse à la demande</li>
+      <li>♻️ Premier scroll passe de ~800 px à ~400 px de contenu visible immédiatement</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =================== 2. CLUB TAB =================== -->
+<div class="section">
+  <div class="section-title">2. CLUB — 3 niveaux de navigation + sous-onglet vide</div>
+  <div class="section-desc">
+    On voit "CLUB" en bottom nav, "Club" en titre, puis 4 sous-onglets dont 1 placeholder ("DÉFIS · BIENTÔT"). 25% de la largeur pour rien.
+    Aussi : PRONOS est planqué alors que c'est une feature à mettre en avant.
+  </div>
+  <div class="compare">
+    <!-- AVANT -->
+    <div>
+      <div class="col-label avant">AVANT</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>22:30</span><span>📶 🔋</span></div>
+        <div class="tab-title">Club</div>
+        <div class="scroll">
+          <div class="subtabs">
+            <div class="subtab active">FIL</div>
+            <div class="subtab">PRONOS</div>
+            <div class="subtab">AMIS</div>
+            <div class="subtab" style="opacity:0.5;">DÉFIS</div>
+          </div>
+          <div class="card">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E63946,#FFD700);"></div>
+              <div>
+                <div style="font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;">MARC L.</div>
+                <div style="font-size:10px;color:rgba(240,237,232,0.4);">a fait un 🏃 10 km en 41:02</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4A90D9,#4ADE80);"></div>
+              <div>
+                <div style="font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;">JULIE M.</div>
+                <div style="font-size:10px;color:rgba(240,237,232,0.4);">a fini ⛰️ Trail des Vignes — 1h47</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="navbar">
+          <div class="nav-item"><div class="nav-icon">🏠</div>HOME</div>
+          <div class="nav-item active"><div class="nav-icon">👥</div>CLUB</div>
+          <div class="nav-item"><div class="nav-icon">🏆</div>RANK</div>
+          <div class="nav-item"><div class="nav-icon">🏋️</div>TRAINING</div>
+          <div class="nav-item"><div class="nav-icon">📊</div>STATS</div>
+        </div>
+      </div></div>
+    </div>
+    <!-- APRÈS -->
+    <div>
+      <div class="col-label apres">APRÈS</div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>22:30</span><span>📶 🔋</span></div>
+        <div class="tab-title">Social</div>
+        <div class="scroll">
+          <div class="subtabs">
+            <div class="subtab active">FIL</div>
+            <div class="subtab">AMIS</div>
+            <div class="subtab">PRONOS <span style="background:#E63946;color:#fff;font-size:8px;padding:1px 5px;border-radius:6px;margin-left:4px;">2</span></div>
+          </div>
+          <div class="card">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E63946,#FFD700);"></div>
+              <div>
+                <div style="font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;">MARC L.</div>
+                <div style="font-size:10px;color:rgba(240,237,232,0.4);">a fait un 🏃 10 km en 41:02</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4A90D9,#4ADE80);"></div>
+              <div>
+                <div style="font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;">JULIE M.</div>
+                <div style="font-size:10px;color:rgba(240,237,232,0.4);">a fini ⛰️ Trail des Vignes — 1h47</div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="background:rgba(230,57,70,0.06);border-color:rgba(230,57,70,0.25);">
+            <div style="display:flex;gap:10px;align-items:center;">
+              <div style="font-size:22px;">🔮</div>
+              <div style="flex:1;">
+                <div style="font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;">PRONO À FAIRE</div>
+                <div style="font-size:10px;color:rgba(240,237,232,0.55);">Marc court le 20km de Paris demain — devine son chrono</div>
+              </div>
+              <span style="color:#E63946;font-size:18px;">›</span>
+            </div>
+          </div>
+        </div>
+        <div class="navbar">
+          <div class="nav-item"><div class="nav-icon">🏠</div>HOME</div>
+          <div class="nav-item active"><div class="nav-icon">👥</div>SOCIAL</div>
+          <div class="nav-item"><div class="nav-icon">🏆</div>RANK</div>
+          <div class="nav-item"><div class="nav-icon">🏋️</div>TRAINING</div>
+          <div class="nav-item"><div class="nav-icon">📊</div>STATS</div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+  <div class="notes">
+    <b>Changements :</b>
+    <ul>
+      <li>🗑️ <b>"DÉFIS" supprimé</b> tant que pas livré (sera réintégré quand prêt — visible mais inutile c'est pire que rien)</li>
+      <li>📐 <b>3 sous-tabs au lieu de 4</b> → +33% de largeur par tab, plus lisible</li>
+      <li>🔄 <b>Ordre revu</b> : FIL · AMIS · PRONOS (PRONOS à droite pour ne pas paraître secondaire)</li>
+      <li>🏷️ <b>"Club" → "Social"</b> (au choix) : moins ambigu que "Club" qui peut faire penser à crew/groupe</li>
+      <li>🔔 <b>Badge sur PRONOS</b> si l'user a des pronostics à faire — drive l'engagement</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =================== 3. ADDPICKER MODAL =================== -->
+<div class="section">
+  <div class="section-title">3. AJOUTER UNE ACTIVITÉ — wording trop technique</div>
+  <div class="section-desc">
+    Le user clique "+" et tombe sur 3 options abstraites. "Course officielle" vs "Course à venir" pas évident.
+    Reformulation en première personne ("J'ai fait…" / "Je prépare…") + ordre par fréquence d'usage.
+  </div>
+  <div class="compare">
+    <!-- AVANT -->
+    <div>
+      <div class="col-label avant">AVANT</div>
+      <div class="phone"><div class="screen" style="background:rgba(0,0,0,0.85);">
+        <div style="height:100%;display:flex;align-items:flex-end;">
+          <div style="background:#161616;border-radius:22px 22px 0 0;padding:24px 18px;width:100%;">
+            <div style="width:48px;height:5px;background:rgba(255,255,255,0.3);border-radius:3px;margin:0 auto 18px;"></div>
+            <div class="modal-header">Ajouter une activité</div>
+            <div class="modal-sub">Choisis le type d'activité — la discipline se choisira ensuite.</div>
+            <div class="option" style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);">
+              <div class="option-icon" style="background:rgba(74,222,128,0.18);">🏋️</div>
+              <div class="option-text"><div class="option-title" style="color:#4ade80;">Entraînement</div><div class="option-desc">Run, Vélo, Natation, Trail</div></div>
+              <span style="color:#4ade80;">›</span>
+            </div>
+            <div class="option" style="background:rgba(230,57,70,0.06);border:1px solid rgba(230,57,70,0.25);">
+              <div class="option-icon" style="background:rgba(230,57,70,0.18);">🏅</div>
+              <div class="option-text"><div class="option-title" style="color:#E63946;">Course officielle</div><div class="option-desc">5km, 10km, marathon, trail, triathlon, hyrox…</div></div>
+              <span style="color:#E63946;">›</span>
+            </div>
+            <div class="option" style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.25);">
+              <div class="option-icon" style="background:rgba(255,215,0,0.18);">📅</div>
+              <div class="option-text"><div class="option-title" style="color:#FFD700;">Course à venir</div><div class="option-desc">Déclare une course que tu prépares</div></div>
+              <span style="color:#FFD700;">›</span>
+            </div>
+            <div style="background:rgba(255,255,255,0.07);color:rgba(240,237,232,0.7);border-radius:14px;padding:11px 0;text-align:center;font-weight:700;font-size:14px;margin-top:6px;">Annuler</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <!-- APRÈS -->
+    <div>
+      <div class="col-label apres">APRÈS</div>
+      <div class="phone"><div class="screen" style="background:rgba(0,0,0,0.85);">
+        <div style="height:100%;display:flex;align-items:flex-end;">
+          <div style="background:#161616;border-radius:22px 22px 0 0;padding:24px 18px;width:100%;">
+            <div style="width:48px;height:5px;background:rgba(255,255,255,0.3);border-radius:3px;margin:0 auto 18px;"></div>
+            <div class="modal-header">Qu'est-ce que tu ajoutes ?</div>
+            <div class="modal-sub">Saisis une activité passée ou une course à venir.</div>
+            <div style="font-size:9px;color:rgba(240,237,232,0.4);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:6px 0 8px 4px;">PASSÉ</div>
+            <div class="option" style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);">
+              <div class="option-icon" style="background:rgba(74,222,128,0.18);">🏋️</div>
+              <div class="option-text"><div class="option-title" style="color:#4ade80;">J'ai fait un entraînement</div><div class="option-desc">Run · Vélo · Natation · Trail · Salle</div></div>
+              <span style="color:#4ade80;">›</span>
+            </div>
+            <div class="option" style="background:rgba(230,57,70,0.06);border:1px solid rgba(230,57,70,0.25);">
+              <div class="option-icon" style="background:rgba(230,57,70,0.18);">🏅</div>
+              <div class="option-text"><div class="option-title" style="color:#E63946;">J'ai fait une course</div><div class="option-desc">10km · marathon · trail · triathlon · hyrox</div></div>
+              <span style="color:#E63946;">›</span>
+            </div>
+            <div style="font-size:9px;color:rgba(240,237,232,0.4);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin:14px 0 8px 4px;">À VENIR</div>
+            <div class="option" style="background:rgba(255,215,0,0.06);border:1px solid rgba(255,215,0,0.25);">
+              <div class="option-icon" style="background:rgba(255,215,0,0.18);">📅</div>
+              <div class="option-text"><div class="option-title" style="color:#FFD700;">Je prépare une course</div><div class="option-desc">Pour que tes potes puissent pronostiquer</div></div>
+              <span style="color:#FFD700;">›</span>
+            </div>
+            <div style="background:rgba(255,255,255,0.07);color:rgba(240,237,232,0.7);border-radius:14px;padding:11px 0;text-align:center;font-weight:700;font-size:14px;margin-top:6px;">Annuler</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+  <div class="notes">
+    <b>Changements :</b>
+    <ul>
+      <li>🗣️ <b>Wording première personne</b> : "J'ai fait un entraînement" plutôt que "Entraînement" — naturel, sans ambiguïté</li>
+      <li>🗂️ <b>Regroupement Passé / À venir</b> : sépare visuellement les 2 actions passées de la 1 future</li>
+      <li>💡 <b>"Je prépare une course"</b> : titre + description (vs "Course à venir" qui était floue)</li>
+      <li>❓ <b>Titre modale</b> : "Qu'est-ce que tu ajoutes ?" engage plus que "Ajouter une activité"</li>
+    </ul>
+  </div>
+</div>
+
+<div style="text-align:center;color:rgba(240,237,232,0.4);font-size:12px;margin-top:20px;">
+  Mockup généré le 18/05/2026 · pacerank/docs/ux-audit-3-screens-preview.html
+</div>
+
+</body>
+</html>

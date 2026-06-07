@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Pacerank — Rank redesign</title>
+<style>
+  :root {
+    --bg: #0e0e0e; --fg: #F0EDE8; --muted: rgba(240,237,232,0.5);
+    --red: #E63946; --card-bd: #2E2E36; --gold: #c4a484;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px; background: #1a1d1a; color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+  h1 { font-size: 18px; margin: 0 0 6px; letter-spacing: 1px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; max-width: 980px; }
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; max-width: 980px; margin: 0 auto; }
+  .col h2 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; margin: 0 0 14px; }
+  .col .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: 3px; }
+  .before .tag { background: #555; color: #fff; }
+  .after .tag { background: #16a34a; color: #fff; }
+
+  .phone {
+    background: var(--bg); border-radius: 28px; padding: 16px 16px 8px;
+    border: 1px solid #222; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    width: 380px; margin: 0 auto;
+  }
+
+  .title { font-family: 'Bebas Neue'; font-size: 28px; letter-spacing: 2px; padding: 12px 0; }
+
+  /* AVANT : 5 filtres collés */
+  .filters-before {
+    display: grid; grid-template-columns: 1.35fr 1fr 1fr 1fr 1fr; gap: 4px;
+    margin-bottom: 12px;
+  }
+  .filter-before {
+    padding: 7px 4px; border-radius: 20px; border: none;
+    background: rgba(255,255,255,0.06); color: rgba(240,237,232,0.5);
+    font-weight: 600; font-size: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .filter-before.sel { background: var(--red); color: #fff; }
+
+  /* AVANT : saisons */
+  .seasons-before {
+    display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .season-before {
+    flex: 0 0 calc((100% - 24px) / 4); padding: 7px 0; border-radius: 20px;
+    background: rgba(255,255,255,0.06); color: rgba(240,237,232,0.4);
+    font-family: 'Bebas Neue'; font-size: 18px; letter-spacing: 1;
+    text-align: center; border: none;
+  }
+  .season-before.sel { background: var(--red); color: #fff; }
+
+  /* AVANT : rows avec beaucoup d'infos */
+  .row-before {
+    display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+    border-radius: 14px; margin-bottom: 8px;
+    background: rgba(196,164,132,0.05); border: 1px solid rgba(196,164,132,0.2);
+  }
+  .medal { font-family: 'Bebas Neue'; font-size: 18px; width: 22px; text-align: center; }
+  .av { width: 36px; height: 36px; border-radius: 50%; background: #888; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #fff; }
+  .rmid { flex: 1; min-width: 0; }
+  .rname { font-family: 'Bebas Neue'; font-size: 15px; }
+  .rbadges { display: flex; gap: 3px; margin-top: 2px; }
+  .rbadges span { font-size: 11px; }
+  .rright { text-align: right; flex-shrink: 0; }
+  .rrank { font-size: 14px; font-weight: 700; }
+  .rpts { font-family: 'Bebas Neue'; font-size: 22px; color: var(--gold); }
+
+  /* APRÈS : un seul pill de filtre */
+  .filter-after {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
+  }
+  .filter-pill {
+    flex: 1; padding: 11px 14px; border-radius: 14px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    color: var(--fg); font-family: 'Bebas Neue'; font-size: 14px; letter-spacing: 1;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .filter-pill .chev { color: rgba(240,237,232,0.5); font-size: 10px; }
+
+  /* APRÈS : header de section "Top X" */
+  .section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin: 6px 4px 12px;
+  }
+  .section-head .lbl {
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(240,237,232,0.4); font-weight: 600;
+  }
+  .section-head .cnt {
+    font-size: 11px; color: rgba(240,237,232,0.5);
+  }
+
+  /* APRÈS : rows épurées */
+  .row-after {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    border-radius: 12px; margin-bottom: 4px;
+    background: transparent; border: none;
+  }
+  .row-after.me {
+    background: rgba(230,57,70,0.06);
+    border: 1px solid rgba(230,57,70,0.3);
+  }
+  .row-after.top {
+    background: rgba(196,164,132,0.05);
+  }
+  .pos {
+    font-family: 'Bebas Neue'; font-size: 16px; width: 24px; text-align: center; color: rgba(240,237,232,0.4);
+  }
+  .pos.top1 { color: #FFD700; }
+  .pos.top2 { color: #C0C0C0; }
+  .pos.top3 { color: #CD7F32; }
+  .av-after { width: 32px; height: 32px; border-radius: 50%; background: #888; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; color: #fff; }
+  .name-after { flex: 1; min-width: 0; font-family: 'Bebas Neue'; font-size: 15px; letter-spacing: 0.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pts-after { font-family: 'Bebas Neue'; font-size: 18px; letter-spacing: 0.5px; color: var(--gold); }
+
+  /* Notes */
+  .notes { margin-top: 14px; font-size: 12px; line-height: 1.5; padding: 12px 14px; background: rgba(255,255,255,0.04); border-radius: 10px; color: rgba(240,237,232,0.75); }
+  .notes .ok { color: #4ADE80; }
+  .notes .ko { color: #f87171; }
+  .notes ul { margin: 6px 0 0; padding-left: 18px; }
+  .notes li { margin-bottom: 3px; }
+
+  /* Bottom sheet preview (after) */
+  .sheet-wrap { max-width: 480px; margin: 40px auto 0; }
+  .sheet-wrap h3 { font-family: 'Bebas Neue'; font-size: 18px; letter-spacing: 1.5px; margin: 0 0 12px; text-align: center; }
+  .sheet {
+    background: #161616; border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 22px; padding: 20px; max-width: 380px; margin: 0 auto;
+  }
+  .sheet-title { font-family: 'Bebas Neue'; font-size: 22px; letter-spacing: 2px; text-align: center; margin-bottom: 4px; }
+  .sheet-sub { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(240,237,232,0.4); text-align: center; margin-bottom: 16px; }
+  .sheet-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    margin-bottom: 6px; cursor: pointer;
+  }
+  .sheet-row.sel { background: rgba(230,57,70,0.12); border-color: var(--red); }
+  .sheet-row .ico { font-size: 18px; width: 24px; text-align: center; }
+  .sheet-row .lbl { flex: 1; font-family: 'Barlow'; font-weight: 600; font-size: 14px; }
+  .sheet-row .check { color: var(--red); }
+  .sheet-divider { margin: 14px 0 10px; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(240,237,232,0.4); font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>PaceRank — Page Rank épurée</h1>
+  <p class="sub">Avant : 5 filtres + sélecteur saison + rows touffues. Après : 1 seule pilule de filtre qui ouvre un bottom-sheet, rows aérées sans badges (les badges restent visibles au tap sur le profil).</p>
+
+  <div class="wrap">
+
+    <!-- AVANT -->
+    <div class="col before">
+      <h2>AVANT<span class="tag">actuel</span></h2>
+      <div class="phone">
+        <div class="title">Rank</div>
+        <!-- 5 filtres serrés -->
+        <div class="filters-before">
+          <button class="filter-before sel">🌍 Général</button>
+          <button class="filter-before">🏅 Discipline</button>
+          <button class="filter-before">📅 Catégorie</button>
+          <button class="filter-before">⚧ Sexe</button>
+          <button class="filter-before">🏙️ Ville</button>
+        </div>
+        <!-- saisons -->
+        <div class="seasons-before">
+          <button class="season-before">2021</button>
+          <button class="season-before">2022</button>
+          <button class="season-before">2023</button>
+          <button class="season-before">2024</button>
+          <button class="season-before">2025</button>
+          <button class="season-before sel">2026</button>
+        </div>
+        <!-- Rows chargées -->
+        <div class="row-before">
+          <div class="medal">🥇</div>
+          <div class="av" style="background:#888">A</div>
+          <div class="rmid">
+            <div class="rname">ALEX K.</div>
+            <div class="rbadges"><span>🏅</span><span>⚡</span><span>🔥</span><span>🏃</span><span>🥇</span><span>+3</span></div>
+          </div>
+          <div class="rright"><div class="rrank">1/452</div><div class="rpts">4128</div></div>
+        </div>
+        <div class="row-before">
+          <div class="medal">🥈</div>
+          <div class="av" style="background:#666">M</div>
+          <div class="rmid">
+            <div class="rname">MARC L.</div>
+            <div class="rbadges"><span>🏅</span><span>⚡</span><span>🏃</span><span>🥇</span><span>🔥</span></div>
+          </div>
+          <div class="rright"><div class="rrank">2/452</div><div class="rpts">3987</div></div>
+        </div>
+        <div class="row-before">
+          <div class="medal">🥉</div>
+          <div class="av" style="background:#7a3aa0">S</div>
+          <div class="rmid">
+            <div class="rname">SOPHIE T.</div>
+            <div class="rbadges"><span>🥇</span><span>🏅</span><span>🏃</span><span>⚡</span></div>
+          </div>
+          <div class="rright"><div class="rrank">3/452</div><div class="rpts">3812</div></div>
+        </div>
+        <div class="row-before">
+          <div class="medal"></div>
+          <div class="av" style="background:#3aa0e0">P</div>
+          <div class="rmid">
+            <div class="rname">PHYSIOTIM</div>
+            <div class="rbadges"><span>⚡</span><span>🏃</span></div>
+          </div>
+          <div class="rright"><div class="rrank">4/452</div><div class="rpts">2779</div></div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <ul>
+          <li><span class="ko">●</span> 5 filtres à fontSize 10, serrés en grid</li>
+          <li><span class="ko">●</span> Sélecteur de 6 saisons scrollable</li>
+          <li><span class="ko">●</span> 4 lignes d'UI avant la 1ʳᵉ row</li>
+          <li><span class="ko">●</span> Rows : médaille + avatar + nom + jusqu'à 6 badges + position fraction + pts = 5-6 éléments par row</li>
+          <li><span class="ko">●</span> Seulement 3-4 rows visibles d'office</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- APRÈS -->
+    <div class="col after">
+      <h2>APRÈS<span class="tag">proposé</span></h2>
+      <div class="phone">
+        <div class="title">Rank</div>
+        <!-- Une seule pill de filtre -->
+        <div class="filter-after">
+          <button class="filter-pill">
+            <span>🌍 GÉNÉRAL · 2026</span>
+            <span class="chev">▾</span>
+          </button>
+        </div>
+
+        <div class="section-head">
+          <div class="lbl">Classement</div>
+          <div class="cnt">452 athlètes</div>
+        </div>
+
+        <!-- Rows épurées -->
+        <div class="row-after top">
+          <div class="pos top1">1</div>
+          <div class="av-after" style="background:#888">A</div>
+          <div class="name-after">ALEX K.</div>
+          <div class="pts-after">4128</div>
+        </div>
+        <div class="row-after top">
+          <div class="pos top2">2</div>
+          <div class="av-after" style="background:#666">M</div>
+          <div class="name-after">MARC L.</div>
+          <div class="pts-after">3987</div>
+        </div>
+        <div class="row-after top">
+          <div class="pos top3">3</div>
+          <div class="av-after" style="background:#7a3aa0">S</div>
+          <div class="name-after">SOPHIE T.</div>
+          <div class="pts-after">3812</div>
+        </div>
+        <div class="row-after">
+          <div class="pos">4</div>
+          <div class="av-after" style="background:#3aa0e0">P</div>
+          <div class="name-after">PHYSIOTIM</div>
+          <div class="pts-after">2779</div>
+        </div>
+        <div class="row-after">
+          <div class="pos">5</div>
+          <div class="av-after" style="background:#5a8ca0">J</div>
+          <div class="name-after">JULIEN F.</div>
+          <div class="pts-after">2502</div>
+        </div>
+        <div class="row-after me">
+          <div class="pos">12</div>
+          <div class="av-after" style="background:#8a6d4a">PS</div>
+          <div class="name-after">PHILIPPE S. (toi)</div>
+          <div class="pts-after">2215</div>
+        </div>
+        <div class="row-after">
+          <div class="pos">13</div>
+          <div class="av-after" style="background:#7a3aa0">H</div>
+          <div class="name-after">HUGO V.</div>
+          <div class="pts-after">1583</div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <ul>
+          <li><span class="ok">●</span> 1 seule pilule de filtre cliquable → bottom-sheet</li>
+          <li><span class="ok">●</span> 2 lignes d'UI avant la 1ʳᵉ row (−2)</li>
+          <li><span class="ok">●</span> Rows : position + avatar + nom + pts = 4 éléments seulement</li>
+          <li><span class="ok">●</span> Pas de badges (visibles au tap sur le profil)</li>
+          <li><span class="ok">●</span> 6-7 rows visibles d'office (+3)</li>
+          <li><span class="ok">●</span> Top 3 gardent une couleur de position (or/argent/bronze) au lieu d'une médaille emoji</li>
+          <li><span class="ok">●</span> Ma row mise en avant en rouge</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom sheet de filtre -->
+  <div class="sheet-wrap">
+    <h3>BOTTOM SHEET AU TAP SUR LA PILULE</h3>
+    <div class="sheet">
+      <div class="sheet-title">Filtrer le classement</div>
+      <div class="sheet-sub">Choisis le périmètre et la saison</div>
+
+      <div class="sheet-divider">Périmètre</div>
+      <div class="sheet-row sel"><div class="ico">🌍</div><div class="lbl">Général</div><div class="check">●</div></div>
+      <div class="sheet-row"><div class="ico">🏅</div><div class="lbl">Discipline</div></div>
+      <div class="sheet-row"><div class="ico">📅</div><div class="lbl">Catégorie d'âge</div></div>
+      <div class="sheet-row"><div class="ico">⚧</div><div class="lbl">Sexe</div></div>
+      <div class="sheet-row"><div class="ico">🏙️</div><div class="lbl">Ville</div></div>
+
+      <div class="sheet-divider">Saison</div>
+      <div class="sheet-row"><div class="ico">📆</div><div class="lbl">2024</div></div>
+      <div class="sheet-row"><div class="ico">📆</div><div class="lbl">2025</div></div>
+      <div class="sheet-row sel"><div class="ico">📆</div><div class="lbl">2026 (en cours)</div><div class="check">●</div></div>
+    </div>
+  </div>
+
+  <div style="max-width:980px; margin:30px auto 0; font-size:13px; color:rgba(240,237,232,0.7); line-height:1.6;">
+    <strong>Tradeoffs assumés :</strong>
+    <ul>
+      <li>L'user perd l'aperçu rapide des badges des autres dans le leaderboard. Mais : les badges sont déjà visibles au tap sur n'importe quel user (FriendProfileModal). Pas une grosse perte.</li>
+      <li>Choisir un filtre demande 1 tap de plus (ouvrir la sheet) au lieu de directement appuyer sur le filtre. Compensé par l'aération + la lisibilité.</li>
+      <li>"452 athlètes" remplace les fraction-positions "i/total" sur chaque row → moins de bruit.</li>
+    </ul>
+  </div>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Pacerank — Install prompt redesign</title>
+<style>
+  :root {
+    --bg: #0e0e0e; --fg: #F0EDE8; --muted: rgba(240,237,232,0.5);
+    --red: #E63946; --card-bd: #2E2E36;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px; background: #1a1d1a; color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+  h1 { font-size: 18px; margin: 0 0 6px; letter-spacing: 1px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; max-width: 980px; }
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; max-width: 980px; margin: 0 auto; }
+  .col h2 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; margin: 0 0 14px; }
+  .col .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: 3px; }
+  .before .tag { background: #555; color: #fff; }
+  .after .tag { background: #16a34a; color: #fff; }
+
+  .phone {
+    background: var(--bg); border-radius: 28px; padding: 16px 16px 8px;
+    border: 1px solid #222; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    width: 380px; margin: 0 auto; height: 720px;
+    overflow: hidden; position: relative;
+  }
+
+  /* Backdrop for "after" full modal */
+  .backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.92); backdrop-filter: blur(14px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px; z-index: 10;
+  }
+
+  /* The big install modal */
+  .install-modal {
+    background: linear-gradient(180deg, #1a1a1f 0%, #161616 100%);
+    border: 1px solid rgba(230,57,70,0.3);
+    border-radius: 24px;
+    width: 100%; max-width: 360px;
+    padding: 24px 22px;
+    box-shadow: 0 20px 60px rgba(230,57,70,0.15);
+  }
+  .install-logo {
+    font-family: 'Bebas Neue'; font-size: 36px; letter-spacing: 3px;
+    text-align: center; line-height: 1; margin-bottom: 8px;
+  }
+  .install-logo .red { color: var(--red); }
+  .install-sub {
+    font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 22px;
+    letter-spacing: 1px; text-transform: uppercase; font-weight: 600;
+  }
+  .install-title {
+    font-family: 'Bebas Neue'; font-size: 22px; letter-spacing: 1; color: var(--fg);
+    text-align: center; margin-bottom: 10px; line-height: 1.15;
+  }
+  .install-pitch {
+    font-size: 13px; color: rgba(240,237,232,0.7); text-align: center; line-height: 1.5;
+    margin-bottom: 22px;
+  }
+  .benefits {
+    background: rgba(255,255,255,0.03); border-radius: 14px; padding: 12px 14px;
+    margin-bottom: 22px;
+  }
+  .benefit {
+    display: flex; align-items: center; gap: 10px; padding: 6px 0;
+    font-size: 12px; color: rgba(240,237,232,0.8);
+  }
+  .benefit-icon {
+    width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .step {
+    display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; margin-bottom: 8px;
+  }
+  .step-num {
+    width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
+    background: rgba(230,57,70,0.15); border: 1px solid rgba(230,57,70,0.45);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue'; font-size: 14px; color: var(--red);
+  }
+  .step-title {
+    font-weight: 700; font-size: 13px; color: var(--fg);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .step-desc { font-size: 11px; color: rgba(240,237,232,0.55); margin-top: 2px; line-height: 1.4; }
+  .ios-share-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px; background: rgba(0,122,255,0.15);
+    border: 1px solid rgba(0,122,255,0.5); font-size: 13px; color: #4dabff;
+    flex-shrink: 0;
+  }
+  .btn-primary {
+    width: 100%; padding: 13px; border-radius: 14px; background: var(--red);
+    color: #fff; border: none; font-weight: 700; font-size: 14px; cursor: pointer;
+    margin-top: 14px;
+  }
+  .btn-link {
+    width: 100%; padding: 10px; background: transparent; border: none;
+    color: rgba(240,237,232,0.5); cursor: pointer; font-size: 12px; margin-top: 4px;
+  }
+
+  /* "Before" - the current thin banner */
+  .home-fade { opacity: 0.5; padding: 12px; }
+  .header-mini { display: flex; justify-content: space-between; padding: 8px 0 16px; }
+  .logo-mini { font-family: 'Bebas Neue'; font-size: 32px; letter-spacing: 3px; line-height: 1; }
+  .logo-mini .red { color: var(--red); }
+  .card-mini { background: rgba(196,164,132,0.07); border: 1px solid rgba(196,164,132,0.27); border-radius: 16px; padding: 12px; margin-bottom: 10px; display: flex; gap: 10px; align-items: center; }
+  .av-mini { width: 40px; height: 40px; border-radius: 50%; background: #c4a484; }
+
+  .current-banner {
+    position: absolute; left: 12px; right: 12px;
+    bottom: calc(80px + 20px); /* mimic safe area + nav */
+    background: rgba(20,20,20,0.97); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
+    padding: 11px 13px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    z-index: 5;
+  }
+  .current-banner .text { flex: 1; font-size: 13px; color: var(--fg); line-height: 1.4; }
+  .current-banner .x {
+    padding: 6px 9px; border-radius: 8px;
+    background: rgba(255,255,255,0.07); color: rgba(240,237,232,0.55);
+    border: none; font-size: 14px;
+  }
+
+  /* Notes */
+  .notes { margin-top: 14px; font-size: 12px; line-height: 1.5; padding: 12px 14px; background: rgba(255,255,255,0.04); border-radius: 10px; color: rgba(240,237,232,0.75); }
+  .notes .ok { color: #4ADE80; }
+  .notes .ko { color: #f87171; }
+  .notes ul { margin: 6px 0 0; padding-left: 18px; }
+  .notes li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+  <h1>PaceRank — Install prompt redesign</h1>
+  <p class="sub">Avant : petit bandeau discret en bas après 10s. Après : modal plein écran dès l'ouverture (1ʳᵉ visite seulement), titre fort + bénéfices + étapes claires.</p>
+
+  <div class="wrap">
+
+    <!-- AVANT -->
+    <div class="col before">
+      <h2>AVANT<span class="tag">actuel</span></h2>
+      <div class="phone">
+        <div class="home-fade">
+          <div class="header-mini">
+            <div class="logo-mini">PACE<span class="red">RANK</span></div>
+            <div style="font-family:'Bebas Neue'; font-size:12px; letter-spacing:1px; padding:6px 12px; background:#1A1A1F; border-radius:18px; border:1px solid #2E2E36; align-self:flex-start;">SAISON 2026 ▾</div>
+          </div>
+          <div class="card-mini">
+            <div class="av-mini"></div>
+            <div style="flex:1">
+              <div style="font-family:'Bebas Neue';font-size:16px;letter-spacing:1px;">PHILIPPE S.</div>
+            </div>
+            <div style="font-family:'Bebas Neue';font-size:24px;color:#c4a484">2215</div>
+          </div>
+          <div style="font-size:11px; color:rgba(240,237,232,0.4); margin: 12px 0 8px; letter-spacing:1.5px; text-transform:uppercase;">Classement</div>
+          <div style="height: 60px; background:rgba(196,164,132,0.05); border-radius:12px; margin-bottom:6px;"></div>
+          <div style="height: 60px; background:rgba(196,164,132,0.05); border-radius:12px; margin-bottom:6px;"></div>
+        </div>
+
+        <!-- The thin banner at bottom -->
+        <div class="current-banner">
+          <div class="text">📱 Installe PaceRank sur ton écran d'accueil pour un accès rapide</div>
+          <button class="x">✕</button>
+        </div>
+      </div>
+
+      <div class="notes">
+        <ul>
+          <li><span class="ko">●</span> Apparaît après <strong>10s</strong> (l'user a déjà commencé à scroller)</li>
+          <li><span class="ko">●</span> Discret, facile à manquer (en bas, fond foncé)</li>
+          <li><span class="ko">●</span> Une seule ligne, ne dit pas <strong>pourquoi</strong> installer</li>
+          <li><span class="ko">●</span> Faut taper dessus pour voir les étapes (friction)</li>
+          <li><span class="ko">●</span> Conversion install probablement faible</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- APRÈS -->
+    <div class="col after">
+      <h2>APRÈS<span class="tag">proposé</span></h2>
+      <div class="phone">
+        <div class="home-fade" style="opacity:0.2">
+          <div class="header-mini">
+            <div class="logo-mini">PACE<span class="red">RANK</span></div>
+          </div>
+          <div class="card-mini">
+            <div class="av-mini"></div>
+            <div style="flex:1; font-family:'Bebas Neue'; font-size:16px;">PHILIPPE S.</div>
+          </div>
+        </div>
+
+        <div class="backdrop">
+          <div class="install-modal">
+            <div class="install-logo">PACE<span class="red">RANK</span></div>
+            <div class="install-sub">Run · Triathlon · Trail · Hyrox</div>
+
+            <div class="install-title">Installe l'app pour la meilleure expérience</div>
+            <div class="install-pitch">PaceRank fonctionne aussi sans, mais l'install te débloque :</div>
+
+            <div class="benefits">
+              <div class="benefit"><div class="benefit-icon">🔔</div>Notifications push (records d'amis, dépassements…)</div>
+              <div class="benefit"><div class="benefit-icon">⚡</div>Accès direct depuis l'écran d'accueil</div>
+              <div class="benefit"><div class="benefit-icon">📱</div>Plein écran, sans barres Safari</div>
+            </div>
+
+            <div class="step">
+              <div class="step-num">1</div>
+              <div style="flex:1;min-width:0">
+                <div class="step-title">Tape sur <span class="ios-share-icon">⤴</span> en bas de Safari</div>
+                <div class="step-desc">L'icône Partager (carré avec flèche vers le haut)</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div style="flex:1;min-width:0">
+                <div class="step-title">Choisis « Sur l'écran d'accueil »</div>
+                <div class="step-desc">Fais défiler le menu Partager si besoin</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div style="flex:1;min-width:0">
+                <div class="step-title">Tape « Ajouter » en haut à droite</div>
+                <div class="step-desc">L'icône PaceRank apparaît sur ton écran d'accueil</div>
+              </div>
+            </div>
+
+            <button class="btn-primary">J'ai installé</button>
+            <button class="btn-link">Plus tard</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <ul>
+          <li><span class="ok">●</span> Apparaît <strong>dès l'ouverture</strong> (≤500 ms)</li>
+          <li><span class="ok">●</span> Plein écran, impossible à manquer</li>
+          <li><span class="ok">●</span> Explique <strong>pourquoi</strong> (3 bénéfices clairs)</li>
+          <li><span class="ok">●</span> Étapes visibles d'office, plus à fouiller</li>
+          <li><span class="ok">●</span> 2 CTA : "J'ai installé" (ferme + dismiss 30 jours) / "Plus tard" (dismiss 24h)</li>
+          <li><span class="ok">●</span> Auto-skippé si déjà en mode standalone (rien à voir)</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="max-width:980px; margin: 40px auto 0; font-size:13px; color:rgba(240,237,232,0.6); line-height:1.6;">
+    <strong>Tradeoffs :</strong>
+    <ul>
+      <li><strong>Plus intrusif :</strong> bloque l'écran à la 1ʳᵉ ouverture. Compensé par "Plus tard" qui dismiss 24h (vs 7j actuels — on revient plus vite si l'user a oublié).</li>
+      <li><strong>Sur Android :</strong> on continue d'utiliser le natif <code>beforeinstallprompt</code> (la modal s'ouvre seulement sur iOS où il n'y a pas d'API native).</li>
+      <li><strong>Détection install :</strong> si l'user clique "J'ai installé" mais ne l'a pas vraiment fait, on dismiss 30j. S'il rouvre depuis Safari il reverra dans 30 jours. Suffisant.</li>
+    </ul>
+  </div>
+</body>
+</html>

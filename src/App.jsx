@@ -7990,6 +7990,10 @@ function ProfileModal({profile,results,onRefresh,onClose}){
       }
       const{error}=await supabase.from("trainings").delete().eq("user_id",profile.id).eq("source","strava");
       if(error)console.error("[Strava] purge trainings failed",error);
+      // Suppression tokens en DB (= webhook ne pourra plus identifier
+      // l'user → arrête la sync auto)
+      const{error:tokErr}=await supabase.from("strava_tokens").delete().eq("user_id",profile.id);
+      if(tokErr)console.error("[Strava] DB tokens delete failed",tokErr);
       try{localStorage.removeItem(`strava_${profile.id}`);}catch{}
       setStravaTokens(null);
       setStravaMsg("");
@@ -8009,6 +8013,16 @@ function ProfileModal({profile,results,onRefresh,onClose}){
     if(!data?.access_token)throw new Error("Refresh échoué");
     const merged={...t,access_token:data.access_token,refresh_token:data.refresh_token||t.refresh_token,expires_at:data.expires_at};
     try{localStorage.setItem(`strava_${profile.id}`,JSON.stringify(merged));}catch{}
+    // Update aussi en DB pour que le webhook ait toujours un token frais
+    // (le webhook a sa propre logique de refresh, mais on synchronise par
+    // sécurité quand le user fait un import manuel).
+    try{
+      await supabase.from("strava_tokens").update({
+        access_token:data.access_token,
+        refresh_token:data.refresh_token||t.refresh_token,
+        expires_at:new Date(data.expires_at*1000).toISOString(),
+      }).eq("user_id",profile.id);
+    }catch(e){console.error("[Strava] DB refresh sync failed",e);}
     setStravaTokens(merged);return merged;
   };
   const importStrava=async()=>{
@@ -9477,13 +9491,31 @@ export default function App(){
         if(!r.ok){throw new Error(data?.error||data?.message||`HTTP ${r.status}`);}
         return data;
       })
-      .then(data=>{
+      .then(async data=>{
         if(data?.access_token){
           const payload={access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at,athlete:data.athlete};
+          // 1. localStorage : compat avec l'ancien flow d'import manuel
           try{
             localStorage.setItem(`strava_${profile.id}`,JSON.stringify(payload));
             console.log("[Strava] tokens stockés dans localStorage sous strava_"+profile.id);
           }catch(e){console.error("[Strava] localStorage write failed",e);}
+          // 2. DB Supabase : nécessaire pour que le webhook (côté serveur)
+          //    puisse retrouver l'user_id à partir de l'athlete_id Strava
+          //    reçu en notification. Upsert pour gérer reconnexion.
+          try{
+            const athleteId=data.athlete?.id;
+            if(athleteId){
+              const{error:tokErr}=await supabase.from("strava_tokens").upsert({
+                user_id:profile.id,
+                athlete_id:athleteId,
+                access_token:data.access_token,
+                refresh_token:data.refresh_token,
+                expires_at:new Date(data.expires_at*1000).toISOString(),
+              },{onConflict:"user_id"});
+              if(tokErr) console.error("[Strava] DB upsert failed",tokErr);
+              else console.log("[Strava] tokens persistés en DB (athlete_id="+athleteId+")");
+            }
+          }catch(e){console.error("[Strava] DB persist failed",e);}
           const url=new URL(window.location.href);
           url.searchParams.delete("code");url.searchParams.delete("state");url.searchParams.delete("scope");
           window.history.replaceState({},"",url.pathname+(url.search?url.search:"")+url.hash);

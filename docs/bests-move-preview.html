@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Pacerank — Move bests grid to profile modal</title>
+<style>
+  :root {
+    --bg: #0e0e0e; --fg: #F0EDE8; --muted: rgba(240,237,232,0.5);
+    --red: #E63946; --card-bd: #2E2E36;
+    --gold: #c4a484;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px; background: #1a1d1a; color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+  h1 { font-size: 18px; margin: 0 0 6px; letter-spacing: 1px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; max-width: 980px; }
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; max-width: 980px; margin: 0 auto; }
+  .col h2 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; margin: 0 0 14px; }
+  .col .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: 3px; }
+  .before .tag { background: #555; color: #fff; }
+  .after .tag { background: #16a34a; color: #fff; }
+
+  .phone {
+    background: var(--bg); border-radius: 28px; padding: 16px 16px 8px;
+    border: 1px solid #222; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    width: 380px; margin: 0 auto;
+    position: relative;
+  }
+
+  /* Header */
+  .hdr { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0 14px; }
+  .logo { font-family: 'Bebas Neue', Impact, sans-serif; font-size: 38px; letter-spacing: 3px; line-height: 1; }
+  .logo .red { color: var(--red); }
+  .tagline { font-size: 11px; color: var(--fg); letter-spacing: 3px; font-weight: 600; margin-top: 4px; }
+  .hdr-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .icon-row { display: flex; gap: 8px; }
+  .icon-btn { background: rgba(255,255,255,0.07); border: none; border-radius: 12px; padding: 7px 10px; color: rgba(240,237,232,0.7); font-size: 14px; }
+  .season-btn { background: #1A1A1F; border: 1px solid var(--card-bd); border-radius: 20px; padding: 8px 14px; color: var(--fg); font-family: 'Bebas Neue'; font-size: 13px; letter-spacing: 1.5px; }
+
+  /* Ligue card (existing) */
+  .ligue { background: linear-gradient(135deg, rgba(39,174,96,0.14), rgba(39,174,96,0.04)); border: 1px solid rgba(39,174,96,0.4); border-radius: 14px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+  .ligue-badge { width: 38px; height: 38px; border-radius: 50%; background: rgba(39,174,96,0.15); border: 2px solid rgba(39,174,96,0.4); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .ligue-mid { flex: 1; min-width: 0; }
+  .ligue-title { font-family: 'Bebas Neue'; font-size: 14px; letter-spacing: 1px; color: #27AE60; }
+  .ligue-sub { font-size: 11px; color: rgba(240,237,232,0.6); margin-top: 2px; }
+  .ligue-arrow { color: rgba(240,237,232,0.4); font-size: 22px; }
+
+  /* Profile card */
+  .card { background: rgba(196,164,132,0.07); border: 1px solid rgba(196,164,132,0.27); border-radius: 18px; padding: 16px; margin-bottom: 16px; cursor: pointer; }
+  .card-row { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#c4a484,#8a6d4a); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; }
+  .card-mid { flex: 1; min-width: 0; }
+  .name { font-family: 'Bebas Neue'; font-size: 20px; letter-spacing: 1px; }
+  .badges { display: flex; gap: 5px; margin-top: 4px; }
+  .badges span { font-size: 15px; }
+  .badges .plus { font-size: 10px; color: #555; align-self: center; }
+  .pts-right { text-align: right; flex-shrink: 0; }
+  .pts-big { font-family: 'Bebas Neue'; font-size: 34px; letter-spacing: 1px; color: var(--gold); line-height: 1; }
+  .pts-lbl { font-size: 9px; color: rgba(240,237,232,0.5); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+
+  /* Bests grid (the thing we're moving) */
+  .bests { border-top: 1px solid rgba(255,255,255,0.07); padding-top: 12px; margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .best-item .label { font-size: 10px; color: rgba(240,237,232,0.35); margin-bottom: 2px; }
+  .best-item .time { font-family: 'Bebas Neue'; font-size: 18px; letter-spacing: 1px; color: var(--fg); }
+  .best-item .pts { font-size: 11px; font-weight: 700; }
+
+  /* Filters/leaderboard */
+  .pills { display: flex; gap: 6px; margin-bottom: 12px; }
+  .pill { flex: 1; padding: 9px 0; border-radius: 12px; border: none; background: rgba(255,255,255,0.04); color: rgba(240,237,232,0.4); font-weight: 700; font-size: 12px; }
+  .pill.sel { background: rgba(255,255,255,0.12); color: var(--fg); }
+  .sport-row { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .sport-pill { background: #1A1A1F; border: 1px solid var(--card-bd); border-radius: 18px; padding: 8px 14px; color: var(--fg); font-family: 'Bebas Neue'; font-size: 12px; letter-spacing: 1px; display: inline-flex; align-items: center; gap: 6px; }
+  .sport-pill .chev { color: rgba(240,237,232,0.5); font-size: 9px; }
+  .sport-spacer { flex: 1; }
+  .counter { font-size: 11px; color: rgba(240,237,232,0.5); font-weight: 600; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 14px; background: rgba(196,164,132,0.05); border: 1px solid rgba(196,164,132,0.2); margin-bottom: 8px; }
+  .medal { font-family: 'Bebas Neue'; font-size: 18px; width: 22px; text-align: center; }
+  .rav { width: 36px; height: 36px; border-radius: 50%; background: #444; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #fff; }
+  .rmid { flex: 1; min-width: 0; }
+  .rname { font-family: 'Bebas Neue'; font-size: 15px; }
+  .rbadges { display: flex; gap: 3px; margin-top: 2px; }
+  .rbadges span { font-size: 11px; }
+  .rright { text-align: right; }
+  .rrank { font-size: 14px; font-weight: 700; }
+  .rpts { font-family: 'Bebas Neue'; font-size: 22px; color: var(--gold); }
+
+  /* Modal (after) */
+  .modal-overlay { background: rgba(0,0,0,0.8); position: absolute; inset: 0; border-radius: 28px; display: flex; align-items: flex-end; justify-content: center; }
+  .modal { background: #161616; border: 1px solid rgba(255,255,255,0.09); border-radius: 22px 22px 0 0; width: 100%; max-height: 92%; padding: 20px; }
+  .modal-handle { width: 48px; height: 5px; background: rgba(255,255,255,0.3); border-radius: 3px; margin: 0 auto 14px; }
+  .modal-title { font-family: 'Bebas Neue'; font-size: 24px; letter-spacing: 2px; margin-bottom: 16px; }
+  .modal-section { font-size: 10px; color: rgba(240,237,232,0.4); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; margin: 16px 0 10px; }
+
+  /* Notes */
+  .notes { margin-top: 14px; font-size: 12px; line-height: 1.5; padding: 12px 14px; background: rgba(255,255,255,0.04); border-radius: 10px; color: rgba(240,237,232,0.75); }
+  .notes .ok { color: #4ADE80; }
+  .notes .ko { color: #f87171; }
+  .notes ul { margin: 6px 0 0; padding-left: 18px; }
+  .notes li { margin-bottom: 3px; }
+
+  /* Color helpers for bests pts */
+  .pts-running { color: #4ADE80; }
+  .pts-tri { color: #4A90D9; }
+  .pts-trail { color: #FF7A1A; }
+  .pts-hyrox { color: #FF073A; }
+</style>
+</head>
+<body>
+  <h1>PaceRank — Déplacer la grille des "bests par discipline" dans le modal profil</h1>
+  <p class="sub">La card profil sur Home garde uniquement l'essentiel (avatar / nom / badges / pts saison). Les records par discipline (run, tri, trail, hyrox) se voient en tapant sur la card → modal profil.</p>
+
+  <div class="wrap">
+
+    <!-- ─── AVANT ─── -->
+    <div class="col before">
+      <h2>AVANT<span class="tag">actuel</span></h2>
+      <div class="phone">
+        <div class="hdr">
+          <div>
+            <div class="logo">PACE<span class="red">RANK</span></div>
+            <div class="tagline">RUN · TRIATHLON · TRAIL · HYROX</div>
+          </div>
+          <div class="hdr-right">
+            <div class="icon-row"><button class="icon-btn">🔔</button><button class="icon-btn">❓</button></div>
+            <button class="season-btn">SAISON 2026 ▾</button>
+          </div>
+        </div>
+
+        <div class="ligue">
+          <div class="ligue-badge">🌱</div>
+          <div class="ligue-mid">
+            <div class="ligue-title">LIGUE ROOKIE · 1ʳᵉ / 13</div>
+            <div class="ligue-sub">Tu mènes la ligue 🏆</div>
+          </div>
+          <div class="ligue-arrow">›</div>
+        </div>
+
+        <div class="card">
+          <div class="card-row">
+            <div class="avatar">PS</div>
+            <div class="card-mid">
+              <div class="name">PHILIPPE SALLENAVE</div>
+              <div class="badges"><span>🏁</span><span>🥉</span><span>🥈</span><span>⚡</span><span class="plus">+8</span></div>
+            </div>
+            <div class="pts-right"><div class="pts-big">2215</div><div class="pts-lbl">PTS SAISON</div></div>
+          </div>
+          <!-- The bests grid (currently here) -->
+          <div class="bests">
+            <div class="best-item">
+              <div class="label">🏃 Marathon</div>
+              <div class="time">3h12'45"</div>
+              <div class="pts pts-running">412 pts</div>
+            </div>
+            <div class="best-item">
+              <div class="label">🚴 Tri Olympique</div>
+              <div class="time">2h32'10"</div>
+              <div class="pts pts-tri">385 pts</div>
+            </div>
+            <div class="best-item">
+              <div class="label">⛰ Trail 50km</div>
+              <div class="time">5h48'22"</div>
+              <div class="pts pts-trail">310 pts</div>
+            </div>
+            <div class="best-item">
+              <div class="label">💪 Hyrox Open</div>
+              <div class="time">1h28'15"</div>
+              <div class="pts pts-hyrox">280 pts</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pills">
+          <button class="pill sel">👥 Amis</button>
+          <button class="pill">🏠 Crew</button>
+        </div>
+        <div class="sport-row">
+          <button class="sport-pill">TOUS LES SPORTS <span class="chev">▾</span></button>
+          <div class="sport-spacer"></div>
+          <div class="counter">13 athlètes</div>
+        </div>
+
+        <div class="row"><div class="medal">🥇</div><div class="rav">P</div><div class="rmid"><div class="rname">PHYSIOTIM</div><div class="rbadges"><span>⚡</span><span>🏃</span></div></div><div class="rright"><div class="rrank">1/13</div><div class="rpts">2779</div></div></div>
+        <div class="row"><div class="medal">🥈</div><div class="rav" style="background:#8a6d4a">PS</div><div class="rmid"><div class="rname">PHILIPPE S.</div><div class="rbadges"><span>🏁</span><span>⚡</span></div></div><div class="rright"><div class="rrank">2/13</div><div class="rpts">2215</div></div></div>
+      </div>
+
+      <div class="notes">
+        <strong>Hauteur card profil :</strong> ~205px<br>
+        <strong>Rows leaderboard visibles :</strong> 2
+        <ul>
+          <li><span class="ko">●</span> Grille bests visible d'office mais consultée rarement</li>
+          <li><span class="ko">●</span> Mange ~100-120px de hauteur</li>
+          <li><span class="ko">●</span> Compétition visuelle avec les pts saison à droite</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ─── APRÈS ─── -->
+    <div class="col after">
+      <h2>APRÈS<span class="tag">proposé</span></h2>
+      <div class="phone">
+        <div class="hdr">
+          <div>
+            <div class="logo">PACE<span class="red">RANK</span></div>
+            <div class="tagline">RUN · TRIATHLON · TRAIL · HYROX</div>
+          </div>
+          <div class="hdr-right">
+            <div class="icon-row"><button class="icon-btn">🔔</button><button class="icon-btn">❓</button></div>
+            <button class="season-btn">SAISON 2026 ▾</button>
+          </div>
+        </div>
+
+        <div class="ligue">
+          <div class="ligue-badge">🌱</div>
+          <div class="ligue-mid">
+            <div class="ligue-title">LIGUE ROOKIE · 1ʳᵉ / 13</div>
+            <div class="ligue-sub">Tu mènes la ligue 🏆</div>
+          </div>
+          <div class="ligue-arrow">›</div>
+        </div>
+
+        <!-- Card SANS la grille bests -->
+        <div class="card">
+          <div class="card-row">
+            <div class="avatar">PS</div>
+            <div class="card-mid">
+              <div class="name">PHILIPPE SALLENAVE</div>
+              <div class="badges"><span>🏁</span><span>🥉</span><span>🥈</span><span>⚡</span><span class="plus">+8</span></div>
+            </div>
+            <div class="pts-right"><div class="pts-big">2215</div><div class="pts-lbl">PTS SAISON</div></div>
+          </div>
+        </div>
+
+        <div class="pills">
+          <button class="pill sel">👥 Amis</button>
+          <button class="pill">🏠 Crew</button>
+        </div>
+        <div class="sport-row">
+          <button class="sport-pill">TOUS LES SPORTS <span class="chev">▾</span></button>
+          <div class="sport-spacer"></div>
+          <div class="counter">13 athlètes</div>
+        </div>
+
+        <!-- On voit maintenant 3-4 rows au lieu de 2 -->
+        <div class="row"><div class="medal">🥇</div><div class="rav">P</div><div class="rmid"><div class="rname">PHYSIOTIM</div><div class="rbadges"><span>⚡</span><span>🏃</span></div></div><div class="rright"><div class="rrank">1/13</div><div class="rpts">2779</div></div></div>
+        <div class="row"><div class="medal">🥈</div><div class="rav" style="background:#8a6d4a">PS</div><div class="rmid"><div class="rname">PHILIPPE S.</div><div class="rbadges"><span>🏁</span><span>⚡</span></div></div><div class="rright"><div class="rrank">2/13</div><div class="rpts">2215</div></div></div>
+        <div class="row"><div class="medal">🥉</div><div class="rav" style="background:#3aa0e0">H</div><div class="rmid"><div class="rname">HUGO V.</div><div class="rbadges"><span>🏃</span><span>🏆</span></div></div><div class="rright"><div class="rrank">3/13</div><div class="rpts">1583</div></div></div>
+        <div class="row"><div class="medal"></div><div class="rav" style="background:#7a3aa0">M</div><div class="rmid"><div class="rname">MARIE D.</div><div class="rbadges"><span>🏃</span></div></div><div class="rright"><div class="rrank">4/13</div><div class="rpts">1402</div></div></div>
+      </div>
+
+      <div class="notes">
+        <strong>Hauteur card profil :</strong> ~90px (<span class="ok">−115px</span>)<br>
+        <strong>Rows leaderboard visibles :</strong> 4 (<span class="ok">+2</span>)
+        <ul>
+          <li><span class="ok">●</span> Records consultables au tap sur la card (1 tap au lieu de 0)</li>
+          <li><span class="ok">●</span> Card profil épurée, pts saison mis en valeur</li>
+          <li><span class="ok">●</span> Gain ~100px → 4-5 lignes de classement visibles d'office</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal preview -->
+  <div style="max-width: 480px; margin: 40px auto 0;">
+    <h2 style="font-family:'Bebas Neue'; font-size:22px; letter-spacing:2px; margin:0 0 14px; text-align:center;">MODAL PROFIL — TAP SUR LA CARD</h2>
+    <div class="phone" style="height: 600px; overflow: hidden;">
+      <div class="hdr">
+        <div><div class="logo">PACE<span class="red">RANK</span></div></div>
+        <div class="hdr-right">
+          <div class="icon-row"><button class="icon-btn">🔔</button><button class="icon-btn">❓</button></div>
+        </div>
+      </div>
+      <div style="opacity:0.3">
+        <div class="card">
+          <div class="card-row">
+            <div class="avatar">PS</div>
+            <div class="card-mid"><div class="name">PHILIPPE SALLENAVE</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal overlay -->
+      <div class="modal-overlay">
+        <div class="modal">
+          <div class="modal-handle"></div>
+          <div class="modal-title">Mon Profil</div>
+
+          <!-- Avatar + pts + breakdown arrow (existing) -->
+          <div style="display:flex; gap:14px; align-items:center; margin-bottom:16px;">
+            <div style="width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,#c4a484,#8a6d4a); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:22px;">PS</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-family:'Bebas Neue'; font-size:22px; letter-spacing:1px;">Philippe Sallenave</div>
+              <div style="font-size:12px; color: rgba(240,237,232,0.4); margin-top:2px;">Paris · 1990 · M · 🇫🇷</div>
+              <div style="margin-top:4px;"><span style="font-family:'Bebas Neue'; font-size:17px; color:var(--gold); letter-spacing:1px;">Confirmé</span></div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:'Bebas Neue'; font-size:34px; color:var(--gold); display:flex; align-items:center; gap:6px;">2215 <span style="font-size:14px; color: rgba(240,237,232,0.5);">▼</span></div>
+              <div style="font-size:9px; color:rgba(240,237,232,0.5); letter-spacing:1.5px; text-transform:uppercase;">pts saison</div>
+            </div>
+          </div>
+
+          <!-- Bests grid (déplacé ICI) -->
+          <div class="modal-section">Records par discipline · 2026</div>
+          <div class="bests" style="border:none; padding-top:0; margin-top:0; background: rgba(255,255,255,0.03); border-radius: 12px; padding: 14px;">
+            <div class="best-item">
+              <div class="label">🏃 Marathon</div>
+              <div class="time">3h12'45"</div>
+              <div class="pts pts-running">412 pts</div>
+            </div>
+            <div class="best-item">
+              <div class="label">🚴 Tri Olympique</div>
+              <div class="time">2h32'10"</div>
+              <div class="pts pts-tri">385 pts</div>
+            </div>
+            <div class="best-item">
+              <div class="label">⛰ Trail 50km</div>
+              <div class="time">5h48'22"</div>
+              <div class="pts pts-trail">310 pts</div>
+            </div>
+            <div class="best-item">
+              <div class="label">💪 Hyrox Open</div>
+              <div class="time">1h28'15"</div>
+              <div class="pts pts-hyrox">280 pts</div>
+            </div>
+          </div>
+
+          <!-- Stats cards (existing) -->
+          <div style="display:flex; gap:10px; margin: 18px 0 0;">
+            <div style="flex:1; background:rgba(255,255,255,0.04); border-radius:12px; padding:12px; text-align:center;">
+              <div style="font-family:'Bebas Neue'; font-size:26px;">12</div>
+              <div style="font-size:10px; color:rgba(240,237,232,0.35); text-transform:uppercase; letter-spacing:1px;">Amis</div>
+            </div>
+            <div style="flex:1; background:rgba(255,255,255,0.04); border-radius:12px; padding:12px; text-align:center;">
+              <div style="font-family:'Bebas Neue'; font-size:26px;">8</div>
+              <div style="font-size:10px; color:rgba(240,237,232,0.35); text-transform:uppercase; letter-spacing:1px;">Courses</div>
+            </div>
+            <div style="flex:1; background:rgba(255,255,255,0.04); border-radius:12px; padding:12px; text-align:center;">
+              <div style="font-family:'Bebas Neue'; font-size:26px;">11</div>
+              <div style="font-size:10px; color:rgba(240,237,232,0.35); text-transform:uppercase; letter-spacing:1px;">Badges</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes" style="margin-top:14px;">
+      Dans le modal, la grille des bests s'intègre naturellement entre le bloc "Avatar + pts saison" (avec le breakdown ▼ déjà existant) et les cards stats (Amis · Courses · Badges). Elle est plus à sa place ici car le modal est aussi le lieu où on voit le détail des courses, les filtres par discipline, etc.
+    </div>
+  </div>
+</body>
+</html>

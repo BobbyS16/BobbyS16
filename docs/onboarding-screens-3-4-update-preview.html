@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Pacerank — Onboarding écrans 3 & 4 mis à jour</title>
+<style>
+  :root {
+    --bg: #0a0a0a; --fg: #F0EDE8; --dim: rgba(240,237,232,0.5);
+    --red: #ED2A37; --gold: #FFB800; --border: rgba(240,237,232,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 16px; background: #1a1d1a;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--fg); min-height: 100vh;
+  }
+  h1 { font-size: 18px; margin: 0 0 6px; letter-spacing: 1px; text-align: center; }
+  .sub { color: var(--dim); font-size: 13px; margin: 0 auto 28px; text-align: center; max-width: 900px; }
+
+  .pair-row { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; max-width: 880px; margin: 0 auto 50px; }
+  .pair-row h2 { font-family: 'Bebas Neue'; font-size: 18px; letter-spacing: 1.5px; text-align: center; margin: 0 0 6px; }
+  .pair-row .tag { display:inline-block; font-size:10px; padding:2px 8px; border-radius:10px; margin-left:8px; vertical-align:2px; }
+  .before .tag { background:#555; color:#fff; }
+  .after .tag { background:#16a34a; color:#fff; }
+
+  .phone {
+    width: 340px; height: 660px;
+    background: var(--bg); border-radius: 32px; border: 2px solid #222;
+    box-shadow: 0 16px 50px rgba(0,0,0,0.5);
+    overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+    padding: 22px 18px;
+    margin: 0 auto;
+  }
+  .skip {
+    position: absolute; top: 14px; right: 14px; font-size: 11px;
+    color: var(--dim); padding: 6px 12px;
+  }
+  .dots { display: flex; gap: 5px; justify-content: center; margin: 18px 0 14px; }
+  .dot { width: 22px; height: 3px; border-radius: 2px; background: rgba(240,237,232,0.15); }
+  .dot.on { background: var(--red); }
+  .title { font-family: 'Bebas Neue'; font-size: 32px; letter-spacing: 1.2px; line-height: 1.1; margin-bottom: 12px; }
+  .title .red { color: var(--red); }
+  .desc { font-size: 13px; color: var(--dim); line-height: 1.55; margin-bottom: 22px; }
+  .strong { color: var(--fg); font-weight: 700; }
+  .strong-red { color: var(--red); font-weight: 700; }
+  .btn-primary { width: 100%; padding: 13px 0; background: var(--red); color: #fff; border: none; border-radius: 12px; font-weight: 700; font-size: 14px; margin-top: auto; }
+  .btn-secondary { width: 100%; padding: 13px 0; background: transparent; border: 1px solid var(--border); color: var(--dim); border-radius: 12px; font-weight: 600; font-size: 13px; margin-top: 8px; }
+
+  /* SCREEN 3 — avant (avec niveaux par course) */
+  .section-lbl { font-size: 10px; color: var(--dim); font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 8px; }
+  .levels-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 18px; }
+  .level { padding: 8px 4px; border-radius: 8px; text-align: center; font-size: 10px; font-weight: 700; }
+  .level.bronze { background: rgba(205,127,50,0.18); border: 1px solid rgba(205,127,50,0.55); color: #CD7F32; }
+  .level.argent { background: rgba(192,192,192,0.18); border: 1px solid rgba(192,192,192,0.55); color: #C0C0C0; }
+  .level.or { background: rgba(255,215,0,0.18); border: 1px solid rgba(255,215,0,0.55); color: #FFD700; }
+  .level.platine { background: rgba(229,228,226,0.18); border: 1px solid rgba(229,228,226,0.55); color: #E5E4E2; }
+  .level.diamant { background: rgba(185,242,255,0.18); border: 1px solid rgba(185,242,255,0.55); color: #B9F2FF; }
+  .level.master { background: rgba(237,42,55,0.18); border: 1px solid rgba(237,42,55,0.55); color: var(--red); }
+
+  /* Ligues — version avant (compact) */
+  .leagues-small { display: flex; flex-direction: column; gap: 5px; }
+  .league-row-small { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; }
+  .league-row-small .ico { font-size: 16px; }
+  .league-row-small .lbl { font-size: 11px; font-weight: 700; }
+
+  /* Ligues — version après (plus respirée) */
+  .leagues-big { display: flex; flex-direction: column; gap: 8px; }
+  .league-row-big { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 12px; }
+  .league-row-big .ico { font-size: 22px; }
+  .league-row-big .lbl { font-family: 'Bebas Neue'; font-size: 18px; letter-spacing: 1.2px; }
+
+  .lr.rookie { background: rgba(39,174,96,0.12); border: 1px solid rgba(39,174,96,0.45); }
+  .lr.rookie .lbl { color: #27AE60; }
+  .lr.pro { background: rgba(74,144,217,0.12); border: 1px solid rgba(74,144,217,0.45); }
+  .lr.pro .lbl { color: #4A90D9; }
+  .lr.elite { background: rgba(155,89,182,0.12); border: 1px solid rgba(155,89,182,0.45); }
+  .lr.elite .lbl { color: #9B59B6; }
+  .lr.legend { background: rgba(255,107,53,0.12); border: 1px solid rgba(255,107,53,0.45); }
+  .lr.legend .lbl { color: #FF6B35; }
+  .lr.mythic { background: rgba(255,7,58,0.12); border: 1px solid rgba(255,7,58,0.45); }
+  .lr.mythic .lbl { color: #FF073A; }
+
+  /* SCREEN 4 — peers */
+  .peers { position: relative; width: 200px; height: 200px; margin: 20px auto; }
+  .peer { position: absolute; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue'; font-size: 14px; letter-spacing: 1px; }
+  .peer.t { left: 50%; top: 0; transform: translate(-50%,-10%); background: rgba(205,127,50,0.10); border: 2px solid #CD7F32; color: #CD7F32; }
+  .peer.r { right: 0; top: 50%; transform: translate(15%,-50%); background: rgba(192,192,192,0.10); border: 2px solid #C0C0C0; color: #C0C0C0; }
+  .peer.l { left: 0; top: 50%; transform: translate(-15%,-50%); background: rgba(255,215,0,0.10); border: 2px solid #FFD700; color: #FFD700; }
+  .peer.b { left: 50%; bottom: 0; transform: translate(-50%,15%); background: rgba(93,173,226,0.10); border: 2px solid #5DADE2; color: #5DADE2; }
+  .me { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--red), #B0212C); border: 2px solid var(--red); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue'; font-size: 30px; color: #fff; box-shadow: 0 0 24px rgba(237,42,55,0.4); }
+
+  .notes { max-width: 880px; margin: 14px auto 0; font-size: 12px; color: rgba(240,237,232,0.7); line-height: 1.55; padding: 12px 14px; background: rgba(255,255,255,0.04); border-radius: 10px; }
+  .ok { color: #4ADE80; }
+  .ko { color: #f87171; }
+</style>
+</head>
+<body>
+  <h1>PaceRank — Onboarding écrans 3 & 4 (avant / après)</h1>
+  <p class="sub">Écran 3 : on simplifie en virant la section "Niveaux par course" pour ne garder que les ligues hebdo. Écran 4 : "comparer" → "challenger".</p>
+
+  <!-- ─── ÉCRAN 3 ─── -->
+  <div class="pair-row">
+    <div class="before">
+      <h2>ÉCRAN 3<span class="tag">actuel</span></h2>
+      <div class="phone">
+        <div class="skip">Passer</div>
+        <div class="dots"><div class="dot"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="title">Niveaux <span class="red">& ligues</span>.</div>
+        <div class="desc">Chaque course te donne un <span class="strong">niveau</span>. Tes points cumulés te placent dans une <span class="strong">ligue</span> hebdo contre 20 athlètes.</div>
+
+        <div class="section-lbl">Niveaux par course</div>
+        <div class="levels-grid">
+          <div class="level bronze">Bronze</div>
+          <div class="level argent">Argent</div>
+          <div class="level or">Or</div>
+          <div class="level platine">Platine</div>
+          <div class="level diamant">Diamant</div>
+          <div class="level master">Master</div>
+        </div>
+
+        <div class="section-lbl">Ligues hebdo</div>
+        <div class="leagues-small">
+          <div class="league-row-small lr rookie"><div class="ico">🌱</div><div class="lbl">Rookie</div></div>
+          <div class="league-row-small lr pro"><div class="ico">🎯</div><div class="lbl">Pro</div></div>
+          <div class="league-row-small lr elite"><div class="ico">🏆</div><div class="lbl">Elite</div></div>
+          <div class="league-row-small lr legend"><div class="ico">⚡</div><div class="lbl">Legend</div></div>
+          <div class="league-row-small lr mythic"><div class="ico">💎</div><div class="lbl">Mythic</div></div>
+        </div>
+        <button class="btn-primary" style="margin-top: 14px;">Suivant</button>
+      </div>
+      <div class="notes">
+        <span class="ko">●</span> 2 sections (6 niveaux + 5 ligues) = 11 items à parcourir<br>
+        <span class="ko">●</span> "Niveaux par course" se découvre naturellement à l'usage, pas critique au démarrage<br>
+        <span class="ko">●</span> Description évoque les 2 concepts en parallèle : double charge mentale
+      </div>
+    </div>
+
+    <div class="after">
+      <h2>ÉCRAN 3<span class="tag">proposé</span></h2>
+      <div class="phone">
+        <div class="skip">Passer</div>
+        <div class="dots"><div class="dot"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="title">Monte les <span class="red">ligues</span>.</div>
+        <div class="desc">Chaque lundi, tes points de la semaine te placent dans une ligue contre 20 athlètes. <span class="strong">Top 3 → promotion</span>. Bottom 3 → relégation.</div>
+
+        <div class="leagues-big">
+          <div class="league-row-big lr rookie"><div class="ico">🌱</div><div class="lbl">Rookie</div></div>
+          <div class="league-row-big lr pro"><div class="ico">🎯</div><div class="lbl">Pro</div></div>
+          <div class="league-row-big lr elite"><div class="ico">🏆</div><div class="lbl">Elite</div></div>
+          <div class="league-row-big lr legend"><div class="ico">⚡</div><div class="lbl">Legend</div></div>
+          <div class="league-row-big lr mythic"><div class="ico">💎</div><div class="lbl">Mythic</div></div>
+        </div>
+        <button class="btn-primary" style="margin-top: 20px;">Suivant</button>
+      </div>
+      <div class="notes">
+        <span class="ok">●</span> Une seule section (5 ligues), respiration ×2<br>
+        <span class="ok">●</span> Titre actionnable "Monte les ligues" au lieu d'inventaire "Niveaux & ligues"<br>
+        <span class="ok">●</span> Description explicite la mécanique : "Top 3 → promotion / Bottom 3 → relégation"<br>
+        <span class="ok">●</span> Pills ligues plus grandes (font 18 + icône 22) pour le punch visuel
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ÉCRAN 4 ─── -->
+  <div class="pair-row">
+    <div class="before">
+      <h2>ÉCRAN 4<span class="tag">actuel</span></h2>
+      <div class="phone">
+        <div class="skip">Passer</div>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div></div>
+        <div class="title">PaceRank, c'est mieux <span class="red">à plusieurs</span>.</div>
+        <div class="desc">Invite tes potes runners, triathlètes ou trailers. Le vrai jeu commence quand vous <span class="strong">comparez vos perfs</span> ET que vous <span class="strong-red">pronostiquez</span> vos courses.</div>
+        <div class="peers">
+          <div class="peer t">JD</div>
+          <div class="peer r">MA</div>
+          <div class="peer l">SL</div>
+          <div class="peer b">AT</div>
+          <div class="me">P</div>
+        </div>
+        <button class="btn-primary">Inviter par lien</button>
+        <button class="btn-secondary">Plus tard</button>
+      </div>
+      <div class="notes">
+        <span class="ko">●</span> "Comparer" est passif/statistique, ne reflète pas l'ambiance compétitive entre potes
+      </div>
+    </div>
+
+    <div class="after">
+      <h2>ÉCRAN 4<span class="tag">proposé</span></h2>
+      <div class="phone">
+        <div class="skip">Passer</div>
+        <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div></div>
+        <div class="title">PaceRank, c'est mieux <span class="red">à plusieurs</span>.</div>
+        <div class="desc">Invite tes potes runners, triathlètes ou trailers. Le vrai jeu commence quand vous vous <span class="strong-red">challengez</span> et que vous <span class="strong-red">pronostiquez</span> vos courses.</div>
+        <div class="peers">
+          <div class="peer t">JD</div>
+          <div class="peer r">MA</div>
+          <div class="peer l">SL</div>
+          <div class="peer b">AT</div>
+          <div class="me">P</div>
+        </div>
+        <button class="btn-primary">Inviter par lien</button>
+        <button class="btn-secondary">Plus tard</button>
+      </div>
+      <div class="notes">
+        <span class="ok">●</span> "Challenger" mieux le ressenti compétitif/social<br>
+        <span class="ok">●</span> Visuel inchangé (les 4 potes autour de toi)
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

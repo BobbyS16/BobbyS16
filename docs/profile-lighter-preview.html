@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pacerank — Profil allégé</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#0a0a0a;color:#F0EDE8;font-family:'Barlow',sans-serif;padding:24px;min-height:100vh;}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;text-align:center;margin-bottom:8px;}
+  .sub{text-align:center;color:rgba(240,237,232,0.55);font-size:13px;margin-bottom:30px;}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;max-width:900px;margin:0 auto;}
+  .col-label{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1.5px;margin-bottom:12px;padding:6px 14px;border-radius:999px;display:inline-block;}
+  .col-label.avant{background:rgba(240,237,232,0.08);color:rgba(240,237,232,0.7);}
+  .col-label.apres{background:rgba(74,222,128,0.15);color:#4ADE80;}
+
+  /* iPhone frame */
+  .phone{background:#161616;border-radius:36px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,0.5);width:100%;max-width:380px;border:1px solid rgba(255,255,255,0.08);}
+  .screen{background:#0F0F0F;border-radius:24px;overflow:hidden;height:720px;position:relative;display:flex;flex-direction:column;}
+  .scroll{flex:1;overflow-y:auto;padding:0 16px 16px;}
+  .scroll::-webkit-scrollbar{width:0;}
+
+  /* Sticky header */
+  .header{position:sticky;top:0;background:#161616;display:flex;justify-content:space-between;align-items:center;padding:14px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.08);z-index:5;}
+  .h-title{font-family:'Bebas Neue';font-size:22px;letter-spacing:1.5px;color:#F0EDE8;}
+  .h-actions{display:flex;gap:6px;}
+  .h-btn{padding:6px 11px;border-radius:8px;background:rgba(255,255,255,0.07);color:rgba(240,237,232,0.6);font-size:11px;font-weight:600;border:none;}
+
+  /* Bulle */
+  .bulle{display:flex;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+  .avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#E63946,#FFD700);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Bebas Neue';font-size:18px;flex-shrink:0;}
+  .b-info{flex:1;min-width:0;}
+  .b-name{font-family:'Bebas Neue';font-size:20px;letter-spacing:0.8px;}
+  .b-meta{font-size:11px;color:rgba(240,237,232,0.4);margin-top:1px;}
+  .b-level{font-family:'Bebas Neue';font-size:15px;color:#FFD700;margin-top:3px;}
+  .b-pts{font-family:'Bebas Neue';font-size:30px;color:#FFD700;text-align:right;}
+  .b-pts-lbl{font-size:8px;color:rgba(240,237,232,0.5);letter-spacing:1.5px;text-transform:uppercase;text-align:right;}
+
+  /* Section "Records par discipline" (lourd) */
+  .records-section{margin-top:12px;}
+  .records-grid{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;}
+  .r-item-lbl{font-size:9px;color:rgba(240,237,232,0.35);}
+  .r-item-time{font-family:'Bebas Neue';font-size:14px;}
+  .r-item-pts{font-size:10px;color:#FFD700;font-weight:700;}
+  .section-h{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(240,237,232,0.35);margin:14px 0 6px;font-weight:700;}
+
+  /* Tabs counters */
+  .tabs{display:flex;gap:8px;margin-top:14px;}
+  .tabs.compact{margin-top:10px;}
+  .tab{flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);text-align:center;}
+  .tab.compact{padding:7px;border-radius:8px;}
+  .tab.active{background:rgba(230,57,70,0.12);border-color:rgba(230,57,70,0.4);}
+  .t-num{font-family:'Bebas Neue';font-size:22px;}
+  .tab.compact .t-num{font-size:16px;}
+  .tab.active .t-num{color:#E63946;}
+  .t-lbl{font-size:9px;color:rgba(240,237,232,0.35);letter-spacing:1px;text-transform:uppercase;margin-top:1px;font-weight:600;}
+  .tab.active .t-lbl{color:#E63946;}
+
+  /* Panel content placeholder */
+  .panel{margin-top:14px;padding:16px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.1);border-radius:12px;text-align:center;color:rgba(240,237,232,0.4);font-size:11px;}
+
+  /* Strava section (heavy) */
+  .conn-h{margin-top:18px;font-size:10px;letter-spacing:1.5px;color:rgba(240,237,232,0.35);text-transform:uppercase;font-weight:700;margin-bottom:8px;}
+  .conn-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;margin-bottom:8px;}
+  .conn-strava{background:#FC4C02;color:#fff;border-radius:4px;padding:12px;font-weight:700;text-align:center;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;}
+
+  /* Settings expandable (apres) */
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:8px;cursor:pointer;}
+  .settings-row .label{display:flex;gap:8px;align-items:center;font-size:13px;}
+  .settings-row .arrow{color:rgba(240,237,232,0.4);}
+
+  /* Footer (avant : 4 trucs séparés) */
+  .footer{margin-top:14px;}
+  .footer-btn{display:block;width:100%;padding:11px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#F0EDE8;font-size:12px;font-weight:700;text-align:center;margin-bottom:8px;}
+  .footer-btn.danger{color:rgba(230,57,70,0.6);background:transparent;}
+
+  .strikethrough{text-decoration:line-through;opacity:0.55;}
+  .badge-out{background:rgba(230,57,70,0.15);border:1px solid rgba(230,57,70,0.4);color:#E63946;padding:1px 6px;border-radius:5px;font-size:9px;margin-left:6px;text-transform:uppercase;font-weight:700;letter-spacing:0.5px;}
+  .badge-keep{background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.4);color:#4ADE80;padding:1px 6px;border-radius:5px;font-size:9px;margin-left:6px;text-transform:uppercase;font-weight:700;letter-spacing:0.5px;}
+
+  .legend{max-width:900px;margin:30px auto 0;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.25);border-radius:12px;padding:16px 20px;font-size:13px;line-height:1.7;color:rgba(240,237,232,0.8);}
+  .legend b{color:#4ADE80;}
+  .legend ul{margin:6px 0 0 18px;}
+  .legend li{margin-bottom:4px;}
+</style>
+</head>
+<body>
+
+<h1>Pacerank — Profil allégé</h1>
+<div class="sub">Réduire le nombre de sections, regrouper les actions secondaires</div>
+
+<div class="compare">
+  <!-- AVANT -->
+  <div>
+    <div class="col-label avant">AVANT</div>
+    <div class="phone"><div class="screen">
+      <div class="header">
+        <span class="h-title">Mon Profil</span>
+        <span class="h-actions">
+          <button class="h-btn">✏️ Éditer</button>
+          <button class="h-btn">👁️ Visible</button>
+        </span>
+      </div>
+      <div class="scroll">
+        <!-- Bulle -->
+        <div class="bulle">
+          <div class="avatar">PS</div>
+          <div class="b-info">
+            <div class="b-name">Philippe S.</div>
+            <div class="b-meta">Lyon · 35-39 · H · 🇫🇷</div>
+            <div class="b-level">EXPERT</div>
+          </div>
+          <div>
+            <div class="b-pts">1240</div>
+            <div class="b-pts-lbl">pts saison</div>
+          </div>
+        </div>
+
+        <!-- Records par discipline -->
+        <div class="records-section">
+          <div class="section-h">RECORDS PAR DISCIPLINE · 2026 <span class="badge-out">à enlever</span></div>
+          <div class="records-grid">
+            <div><div class="r-item-lbl">🏃 10 KM</div><div class="r-item-time">42:18</div><div class="r-item-pts">440 pts</div></div>
+            <div><div class="r-item-lbl">⛰️ TRAIL 21K</div><div class="r-item-time">1:47:23</div><div class="r-item-pts">580 pts</div></div>
+            <div><div class="r-item-lbl">🏃 5 KM</div><div class="r-item-time">20:42</div><div class="r-item-pts">220 pts</div></div>
+            <div><div class="r-item-lbl">🚴 TRI OLYMPIQUE</div><div class="r-item-time">2:35:50</div><div class="r-item-pts">650 pts</div></div>
+          </div>
+        </div>
+
+        <!-- Tabs counters -->
+        <div class="tabs">
+          <div class="tab"><div class="t-num">12</div><div class="t-lbl">Amis</div></div>
+          <div class="tab active"><div class="t-num">4</div><div class="t-lbl">Courses</div></div>
+          <div class="tab"><div class="t-num">8</div><div class="t-lbl">Badges</div></div>
+        </div>
+
+        <div class="panel">[Contenu panneau actif…]</div>
+
+        <!-- Strava heavy -->
+        <div class="conn-h">CONNEXIONS EXTERNES <span class="badge-out">à compacter</span></div>
+        <div class="conn-card">
+          <div class="conn-strava">⚡ Connect with Strava</div>
+          <div style="font-size:11px;color:rgba(240,237,232,0.6);margin-top:8px;text-align:center;">🔒 En attente de validation par Strava</div>
+        </div>
+
+        <!-- Footer 4 trucs -->
+        <div class="footer">
+          <a class="footer-btn" href="#">🔒 Confidentialité</a>
+          <button class="footer-btn">🚪 Se déconnecter</button>
+          <button class="footer-btn danger">Supprimer mon compte</button>
+          <div style="text-align:center;font-size:10px;color:rgba(240,237,232,0.4);padding:10px 0;">Powered by ⚡ Strava</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- APRÈS -->
+  <div>
+    <div class="col-label apres">APRÈS</div>
+    <div class="phone"><div class="screen">
+      <div class="header">
+        <span class="h-title">Mon Profil</span>
+        <span class="h-actions">
+          <button class="h-btn">✏️ Éditer</button>
+          <button class="h-btn">👁️ Visible</button>
+        </span>
+      </div>
+      <div class="scroll">
+        <!-- Bulle (inchangée) -->
+        <div class="bulle">
+          <div class="avatar">PS</div>
+          <div class="b-info">
+            <div class="b-name">Philippe S.</div>
+            <div class="b-meta">Lyon · 35-39 · H · 🇫🇷</div>
+            <div class="b-level">EXPERT</div>
+          </div>
+          <div>
+            <div class="b-pts">1240</div>
+            <div class="b-pts-lbl">pts saison</div>
+          </div>
+        </div>
+
+        <!-- Records section RETIRÉE (déjà dans Stats > Mes records) -->
+
+        <!-- Tabs counters compacts -->
+        <div class="tabs compact">
+          <div class="tab compact"><div class="t-num">12</div><div class="t-lbl">Amis</div></div>
+          <div class="tab compact active"><div class="t-num">4</div><div class="t-lbl">Courses</div></div>
+          <div class="tab compact"><div class="t-num">8</div><div class="t-lbl">Badges</div></div>
+        </div>
+
+        <div class="panel">[Contenu panneau actif…]</div>
+
+        <!-- Strava compact en ligne -->
+        <div class="settings-row" style="margin-top:20px;">
+          <span class="label">
+            <span style="color:#FC4C02;">⚡</span>
+            <span>Connecter Strava</span>
+            <span class="badge-keep">Compacté</span>
+          </span>
+          <span class="arrow">›</span>
+        </div>
+
+        <!-- Compte (group de Privacy + Logout + Delete) -->
+        <div class="settings-row">
+          <span class="label">⚙️ Réglages du compte</span>
+          <span class="arrow">›</span>
+        </div>
+
+        <div style="text-align:center;font-size:10px;color:rgba(240,237,232,0.3);padding:14px 0 0;">Powered by ⚡ Strava</div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="legend">
+  <b>Changements proposés :</b>
+  <ul>
+    <li>🗑️ <b>Supprimer "Records par discipline"</b> → déjà accessible dans <b>Stats → Mes records</b> (sous le hero, en section dépliable). Doublon qui prend ~150px en hauteur.</li>
+    <li>📐 <b>Compacter les 3 tabs (Amis/Courses/Badges)</b> → padding réduit, chiffres plus petits. Gagne ~20px.</li>
+    <li>⚡ <b>Compacter la section Strava</b> → une ligne cliquable "Connecter Strava" qui ouvre la modale détaillée (au lieu d'un gros bloc orange permanent). Gagne ~80px.</li>
+    <li>⚙️ <b>Regrouper Privacy / Logout / Delete</b> → une seule ligne "Réglages du compte" qui ouvre une modale ou une section dépliable. Gagne ~150px.</li>
+    <li>📍 <b>Footer "Powered by Strava"</b> → conservé, texte plus discret.</li>
+  </ul>
+  <br>
+  <b>Au total :</b> ~400-450px de hauteur en moins → l'user voit toute la bulle + panneau actif sans scroller sur la plupart des tels.
+</div>
+
+<div style="text-align:center;color:rgba(240,237,232,0.4);font-size:12px;margin-top:24px;">
+  Mockup généré le 20/05/2026 · pacerank/docs/profile-lighter-preview.html
+</div>
+
+</body>
+</html>
